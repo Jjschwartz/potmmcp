@@ -1,4 +1,4 @@
-"""BA-POMGMCP package install info """
+"""BA-POMGMCP package install info."""
 import sys
 from setuptools import setup, find_packages
 

@@ -3,15 +3,14 @@ from typing import Optional, Dict
 
 import posggym.model as M
 
-import posgmcp.history as H
-
+import baposgmcp.hps as H
 from baposgmcp import parts
 import baposgmcp.tree.policy as tree_lib
 
 
 def get_baposgmcp_args_parser(parser: Optional[ArgumentParser] = None
                               ) -> ArgumentParser:
-    """Get argument parser for POSGMCP """
+    """Get argument parser for POSGMCP."""
     if parser is None:
         parser = ArgumentParser()
 
@@ -57,7 +56,7 @@ def get_belief_by_history(tree: tree_lib.BAPOSGMCP,
 def get_other_pis_belief(tree: tree_lib.BAPOSGMCP,
                          history: Optional[H.AgentHistory] = None
                          ) -> Dict[M.AgentID, Dict[parts.PolicyID, float]]:
-    """Get agent's belief over other agent policies given history
+    """Get agent's belief over other agent policies given history.
 
     This returns a distribution over policies for each opponent/other agent
     in the environment.

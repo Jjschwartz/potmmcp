@@ -1,8 +1,7 @@
 
 
-# pylint: disable=[unused-argument]
 def default_asymmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):
-    """Default Policy mapping function for asymmetric environments
+    """Get the default policy mapping function for asymmetric environments.
 
     Assumes the policy ID naming convention used by baposgmcp.pbt.
     """
@@ -12,9 +11,8 @@ def default_asymmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):
     raise AssertionError
 
 
-# pylint: disable=[unused-argument]
 def default_symmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):
-    """Default Policy mapping function for asymmetric environments
+    """Get the default policy mapping function for asymmetric environments.
 
     Assumes the policy ID naming convention used by baposgmcp.pbt.
     Also assumes agent id is an integer or a str representation of an integer.

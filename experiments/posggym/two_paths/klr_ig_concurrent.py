@@ -1,14 +1,4 @@
-"""A script for running Cyclic PBT training in Rock, Paper, Scissors.
-
-This implementation uses RLlib, and is based on the following examples:
-- https://github.com/ray-project/ray/blob/master/rllib/examples/
-  rock_paper_scissors_multiagent.py
-- https://github.com/ray-project/ray/blob/master/rllib/examples/
-  multi_agent_two_trainers.py
-
-Note for each training iteration only a single level is trained at a time.
-
-"""
+"""A script for running KLR PBT in the Two Paths env."""
 import os
 import argparse
 import tempfile

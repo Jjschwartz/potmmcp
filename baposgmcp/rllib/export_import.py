@@ -51,7 +51,7 @@ def get_trainer_export_fn(trainer_map: Dict[AgentID, Dict[PolicyID, Trainer]],
                           trainers_remote: bool,
                           config_to_remove: Sequence[Union[str, Sequence[str]]]
                           ) -> pbt.PolicyExportFn:
-    """Get function for exporting trained policies to local directory """
+    """Get function for exporting trained policies to local directory."""
 
     def export_fn(agent_id: AgentID,
                   policy_id: PolicyID,
@@ -100,7 +100,6 @@ def get_trainer_import_fn(trainer_make_fn: Callable[[Dict], Trainer],
     3. Adds trainer to the trainer map
     4. Returns the weights of the policy with given ID
     """
-
     trainer_map: Dict[AgentID, Dict[PolicyID, Trainer]] = {}
 
     def import_fn(agent_id: AgentID,
@@ -167,7 +166,7 @@ def import_igraph_trainers(igraph_dir: str,
                                pbt.InteractionGraph,
                                Dict[AgentID, Dict[PolicyID, Trainer]]
                            ]:
-    """Import Rllib trainers from InteractionGraph directory """
+    """Import Rllib trainers from InteractionGraph directory."""
     igraph = pbt.InteractionGraph(env_is_symmetric)
 
     if extra_config is None:
@@ -201,7 +200,7 @@ def import_igraph_policies(igraph_dir: str,
                                    ]
                                ]
                            ]:
-    """Import rllib.Policy from InteractionGraph directory """
+    """Import rllib.Policy from InteractionGraph directory."""
     igraph, trainer_map = import_igraph_trainers(
         igraph_dir,
         env_is_symmetric,

@@ -4,17 +4,16 @@ from ray import rllib
 
 import posggym.model as M
 
-import posgmcp.history as H
-import posgmcp.policy as policy_lib
-
+import baposgmcp.hps as H
 from baposgmcp import parts
+import baposgmcp.policy as policy_lib
 
 
 HiddenState = List[Any]
 
 
 class RllibPolicy(policy_lib.BasePolicy):
-    """A Rllib Policy
+    """A Rllib Policy.
 
     This class essentially acts as an interface between BA-POSGMCP and an
     Rlib Policy class (ray.rllib.policy.policy.Policy)

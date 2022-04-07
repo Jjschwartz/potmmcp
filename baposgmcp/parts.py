@@ -1,4 +1,3 @@
-"""General functions and classes for BA-POSGMCP """
 from typing import Dict, Union, Tuple, Any
 
 import posggym.model as M

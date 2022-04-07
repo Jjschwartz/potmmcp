@@ -1,4 +1,4 @@
-"""Base policy class and utility functions """
+"""Base policy class and utility functions."""
 import abc
 import logging
 from typing import Optional, Dict, Mapping, Any, Tuple
@@ -6,12 +6,12 @@ from typing import Optional, Dict, Mapping, Any, Tuple
 import gym
 import posggym.model as M
 
-from posgmcp import parts
-import posgmcp.history as H
+from baposgmcp import parts
+import baposgmcp.hps as H
 
 
 class BasePolicy(abc.ABC):
-    """Abstract policy interface """
+    """Abstract policy interface."""
 
     def __init__(self,
                  model: M.POSGModel,
@@ -30,7 +30,7 @@ class BasePolicy(abc.ABC):
         self._statistics: Dict[str, Any] = {}
 
     def step(self, obs: M.Observation) -> M.Action:
-        """Execute a single policy step
+        """Execute a single policy step.
 
         This involves:
         1. a updating policy with last action and given observation
@@ -42,10 +42,10 @@ class BasePolicy(abc.ABC):
 
     @abc.abstractmethod
     def get_action(self) -> M.Action:
-        """Get action for given obs """
+        """Get action for given obs."""
 
     def get_action_by_history(self, history: H.AgentHistory) -> M.Action:
-        """Get action given history, leaving state of policy unchanged """
+        """Get action given history, leaving state of policy unchanged."""
         current_history = self.history
         self.reset_history(history)
         action = self.get_action()
@@ -62,16 +62,16 @@ class BasePolicy(abc.ABC):
         """
 
     def update(self, action: M.Action, obs: M.Observation) -> None:
-        """Update policy history """
+        """Update policy history."""
         self.history = self.history.extend(action, obs)
 
     def reset(self) -> None:
-        """Reset the policy """
+        """Reset the policy."""
         self.history = H.AgentHistory.get_init_history()
         self._last_action = None
 
     def reset_history(self, history: H.AgentHistory) -> None:
-        """Reset policy history to given history """
+        """Reset policy history to given history."""
         self.history = history
 
     #######################################################
@@ -80,27 +80,27 @@ class BasePolicy(abc.ABC):
 
     @property
     def statistics(self) -> Mapping[str, Any]:
-        """Returns current agent statistics as a dictionary."""
+        """Return current agent statistics as a dictionary."""
         return self._statistics
 
     def _log_info1(self, msg: str):
-        """Log an info message """
+        """Log an info message."""
         self._logger.log(logging.INFO - 1, self._format_msg(msg))
 
     def _log_info2(self, msg: str):
-        """Log an info message """
+        """Log an info message."""
         self._logger.log(logging.INFO - 2, self._format_msg(msg))
 
     def _log_debug(self, msg: str):
-        """Log a debug message """
+        """Log a debug message."""
         self._logger.debug(self._format_msg(msg))
 
     def _log_debug1(self, msg: str):
-        """Log a debug2 message """
+        """Log a debug2 message."""
         self._logger.log(logging.DEBUG - 1, self._format_msg(msg))
 
     def _log_debug2(self, msg: str):
-        """Log a debug2 message """
+        """Log a debug2 message."""
         self._logger.log(logging.DEBUG - 2, self._format_msg(msg))
 
     def _format_msg(self, msg: str):
@@ -111,7 +111,7 @@ class BasePolicy(abc.ABC):
 
 
 class BaseRolloutPolicy(BasePolicy, abc.ABC):
-    """Abstract rollout policy interface
+    """Abstract rollout policy interface.
 
     A rollout policy adds some additional methods to the base policy class such
     as getting the initial values, etc..
@@ -121,15 +121,15 @@ class BaseRolloutPolicy(BasePolicy, abc.ABC):
     def get_initial_action_values(self,
                                   history: H.AgentHistory
                                   ) -> Dict[M.Action, Tuple[float, int]]:
-        """Get initial values and visit count for each action for a history """
+        """Get initial values and visit count for each action for a history."""
 
     @abc.abstractmethod
     def get_value(self, history: Optional[H.AgentHistory]) -> float:
-        """Get a value estimate of a history """
+        """Get a value estimate of a history."""
 
 
 class RandomPolicy(BasePolicy):
-    """Uniform random policy """
+    """Uniform random policy."""
 
     def __init__(self,
                  model: M.POSGModel,
@@ -152,7 +152,7 @@ class RandomPolicy(BasePolicy):
 
 
 class RandomRolloutPolicy(BaseRolloutPolicy):
-    """Uniform random rollout policy """
+    """Uniform random rollout policy."""
 
     def __init__(self,
                  model: M.POSGModel,
