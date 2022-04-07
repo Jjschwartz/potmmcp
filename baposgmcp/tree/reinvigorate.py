@@ -1,4 +1,4 @@
-"""Functions and classes for belief reinvigoration."""
+"""Functions and classes for belief reinvigoration in BAPOSGMCP."""
 import abc
 from typing import Callable, List
 
@@ -8,11 +8,8 @@ import baposgmcp.hps as H
 import baposgmcp.tree.belief as B
 
 
-# TODO Update this to use Historypolicystate rather than HistoryState
-
-
 class BeliefReinvigorator(abc.ABC):
-    """Abstract class for implementing a belief reinvigorator.."""
+    """Abstract class for implementing a belief reinvigorator."""
 
     @abc.abstractmethod
     def reinvigorate(self,
@@ -49,7 +46,7 @@ class BeliefReinvigorator(abc.ABC):
         """
 
 
-class BeliefRejectionSampler(BeliefReinvigorator):
+class BABeliefRejectionSampler(BeliefReinvigorator):
     """Reinvigorates a belief using rejection sampling.
 
     Reinvigorate function takes additional optional and requires kwargs:
@@ -104,20 +101,22 @@ class BeliefRejectionSampler(BeliefReinvigorator):
             sample_count < num_samples
             and retry_count < max(num_samples, self._sample_limit)
         ):
-            h_state = parent_belief.sample()
-            joint_action = joint_action_fn(h_state, action)
-            joint_step = self._model.step(h_state.state, joint_action)
-
+            hp_state = parent_belief.sample()
+            joint_action = joint_action_fn(hp_state, action)
+            joint_step = self._model.step(hp_state.state, joint_action)
             joint_obs = joint_step.observations
-            new_history = h_state.history.extend(joint_action, joint_obs)
-            next_h_state = H.HistoryState(joint_step.state, new_history)
+
+            new_history = hp_state.history.extend(joint_action, joint_obs)
+            next_hp_state = H.HistoryPolicyState(
+                joint_step.state, new_history, hp_state.other_policies
+            )
 
             if joint_obs[agent_id] == obs:
-                samples.append(next_h_state)
+                samples.append(next_hp_state)
                 sample_count += 1
             else:
                 if use_rejected_samples:
-                    rejected_samples.append(next_h_state)
+                    rejected_samples.append(next_hp_state)
                 retry_count += 1
 
         if sample_count < num_samples and use_rejected_samples:
@@ -127,7 +126,7 @@ class BeliefRejectionSampler(BeliefReinvigorator):
         return samples
 
 
-class BeliefRandomSampler(BeliefReinvigorator):
+class BABeliefRandomSampler(BeliefReinvigorator):
     """Reinvigorates a belief using random sampling.
 
     This is essentially rejection sampling without checking for observation
@@ -167,18 +166,20 @@ class BeliefRandomSampler(BeliefReinvigorator):
                        ) -> List[H.HistoryState]:
         samples = []
         for _ in range(num_samples):
-            h_state = parent_belief.sample()
-            joint_action = joint_action_fn(h_state, action)
-            joint_step = self._model.step(h_state.state, joint_action)
+            hp_state = parent_belief.sample()
+            joint_action = joint_action_fn(hp_state, action)
+            joint_step = self._model.step(hp_state.state, joint_action)
+            joint_obs = joint_step.observations
 
             # replace sampled agent obs with real obs
-            joint_obs = joint_step.observations
             tmp = list(joint_obs)
             tmp[agent_id] = obs
             joint_obs = tuple(tmp)
 
-            new_history = h_state.history.extend(joint_action, joint_obs)
-            next_h_state = H.HistoryState(joint_step.state, new_history)
-            samples.append(next_h_state)
+            new_history = hp_state.history.extend(joint_action, joint_obs)
+            next_hp_state = H.HistoryPolicyState(
+                joint_step.state, new_history, hp_state.other_policies
+            )
+            samples.append(next_hp_state)
 
         return samples
