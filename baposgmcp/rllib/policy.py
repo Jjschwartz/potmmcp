@@ -8,6 +8,8 @@ import baposgmcp.hps as H
 from baposgmcp import parts
 import baposgmcp.policy as policy_lib
 
+from baposgmcp.rllib import utils
+
 
 HiddenState = List[Any]
 
@@ -24,10 +26,14 @@ class RllibPolicy(policy_lib.BasePolicy):
                  ego_agent: int,
                  gamma: float,
                  policy: rllib.policy.policy.Policy,
+                 preprocessor: Optional[utils.ObsPreprocessor] = None,
                  **kwargs):
         super().__init__(model, ego_agent, gamma, **kwargs)
 
         self._policy = policy
+        if preprocessor is None:
+            preprocessor = utils.identity_preprocessor
+        self._preprocessor = preprocessor
 
         self._last_action: Optional[M.Action] = None
         self._last_obs: Optional[M.Observation] = None
@@ -84,6 +90,7 @@ class RllibPolicy(policy_lib.BasePolicy):
                         last_action: M.Action,
                         explore: bool = False
                         ) -> Tuple[M.Action, HiddenState, Dict[str, Any]]:
+        obs = self._preprocessor(obs)
         output = self._policy.compute_single_action(
             obs, h_tm1, prev_action=last_action, explore=explore
         )

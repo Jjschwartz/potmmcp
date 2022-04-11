@@ -12,6 +12,9 @@ from baposgmcp.parts import AgentID, PolicyID, Policy
 
 TRAINER_CONFIG_FILE = "trainer_config.pkl"
 
+RllibTrainerMap = Dict[AgentID, Dict[PolicyID, Trainer]]
+RllibPolicyMap = Dict[AgentID, Dict[PolicyID, rllib.policy.policy.Policy]]
+
 
 def _import_trainer_config(import_dir: str) -> Dict:
     config_path = os.path.join(import_dir, TRAINER_CONFIG_FILE)
@@ -47,7 +50,7 @@ def _nested_remove(old: Dict, to_remove: Sequence[Union[Any, Sequence[Any]]]):
         del sub_old[keys[-1]]
 
 
-def get_trainer_export_fn(trainer_map: Dict[AgentID, Dict[PolicyID, Trainer]],
+def get_trainer_export_fn(trainer_map: RllibTrainerMap,
                           trainers_remote: bool,
                           config_to_remove: Sequence[Union[str, Sequence[str]]]
                           ) -> pbt.PolicyExportFn:
@@ -85,10 +88,7 @@ def get_trainer_export_fn(trainer_map: Dict[AgentID, Dict[PolicyID, Trainer]],
 def get_trainer_import_fn(trainer_make_fn: Callable[[Dict], Trainer],
                           trainers_remote: bool,
                           extra_config: Dict,
-                          ) -> Tuple[
-                              pbt.PolicyImportFn,
-                              Dict[AgentID, Dict[PolicyID, Trainer]]
-                          ]:
+                          ) -> Tuple[pbt.PolicyImportFn, RllibTrainerMap]:
     """Get function for importing trained policies from local directory.
 
     The function also returns a reference to a trainer map object which is
@@ -162,10 +162,7 @@ def import_igraph_trainers(igraph_dir: str,
                            trainers_remote: bool,
                            policy_mapping_fn: Callable,
                            extra_config: Optional[Dict] = None,
-                           ) -> Tuple[
-                               pbt.InteractionGraph,
-                               Dict[AgentID, Dict[PolicyID, Trainer]]
-                           ]:
+                           ) -> Tuple[pbt.InteractionGraph, RllibTrainerMap]:
     """Import Rllib trainers from InteractionGraph directory."""
     igraph = pbt.InteractionGraph(env_is_symmetric)
 
@@ -186,21 +183,28 @@ def import_igraph_trainers(igraph_dir: str,
     return igraph, trainer_map
 
 
+def get_policy_from_trainer_map(trainer_map: RllibTrainerMap
+                                ) -> RllibPolicyMap:
+    """Get map of rllib.Policy from map of rllib.Trainer."""
+    policy_map = {}
+    for i, agent_trainer_map in trainer_map.items():
+        policy_map[i] = {}
+        for policy_id, trainer in agent_trainer_map.items():
+            policy_map[i][policy_id] = trainer.get_policy(policy_id)
+    return policy_map
+
+
 def import_igraph_policies(igraph_dir: str,
                            env_is_symmetric: bool,
                            trainer_make_fn: Callable[[Dict], Trainer],
                            trainers_remote: bool,
                            policy_mapping_fn: Callable,
                            extra_config: Optional[Dict] = None,
-                           ) -> Tuple[
-                               pbt.InteractionGraph,
-                               Dict[
-                                   AgentID, Dict[
-                                       PolicyID, rllib.policy.policy.Policy
-                                   ]
-                               ]
-                           ]:
-    """Import rllib.Policy from InteractionGraph directory."""
+                           ) -> Tuple[pbt.InteractionGraph, RllibPolicyMap]:
+    """Import rllib.Policy from InteractionGraph directory.
+
+    Assumes trainers are not Remote.
+    """
     igraph, trainer_map = import_igraph_trainers(
         igraph_dir,
         env_is_symmetric,
@@ -209,11 +213,5 @@ def import_igraph_policies(igraph_dir: str,
         policy_mapping_fn,
         extra_config
     )
-
-    policy_map: Dict[AgentID, Dict[PolicyID, rllib.policy.policy.Policy]] = {}
-    for i, agent_trainer_map in trainer_map.items():
-        policy_map[i] = {}
-        for policy_id, trainer in agent_trainer_map.items():
-            policy_map[i][policy_id] = trainer.get_policy(policy_id)
-
+    policy_map = get_policy_from_trainer_map(trainer_map)
     return igraph, policy_map

@@ -1,3 +1,26 @@
+from typing import Callable, Any
+
+from gym import spaces
+
+import posggym.model as M
+
+
+ObsPreprocessor = Callable[[M.Observation], Any]
+
+
+def identity_preprocessor(obs: M.Observation) -> Any:
+    """Return the observation unchanged."""
+    return obs
+
+
+def get_flatten_preprocesor(obs_space: spaces.Space) -> ObsPreprocessor:
+    """Get the preprocessor function for flattening observations."""
+
+    def flatten_preprocessor(obs: M.Observation) -> Any:
+        """Flatten the observation."""
+        return spaces.flatten(obs_space, obs)
+
+    return flatten_preprocessor
 
 
 def default_asymmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):
