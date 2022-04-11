@@ -8,15 +8,16 @@ from baposgmcp.pbt.interaction_graph import InteractionGraph
 def get_klr_policy_id(agent_id: Optional[parts.AgentID],
                       k: int,
                       is_symmetric: bool) -> str:
-    """Get the policy ID string for a K-level reasoning policy. """
+    """Get the policy ID string for a K-level reasoning policy."""
     if is_symmetric:
         return f"pi_{k}"
     return f"pi_{k}_{agent_id}"
 
 
 def parse_klr_policy_id(policy_id: str) -> Tuple[Optional[parts.AgentID], int]:
-    """Parse K-Level Reasoning policy ID string to get reasoning level and
-    optional agent ID (for non-symmetric environments)
+    """Parse KLR policy ID string to get reasoning level.
+
+    Also get optional agent ID (for non-symmetric environments)
     """
     tokens = policy_id.split("_")
     if len(tokens) == 2:
@@ -31,7 +32,7 @@ def parse_klr_policy_id(policy_id: str) -> Tuple[Optional[parts.AgentID], int]:
 def construct_klr_interaction_graph(agent_ids: List[parts.AgentID],
                                     k_levels: int,
                                     is_symmetric: bool) -> InteractionGraph:
-    """Constructs a K-Level Reasoning Interaction Graph
+    """Construct a K-Level Reasoning Interaction Graph.
 
     Note that this function constructs the graph and edges between policy IDs,
     but the actual policies still need to be added.

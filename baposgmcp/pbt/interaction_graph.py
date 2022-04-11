@@ -1,6 +1,8 @@
 import os
 import json
 import random
+import itertools
+from pprint import pprint
 from typing import Dict, Tuple, Callable
 
 from baposgmcp.parts import PolicyID, Policy, AgentID
@@ -18,7 +20,7 @@ IGRAPH_FILE_NAME = "igraph.json"
 
 
 class InteractionGraph:
-    """Interaction Graph for Population Based Training
+    """Interaction Graph for Population Based Training.
 
     If symmetric policies with a given ID are shared between agents, e.g. the
     policy with 'pi_0' will be the same policy for every agent in the
@@ -43,20 +45,20 @@ class InteractionGraph:
 
     @property
     def policies(self) -> Dict[AgentID, Dict[PolicyID, Policy]]:
-        """The policies for each agent in the graph """
+        """Get the set of policies for each agent in the graph."""
         return self._policies
 
     @property
     def graph(self) -> Dict[
             AgentID, Dict[PolicyID, Dict[AgentID, Dict[PolicyID, float]]]]:
-        """The graph """
+        """Get the graph."""
         return self._graph
 
     def add_policy(self,
                    agent_id: AgentID,
                    policy_id: PolicyID,
                    policy: Policy) -> None:
-        """Add a policy to the interaction graph
+        """Add a policy to the interaction graph.
 
         Note, for symmetric environments agent id is treated as None.
         """
@@ -77,7 +79,7 @@ class InteractionGraph:
                  dest_agent_id: AgentID,
                  dest_policy_id: PolicyID,
                  weight: float) -> None:
-        """Add a directed edge between policies on the graph
+        """Add a directed edge between policies on the graph.
 
         Updates edge weight if an edge already exists between src and dest
         policies.
@@ -108,11 +110,53 @@ class InteractionGraph:
         dest_dist = self._graph[src_agent_id][src_policy_id][dest_agent_id]
         dest_dist[dest_policy_id] = weight
 
+    def has_edge(self,
+                 src_agent_id: AgentID,
+                 src_policy_id: PolicyID,
+                 dest_agent_id: AgentID,
+                 dest_policy_id: PolicyID) -> bool:
+        """Check if an edge exists."""
+        try:
+            src_policy_map = self._graph[src_agent_id][src_policy_id]
+            src_policy_map[dest_agent_id][dest_policy_id]
+        except KeyError:
+            return False
+        return True
+
+    def fully_connect_graph(self):
+        """Add an edge between all pairs of different agent policies.
+
+        This is a simple helper function for graph construction. Does not add
+        a new edge if an edge already exists.
+        """
+        if self._symmetric:
+            agent_pairings = [(self.SYMMETRIC_ID, self.SYMMETRIC_ID)]
+        else:
+            agent_pairings = itertools.permutations(self._policies, r=2)
+
+        for src_agent_id, dest_agent_id in agent_pairings:
+            for src_policy_id in self._policies[src_agent_id]:
+                for dest_policy_id in self._policies[dest_agent_id]:
+                    if self.has_edge(
+                            src_agent_id,
+                            src_policy_id,
+                            dest_agent_id,
+                            dest_policy_id
+                    ):
+                        continue
+                    self.add_edge(
+                        src_agent_id,
+                        src_policy_id,
+                        dest_agent_id,
+                        dest_policy_id,
+                        1
+                    )
+
     def update_policy(self,
                       agent_id: AgentID,
                       policy_id: PolicyID,
                       new_policy: Policy) -> None:
-        """Updates stored policy """
+        """Update stored policy."""
         if self._symmetric:
             agent_id = self.SYMMETRIC_ID
 
@@ -130,7 +174,7 @@ class InteractionGraph:
                       agent_id: AgentID,
                       policy_id: PolicyID,
                       other_agent_id: AgentID) -> Tuple[PolicyID, Policy]:
-        """Sample an other agent policy from the graph for given policy_id """
+        """Sample an other agent policy from the graph for given policy_id."""
         if self._symmetric:
             agent_id = self.SYMMETRIC_ID
             other_agent_id = self.SYMMETRIC_ID
@@ -166,8 +210,10 @@ class InteractionGraph:
                         agent_id: AgentID,
                         policy_id: PolicyID
                         ) -> Dict[AgentID, Tuple[PolicyID, Policy]]:
-        """Sample a policy for each other agent from the graph, connected
-        to the given (agent_id, policy_id).
+        """Sample a policy for each other agent from the graph.
+
+        Policies are sampled from policies connected to the given
+        (agent_id, policy_id).
         """
         other_policies: Dict[AgentID, Tuple[PolicyID, Policy]] = {}
         for other_agent_id in self._graph[agent_id][policy_id]:
@@ -177,7 +223,7 @@ class InteractionGraph:
         return other_policies
 
     def export_graph(self, export_dir: str, policy_export_fn: PolicyExportFn):
-        """Export Interaction Graph to a local directory. """
+        """Export Interaction Graph to a local directory."""
         igraph_file = os.path.join(export_dir, IGRAPH_FILE_NAME)
         with open(igraph_file, "w", encoding="utf-8") as fout:
             json.dump(self._graph, fout)
@@ -216,3 +262,9 @@ class InteractionGraph:
                 )
 
         self._policies = policies
+
+    def display(self):
+        """Display the graph in human readable format."""
+        print("Interaction Graph:")
+        print(f"Symmetric={self._symmetric}")
+        pprint(self._graph)
