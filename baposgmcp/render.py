@@ -1,5 +1,5 @@
 import abc
-from typing import Sequence, Dict, Any
+from typing import Sequence, Dict, Any, Iterable
 
 import matplotlib
 from matplotlib import cm
@@ -53,6 +53,41 @@ class Renderer(abc.ABC):
         """Render a single environment step."""
 
 
+class EpisodeRenderer(Renderer):
+    """Episode Renderer.
+
+    Calls the posggym.Env.render() function with given mode.
+    """
+
+    def __init__(self,
+                 mode: str = 'human',
+                 pause_each_step: bool = False,
+                 render_frequency: int = 1):
+        self._mode = mode
+        self._pause_each_step = pause_each_step
+        self._render_frequency = render_frequency
+
+        self._episode_count = 0
+
+    def render_step(self,
+                    episode_t: int,
+                    env: posggym.Env,
+                    timestep: M.JointTimestep,
+                    action: M.JointAction,
+                    policies: Sequence[policy_lib.BasePolicy],
+                    episode_end: bool) -> None:
+        if self._episode_count % self._render_frequency != 0:
+            self._episode_count += int(episode_end)
+            return
+
+        self._episode_count += int(episode_end)
+
+        env.render(self._mode)
+
+        if self._pause_each_step:
+            input("Press ENTER to continue.")
+
+
 class PolicyBeliefRenderer(Renderer):
     """Renders a BayesPOSGMCP policy's root belief over other agent pis."""
 
@@ -94,3 +129,22 @@ class PolicyBeliefRenderer(Renderer):
             f"Ego history={baposgmcp.history}"
         )
         fig.tight_layout()
+
+
+def generate_renders(renderers: Iterable[Renderer],
+                     episode_t: int,
+                     env: posggym.Env,
+                     timestep: M.JointTimestep,
+                     action: M.JointAction,
+                     policies: Sequence[policy_lib.BasePolicy],
+                     episode_end: bool) -> None:
+    """Handle the generation of environment step renderings."""
+    num_renderers = 0
+    for renderer in renderers:
+        renderer.render_step(
+            episode_t, env, timestep, action, policies, episode_end
+        )
+        num_renderers += 1
+
+    if num_renderers > 0:
+        plt.show()
