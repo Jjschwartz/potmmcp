@@ -1,5 +1,6 @@
 """A script for running KLR PBT in the Two Paths env."""
 import os
+import logging
 import argparse
 import tempfile
 from itertools import product
@@ -18,7 +19,11 @@ from posggym.wrappers import FlattenObservation
 from posggym.wrappers.rllib_multi_agent_env import RllibMultiAgentEnv
 
 from baposgmcp import pbt
+from baposgmcp import runner
 import baposgmcp.rllib as ba_rllib
+import baposgmcp.stats as stats_lib
+import baposgmcp.render as render_lib
+import baposgmcp.policy as ba_policy_lib
 
 # pylint: disable=[unused-argument]
 
@@ -63,10 +68,6 @@ if __name__ == "__main__":
     assert args.env_name.startswith("TwoPaths")
     posggym.make(args.env_name)
 
-    ray.init()
-
-    register_env(args.env_name, _env_creator)
-
     env_config = {"env_name": args.env_name}
     sample_env = _env_creator(env_config)
     # obs and action spaces are the same for both agent in TwoPaths env
@@ -87,6 +88,11 @@ if __name__ == "__main__":
     igraph = pbt.construct_klr_interaction_graph(
         agent_ids, args.k, is_symmetric=False
     )
+    igraph.display()
+    input("Press Any Key to Continue")
+
+    ray.init()
+    register_env(args.env_name, _env_creator)
 
     num_gpus = int(os.environ.get("RLLIB_NUM_GPUS", "0"))
 
@@ -205,18 +211,16 @@ if __name__ == "__main__":
     def _trainer_make_fn(config):
         return PPOTrainer(env=args.env_name, config=config)
 
-    new_igraph = pbt.InteractionGraph(False)
-
-    trainer_import_fn, new_trainer_map = ba_rllib.get_trainer_import_fn(
-        _trainer_make_fn,
-        False,
-        extra_config={
-            "multiagent": {
-                "policy_mapping_fn": _policy_mapping_fn,
-            },
-        }
+    new_igraph, new_trainer_map = ba_rllib.import_igraph_trainers(
+        igraph_dir=export_dir,
+        env_is_symmetric=False,
+        trainer_make_fn=_trainer_make_fn,
+        trainers_remote=False,
+        policy_mapping_fn=_policy_mapping_fn
     )
-    new_igraph.import_graph(export_dir, trainer_import_fn)
+
+    new_igraph.display()
+    input("Press Any Key to Continue")
 
     # Test loaded trainers
     print("== Running Evaluation ==")
@@ -232,3 +236,47 @@ if __name__ == "__main__":
             print(f"-- Agent ID {i}, Level {k} --")
             policy_k_id = pbt.get_klr_policy_id(i, k, False)
             print(pretty_print(policy_map[policy_k_id]))
+
+    print("\n== Importing Policies ==")
+    policy_map = ba_rllib.get_policy_from_trainer_map(new_trainer_map)
+
+    rllibpolicy_map = {}
+    env_model = sample_env.unwrapped.model
+    for agent_id, agent_policy_map in policy_map.items():
+        rllibpolicy_map[agent_id] = {}
+        for policy_id, policy in agent_policy_map.items():
+            if "-1" in policy_id:
+                new_policy = ba_policy_lib.RandomPolicy(
+                    env_model, agent_id, 0.9
+                )
+            else:
+                obs_space = env_model.obs_spaces[int(agent_id)]
+                new_policy = ba_rllib.RllibPolicy(
+                    env_model,
+                    agent_id,
+                    0.9,
+                    policy,
+                    preprocessor=ba_rllib.get_flatten_preprocesor(obs_space)
+                )
+            rllibpolicy_map[agent_id][policy_id] = new_policy
+
+    print("\n== Running Experiments ==")
+    # Run the different ba_rllib.RllibPolicy policies against each other
+    logging.basicConfig(level="INFO", format='%(message)s')
+    agent_0_policies = list(rllibpolicy_map["0"].values())
+    agent_1_policies = list(rllibpolicy_map["1"].values())
+    for policies in product(agent_0_policies, agent_1_policies):
+        trackers = stats_lib.get_default_trackers(policies)
+        renderers = [
+            render_lib.EpisodeRenderer(pause_each_step=False)
+        ]
+        runner.run_sims(
+            sample_env.unwrapped,
+            policies,
+            trackers,
+            renderers,
+            run_config=runner.RunConfig(
+                seed=0,
+                num_episodes=10
+            )
+        )
