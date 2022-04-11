@@ -231,6 +231,8 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         for _ in range(self.num_sims):
             hp_state: H.HistoryPolicyState = root_b.sample()
             self._rollout_policy.reset_history(self.history)
+            self._reset_policies(hp_state.history, hp_state.other_policies)
+
             self.simulate(hp_state, root, 0)
             root.n += 1
 

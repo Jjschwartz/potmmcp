@@ -136,9 +136,10 @@ class EpisodeTracker(Tracker):
             )
             self._steps.append(self._current_episode_steps)
 
-            outcome = aux.get(
-                "outcome", tuple(M.Outcome.NA for _ in range(env.n_agents))
-            )
+            if aux.get("outcome", None) is None:
+                outcome = tuple(M.Outcome.NA for _ in range(env.n_agents))
+            else:
+                outcome = aux["outcome"]
             self._outcomes.append(outcome)
 
     def reset(self) -> None:

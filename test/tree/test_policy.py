@@ -7,7 +7,6 @@ import baposgmcp.tree as tree_lib
 import baposgmcp.stats as stats_lib
 import baposgmcp.policy as policy_lib
 import baposgmcp.render as render_lib
-import baposgmcp.tree.reinvigorate as reinvig_lib
 
 RENDER = False
 
@@ -33,7 +32,7 @@ def test_with_single_random_policy():
         num_sims=100,
         rollout_policy=policy_lib.RandomRolloutPolicy(env.model, 0, 0.9),
         uct_c=75,
-        reinvigorator=reinvig_lib.BABeliefRejectionSampler(env.model),
+        reinvigorator=tree_lib.BABeliefRejectionSampler(env.model),
     )
     policies = [agent_0_policy, agent_1_policy]
 
@@ -86,7 +85,7 @@ def test_with_multiple_random_policies():
         num_sims=100,
         rollout_policy=policy_lib.RandomRolloutPolicy(env.model, 0, 0.9),
         uct_c=75,
-        reinvigorator=reinvig_lib.BABeliefRejectionSampler(env.model),
+        reinvigorator=tree_lib.BABeliefRejectionSampler(env.model),
     )
     policies = [agent_0_policy, agent_1_policy]
 
