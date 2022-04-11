@@ -1,5 +1,6 @@
 """Base policy class and utility functions."""
 import abc
+import random
 import logging
 from typing import Optional, Dict, Mapping, Any, Tuple
 
@@ -128,8 +129,39 @@ class BaseRolloutPolicy(BasePolicy, abc.ABC):
         """Get a value estimate of a history."""
 
 
-class RandomPolicy(BasePolicy):
-    """Uniform random policy."""
+class FixedDistributionPolicy(BasePolicy):
+    """A policy that samples from a fixed distribution."""
+
+    def __init__(self,
+                 model: M.POSGModel,
+                 ego_agent: int,
+                 gamma: float,
+                 dist: parts.ActionDist,
+                 logger: Optional[logging.Logger] = None,
+                 **kwargs):
+        super().__init__(model, ego_agent, gamma, logger)
+        action_space = self.model.action_spaces[self.ego_agent]
+        assert isinstance(action_space, gym.spaces.Discrete)
+        self._action_space = list(range(action_space.n))
+        self._dist = dist
+        self._cum_weights = []
+        for i, a in enumerate(self._action_space):
+            prob_sum = 0.0 if i == 0 else self._cum_weights[-1]
+            self._cum_weights.append(self._dist[a] + prob_sum)
+
+    def get_action(self) -> M.Action:
+        return random.choices(
+            self._action_space, cum_weights=self._cum_weights, k=1
+        )[0]
+
+    def get_pi(self,
+               history: Optional[H.AgentHistory] = None
+               ) -> parts.ActionDist:
+        return dict(self._dist)
+
+
+class RandomPolicy(FixedDistributionPolicy):
+    """Random policy."""
 
     def __init__(self,
                  model: M.POSGModel,
@@ -137,21 +169,56 @@ class RandomPolicy(BasePolicy):
                  gamma: float,
                  logger: Optional[logging.Logger] = None,
                  **kwargs):
+        action_space = model.action_spaces[ego_agent]
+        super().__init__(
+            model,
+            ego_agent,
+            gamma,
+            dist={a: 1.0 / action_space.n for a in range(action_space.n)},
+            logger=logger
+        )
+
+
+class FixedDistributionRolloutPolicy(BaseRolloutPolicy):
+    """A policy that samples from a fixed distribution."""
+
+    def __init__(self,
+                 model: M.POSGModel,
+                 ego_agent: int,
+                 gamma: float,
+                 dist: parts.ActionDist,
+                 logger: Optional[logging.Logger] = None,
+                 **kwargs):
         super().__init__(model, ego_agent, gamma, logger)
-        self._action_space = self.model.action_spaces[self.ego_agent]
-        assert isinstance(self._action_space, gym.spaces.Discrete)
+        action_space = self.model.action_spaces[self.ego_agent]
+        assert isinstance(action_space, gym.spaces.Discrete)
+        self._action_space = list(range(action_space.n))
+        self._dist = dist
+        self._cum_weights = []
+        for i, a in enumerate(self._action_space):
+            prob_sum = 0.0 if i == 0 else self._cum_weights[-1]
+            self._cum_weights.append(self._dist[a] + prob_sum)
 
     def get_action(self) -> M.Action:
-        return self._action_space.sample()
+        return random.choices(
+            self._action_space, cum_weights=self._cum_weights, k=1
+        )[0]
+
+    def get_initial_action_values(self,
+                                  history: H.AgentHistory
+                                  ) -> Dict[M.Action, Tuple[float, int]]:
+        return {a: (0.0, 0) for a in self._action_space}
+
+    def get_value(self, history: Optional[H.AgentHistory]) -> float:
+        return 0.0
 
     def get_pi(self,
                history: Optional[H.AgentHistory] = None
                ) -> parts.ActionDist:
-        pr_a = 1.0 / self._action_space.n
-        return {a: pr_a for a in range(self._action_space.n)}
+        return dict(self._dist)
 
 
-class RandomRolloutPolicy(BaseRolloutPolicy):
+class RandomRolloutPolicy(FixedDistributionRolloutPolicy):
     """Uniform random rollout policy."""
 
     def __init__(self,
@@ -160,23 +227,11 @@ class RandomRolloutPolicy(BaseRolloutPolicy):
                  gamma: float,
                  logger: Optional[logging.Logger] = None,
                  **kwargs):
-        super().__init__(model, ego_agent, gamma, logger)
-        self._action_space = self.model.action_spaces[self.ego_agent]
-        assert isinstance(self._action_space, gym.spaces.Discrete)
-
-    def get_action(self) -> M.Action:
-        return self._action_space.sample()
-
-    def get_initial_action_values(self,
-                                  history: H.AgentHistory
-                                  ) -> Dict[M.Action, Tuple[float, int]]:
-        return {a: (0.0, 0) for a in range(self._action_space.n)}
-
-    def get_value(self, history: Optional[H.AgentHistory]) -> float:
-        return 0.0
-
-    def get_pi(self,
-               history: Optional[H.AgentHistory] = None
-               ) -> parts.ActionDist:
-        pr_a = 1.0 / self._action_space.n
-        return {a: pr_a for a in range(self._action_space.n)}
+        action_space = model.action_spaces[ego_agent]
+        super().__init__(
+            model,
+            ego_agent,
+            gamma,
+            dist={a: 1.0 / action_space.n for a in range(action_space.n)},
+            logger=logger
+        )
