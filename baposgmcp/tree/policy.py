@@ -38,10 +38,10 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                  epsilon: float = 0.01,
                  **kwargs):
         super().__init__(model, ego_agent, gamma, **kwargs)
-        assert len(other_policies) == model.num_agents-1
+        assert len(other_policies) == model.n_agents-1
         assert all(
             i in other_policies
-            for i in range(self.model.num_agents) if i != self.ego_agent
+            for i in range(self.model.n_agents) if i != self.ego_agent
         )
         self._other_policies = other_policies
 
@@ -50,7 +50,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         else:
             self._other_prior = other_policy_prior
 
-        self.num_agents = model.num_agents
+        self.num_agents = model.n_agents
         self.num_sims = num_sims
 
         assert isinstance(model.action_spaces[ego_agent], gym.spaces.Discrete)
@@ -86,7 +86,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                                  other_agent_policies: OtherAgentPolicyMap
                                  ) -> parts.OtherAgentPolicyDist:
         priors: parts.OtherAgentPolicyDist = {}
-        for agent_id in range(self.model.num_agents):
+        for agent_id in range(self.model.n_agents):
             if agent_id == self.ego_agent:
                 continue
             num_policies = len(other_agent_policies[agent_id])
@@ -266,7 +266,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         new_history = hp_state.history.extend(joint_action, joint_obs)
         next_pi_state = hp_state.other_policies
         next_hp_state = H.HistoryPolicyState(
-            joint_step.next_state, new_history, next_pi_state
+            joint_step.state, new_history, next_pi_state
         )
 
         action_node = obs_node.get_child(ego_action)
@@ -300,7 +300,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
 
         new_history = hp_state.history.extend(joint_action, joint_obs)
         next_hp_state = H.HistoryPolicyState(
-            joint_step.next_state, new_history, hp_state.other_policies
+            joint_step.state, new_history, hp_state.other_policies
         )
 
         self._update_policies(joint_action, joint_obs, hp_state.other_policies)
@@ -416,10 +416,9 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                ) -> parts.ActionDist:
         """Get agent's distribution over actions for a given history.
 
-        Returns the softmax distribution over actions with temperature=1.0
-        (see POSGMCP.sample_action() function for details). This is
-        used as it incorporates uncertainty based on visit counts for a given
-        history.
+        Returns the softmax distribution over actions with temperature=1.0.
+        This is used as it incorporates uncertainty based on visit counts for
+        a given history.
         """
         if history is None:
             history = self.history
@@ -460,7 +459,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
 
     def expand(self, obs_node: Node, hist: H.AgentHistory):
         """Add action children to observation node in tree."""
-        action_init_vals = self._rollout_policy.get_action_init_values(hist)
+        action_init_vals = self._rollout_policy.get_initial_action_values(hist)
         for action in self.action_space:
             if obs_node.has_child(action):
                 continue

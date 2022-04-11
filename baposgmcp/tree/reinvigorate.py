@@ -91,7 +91,8 @@ class BABeliefRejectionSampler(BeliefReinvigorator):
                           parent_belief: B.BaseParticleBelief,
                           num_samples: int,
                           joint_action_fn: Callable,
-                          use_rejected_samples: bool) -> List[H.HistoryState]:
+                          use_rejected_samples: bool
+                          ) -> List[H.HistoryPolicyState]:
         sample_count = 0
         retry_count = 0
         rejected_samples = []
@@ -163,7 +164,7 @@ class BABeliefRandomSampler(BeliefReinvigorator):
                        parent_belief: B.BaseParticleBelief,
                        num_samples: int,
                        joint_action_fn: Callable
-                       ) -> List[H.HistoryState]:
+                       ) -> List[H.HistoryPolicyState]:
         samples = []
         for _ in range(num_samples):
             hp_state = parent_belief.sample()
