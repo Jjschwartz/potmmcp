@@ -22,7 +22,6 @@ from posggym.wrappers.rllib_multi_agent_env import RllibMultiAgentEnv
 from baposgmcp import runner
 import baposgmcp.rllib as ba_rllib
 import baposgmcp.stats as stats_lib
-import baposgmcp.render as render_lib
 import baposgmcp.policy as policy_lib
 
 
@@ -33,6 +32,7 @@ def _env_creator(config):
 
 
 def test_rllib_policy():
+    """Run and integration test for RLlibPolicy."""
     env_name = "TwoPaths3x3-v0"
     posggym.make(env_name)
 
@@ -108,9 +108,7 @@ def test_rllib_policy():
     logging.basicConfig(level="INFO", format='%(message)s')
 
     trackers = stats_lib.get_default_trackers(policies)
-    renderers = [
-    #     render_lib.EpisodeRenderer(pause_each_step=True)
-    ]
+    renderers = []
     runner.run_sims(
         sample_env.unwrapped,
         policies,
