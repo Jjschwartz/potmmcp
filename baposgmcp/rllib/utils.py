@@ -13,7 +13,7 @@ def identity_preprocessor(obs: M.Observation) -> Any:
     return obs
 
 
-def get_flatten_preprocesor(obs_space: spaces.Space) -> ObsPreprocessor:
+def get_flatten_preprocessor(obs_space: spaces.Space) -> ObsPreprocessor:
     """Get the preprocessor function for flattening observations."""
 
     def flatten_preprocessor(obs: M.Observation) -> Any:

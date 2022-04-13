@@ -8,4 +8,4 @@ from baposgmcp.rllib.utils import default_symmetric_policy_mapping_fn
 from baposgmcp.rllib.utils import default_asymmetric_policy_mapping_fn
 from baposgmcp.rllib.utils import ObsPreprocessor
 from baposgmcp.rllib.utils import identity_preprocessor
-from baposgmcp.rllib.utils import get_flatten_preprocesor
+from baposgmcp.rllib.utils import get_flatten_preprocessor

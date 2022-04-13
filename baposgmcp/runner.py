@@ -31,7 +31,7 @@ class RunConfig(NamedTuple):
     """Configuration options for running simulations."""
     seed: Optional[int] = None
     num_episodes: int = 100
-    episode_step_limit: int = 20
+    episode_step_limit: Optional[int] = None
     time_limit: Optional[int] = None
 
 
@@ -74,7 +74,7 @@ def get_run_args(parser: Optional[ArgumentParser] = None) -> ArgumentParser:
 
 def run_episode_loop(env: posggym.Env,
                      policies: Sequence[BasePolicy],
-                     step_limit: int,
+                     step_limit: Optional[int],
                      ) -> Iterable[EpisodeLoopStep]:
     """Run policies in environment."""
     assert len(policies) == env.n_agents, (
@@ -101,7 +101,9 @@ def run_episode_loop(env: posggym.Env,
 
         steps += 1
         joint_obs = joint_timestep[0]
-        episode_end = joint_timestep[2] or steps >= step_limit
+        episode_end = joint_timestep[2]
+        if step_limit is not None and steps >= step_limit:
+            episode_end = True
 
         yield EpisodeLoopStep(
             env, joint_timestep, joint_action, policies, episode_end
