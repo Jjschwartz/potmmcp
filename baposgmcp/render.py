@@ -59,14 +59,9 @@ class EpisodeRenderer(Renderer):
     Calls the posggym.Env.render() function with given mode.
     """
 
-    def __init__(self,
-                 mode: str = 'human',
-                 pause_each_step: bool = False,
-                 render_frequency: int = 1):
+    def __init__(self, mode: str = 'human', render_frequency: int = 1):
         self._mode = mode
-        self._pause_each_step = pause_each_step
         self._render_frequency = render_frequency
-
         self._episode_count = 0
 
     def render_step(self,
@@ -84,12 +79,33 @@ class EpisodeRenderer(Renderer):
 
         env.render(self._mode)
 
-        if self._pause_each_step:
-            input("Press ENTER to continue.")
+
+class PauseRenderer(Renderer):
+    """Pauses for user input after each step.
+
+    Note, renderers are rendered in order so if you want to pause after all the
+    other renderers are done for the step make sure to put the PauseRenderer
+    instance at the end of the list of renderers that are passed to the
+    generate_renders function, or handle calling each renderer manually.
+    """
+
+    def render_step(self,
+                    episode_t: int,
+                    env: posggym.Env,
+                    timestep: M.JointTimestep,
+                    action: M.JointAction,
+                    policies: Sequence[policy_lib.BasePolicy],
+                    episode_end: bool) -> None:
+        input("Press ENTER to continue.")
 
 
 class PolicyBeliefRenderer(Renderer):
     """Renders a BayesPOSGMCP policy's root belief over other agent pis."""
+
+    def __init__(self):
+        # TODO
+        self._axs = None
+        self._fig = None
 
     def render_step(self,
                     episode_t: int,
@@ -105,30 +121,30 @@ class PolicyBeliefRenderer(Renderer):
             if isinstance(policy, tree_lib.BAPOSGMCP):
                 self._render_baposgmcp(policy)
 
-    @staticmethod
-    def _render_baposgmcp(baposgmcp: tree_lib.BAPOSGMCP) -> None:
-        ncols = baposgmcp.num_agents - 1
-        fig, axs = plt.subplots(
-            nrows=1,
-            ncols=ncols,
-            squeeze=False,
-            sharey=True,
-            sharex=True
-        )
+    def _render_baposgmcp(self, baposgmcp: tree_lib.BAPOSGMCP) -> None:
+        if self._axs is None:
+            ncols = baposgmcp.num_agents - 1
+            self._fig, self._axs = plt.subplots(
+                nrows=1,
+                ncols=ncols,
+                squeeze=False,
+                sharey=True,
+                sharex=True
+            )
 
         pi_beliefs = tree_lib.get_other_pis_belief(baposgmcp)
 
         for col, (i, belief) in enumerate(pi_beliefs.items()):
             row = 0
-            ax = axs[row][col]
+            ax = self._axs[row][col]
+            ax.clear()
             ax = plot_discrete_dist(ax, belief)
             ax.set_title(f"agent={i}")
 
-        fig.suptitle(
-            f"t={baposgmcp.history.t} ego_agent={baposgmcp.ego_agent}\n"
-            f"Ego history={baposgmcp.history}"
+        self._fig.suptitle(
+            f"t={baposgmcp.history.t} ego_agent={baposgmcp.ego_agent}"
         )
-        fig.tight_layout()
+        self._fig.tight_layout()
 
 
 def generate_renders(renderers: Iterable[Renderer],

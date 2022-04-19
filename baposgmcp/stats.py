@@ -351,9 +351,6 @@ class BayesAccuracyTracker(Tracker):
                 policy_id_j = policies[j].policy_id
                 acc = self._calculate_acc(pi_beliefs[j], policy_id_j)
                 self._current_episode_acc[i][j].append(acc)
-                print(pi_beliefs[j])
-                print(policy_id_j)
-                print(f"agent={i} accuracy={acc}")
 
         if episode_end:
             self._num_episodes += 1
@@ -388,7 +385,7 @@ class BayesAccuracyTracker(Tracker):
         for i in range(self._num_agents):
             stats[i] = {}
             for j, acc in self._current_episode_acc[i].items():
-                stats[i]["policy_{j}_accuracy"] = np.mean(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}"] = np.mean(acc, axis=0)
         return stats
 
     def get(self) -> AgentStatisticsMap:
@@ -396,7 +393,7 @@ class BayesAccuracyTracker(Tracker):
         for i in range(self._num_agents):
             stats[i] = {}
             for j, acc in self._acc[i].items():
-                stats[i]["policy_{j}_accuracy"] = np.mean(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}"] = np.mean(acc, axis=0)
         return stats
 
 
