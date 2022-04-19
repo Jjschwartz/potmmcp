@@ -20,6 +20,7 @@ class BeliefReinvigorator(abc.ABC):
                      num_particles: int,
                      parent_belief: M.Belief,
                      joint_action_fn: Callable,
+                     joint_update_fn: Callable,
                      **kwargs):
         """Reinvigorate belief given action performed and observation recieved.
 
@@ -42,6 +43,11 @@ class BeliefReinvigorator(abc.ABC):
             the parent belief of the belief being reinvigorated
         joint_action_fn : Callable[[H.HistoryState, M.Action], M.JointAction]
             joint action selection function
+        joint_update_fn : Callable[
+            [M.JointAction, M.JointObservation, H.PolicyState],
+            H.PolicyHiddenStates
+        ]
+            update function for policies
 
         """
 
@@ -72,6 +78,7 @@ class BABeliefRejectionSampler(BeliefReinvigorator):
                      num_particles: int,
                      parent_belief: M.Belief,
                      joint_action_fn: Callable,
+                     joint_update_fn: Callable,
                      **kwargs):
         new_particles = self._rejection_sample(
             agent_id,
@@ -80,6 +87,7 @@ class BABeliefRejectionSampler(BeliefReinvigorator):
             parent_belief=parent_belief,
             num_samples=num_particles,
             joint_action_fn=joint_action_fn,
+            joint_update_fn=joint_update_fn,
             use_rejected_samples=kwargs.get("use_rejected_samples", False)
         )
         belief.add_particles(new_particles)
@@ -91,6 +99,7 @@ class BABeliefRejectionSampler(BeliefReinvigorator):
                           parent_belief: B.BaseParticleBelief,
                           num_samples: int,
                           joint_action_fn: Callable,
+                          joint_update_fn: Callable,
                           use_rejected_samples: bool
                           ) -> List[H.HistoryPolicyState]:
         sample_count = 0
@@ -108,8 +117,14 @@ class BABeliefRejectionSampler(BeliefReinvigorator):
             joint_obs = joint_step.observations
 
             new_history = hp_state.history.extend(joint_action, joint_obs)
+            next_policy_hidden_state = joint_update_fn(
+                joint_action, joint_obs, hp_state.other_policies
+            )
             next_hp_state = H.HistoryPolicyState(
-                joint_step.state, new_history, hp_state.other_policies
+                joint_step.state,
+                new_history,
+                hp_state.other_policies,
+                next_policy_hidden_state
             )
 
             if joint_obs[agent_id] == obs:
@@ -146,6 +161,7 @@ class BABeliefRandomSampler(BeliefReinvigorator):
                      num_particles: int,
                      parent_belief: M.Belief,
                      joint_action_fn: Callable,
+                     joint_update_fn: Callable,
                      **kwargs):
         new_particles = self._random_sample(
             agent_id,
@@ -154,6 +170,7 @@ class BABeliefRandomSampler(BeliefReinvigorator):
             parent_belief=parent_belief,
             num_samples=num_particles,
             joint_action_fn=joint_action_fn,
+            joint_update_fn=joint_update_fn,
         )
         belief.add_particles(new_particles)
 
@@ -163,7 +180,8 @@ class BABeliefRandomSampler(BeliefReinvigorator):
                        obs: M.Observation,
                        parent_belief: B.BaseParticleBelief,
                        num_samples: int,
-                       joint_action_fn: Callable
+                       joint_action_fn: Callable,
+                       joint_update_fn: Callable
                        ) -> List[H.HistoryPolicyState]:
         samples = []
         for _ in range(num_samples):
@@ -178,8 +196,14 @@ class BABeliefRandomSampler(BeliefReinvigorator):
             joint_obs = tuple(tmp)
 
             new_history = hp_state.history.extend(joint_action, joint_obs)
+            next_policy_hidden_state = joint_update_fn(
+                joint_action, joint_obs, hp_state.other_policies
+            )
             next_hp_state = H.HistoryPolicyState(
-                joint_step.state, new_history, hp_state.other_policies
+                joint_step.state,
+                new_history,
+                hp_state.other_policies,
+                next_policy_hidden_state
             )
             samples.append(next_hp_state)
 

@@ -1,3 +1,4 @@
+import math
 from itertools import product
 from typing import Tuple, Optional, List
 
@@ -12,6 +13,26 @@ def get_klr_policy_id(agent_id: Optional[parts.AgentID],
     if is_symmetric:
         return f"pi_{k}"
     return f"pi_{k}_{agent_id}"
+
+
+def get_br_policy_id(agent_id: Optional[parts.AgentID],
+                     is_symmetric: bool) -> str:
+    """Get the policy ID string for a Best Response policy."""
+    if is_symmetric:
+        return "pi_BR"
+    return f"pi_BR_{agent_id}"
+
+
+def get_klr_poisson_prob(k: int, num_levels: int, lmbda: float = 1.0) -> float:
+    """Get Poisson probability for level k agent in hierarchy with num_levels.
+
+    lmbda is the Possion Distribution parameter and is the mean of the
+    distribution.
+    In this function higher values shift the probability mass towards deeper
+    nesting levels.
+    """
+    i = num_levels - k
+    return (lmbda**i * math.exp(-lmbda)) / math.factorial(i)
 
 
 def parse_klr_policy_id(policy_id: str) -> Tuple[Optional[parts.AgentID], int]:

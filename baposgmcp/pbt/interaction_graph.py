@@ -3,7 +3,7 @@ import json
 import random
 import itertools
 from pprint import pprint
-from typing import Dict, Tuple, Callable
+from typing import Dict, Tuple, Callable, List
 
 from baposgmcp.parts import PolicyID, Policy, AgentID
 
@@ -220,6 +220,42 @@ class InteractionGraph:
             other_policies[other_agent_id] = self.sample_policy(
                 agent_id, policy_id, other_agent_id
             )
+        return other_policies
+
+    def get_all_policies(self,
+                         agent_id: AgentID,
+                         policy_id: PolicyID,
+                         other_agent_id: AgentID,
+                         ) -> List[Tuple[PolicyID, Policy]]:
+        """Get all connectected policies for other agent from the graph."""
+        if self._symmetric:
+            agent_id = self.SYMMETRIC_ID
+            other_agent_id = self.SYMMETRIC_ID
+
+        assert agent_id in self._policies, (
+            f"Agent with ID={agent_id} not in graph. Make sure to add the "
+            "agent using the add_policy function."
+        )
+        assert other_agent_id in self._policies, (
+            f"Other agent with ID={agent_id} not in graph. Make sure to add "
+            "the agent using the add_policy function."
+        )
+        assert policy_id in self._policies[agent_id], (
+            f"Policy with ID={policy_id} not in graph. Make sure to add the "
+            "policy using the add_policy() function."
+        )
+        assert len(self._graph[agent_id][policy_id][other_agent_id]) > 0, (
+            f"No edges added from policy with ID={policy_id}. Make sure to "
+            "add edges from the policy using the add_edge() function"
+        )
+        other_policy_dist = self._graph[agent_id][policy_id][other_agent_id]
+        other_policy_ids = list(other_policy_dist)
+        other_policies = []
+        for other_policy_id in other_policy_ids:
+            other_policies.append((
+                other_policy_id,
+                self._policies[other_agent_id][other_policy_id]
+            ))
         return other_policies
 
     def export_graph(self, export_dir: str, policy_export_fn: PolicyExportFn):

@@ -1,6 +1,7 @@
 """A node in the search tree."""
 from typing import Optional, Any, List
 
+from baposgmcp import parts
 import baposgmcp.tree.belief as B
 
 
@@ -14,45 +15,25 @@ class Node:
                  h: Any,
                  parent: Optional['Node'],
                  belief: B.BaseParticleBelief,
+                 policy: parts.ActionDist,
                  v_init: float = 0.0,
                  n_init: float = 0.0):
         self.nid = Node.node_count
         Node.node_count += 1
         self.parent: 'Node' = NullNode() if parent is None else parent
-        # pylint: disable=[invalid-name]
         self.h = h
+        self.belief = belief
+        self.policy = policy
         self.v = v_init
         self.n = n_init
-        self.belief = belief
         self.children: List['Node'] = []
 
-    def get_child(self, target_h: Any, **kwargs):
-        """Get child node with given history value.
-
-        Adds child node if it doesn't exist.
-        """
+    def get_child(self, target_h: Any):
+        """Get child node with given history value."""
         for child in self.children:
             if child.h == target_h:
                 return child
-
-        child_node = self.get_new_node(
-            target_h,
-            self,
-            B.ParticleBelief(),
-            n_init=kwargs.get("n_init", 0.0)
-        )
-        self.children.append(child_node)
-        return child_node
-
-    @classmethod
-    def get_new_node(cls,
-                     h: Any,
-                     parent: 'Node',
-                     belief: B.BaseParticleBelief,
-                     v_init: float = 0.0,
-                     n_init: float = 0.0) -> 'Node':
-        """Get a new Node instance."""
-        return cls(h, parent, belief, v_init, n_init)
+        raise AssertionError(f"Child with {target_h=} not in {str(self)}")
 
     def has_child(self, target_h: Any) -> bool:
         """Check if node has a child node matching history."""
@@ -61,9 +42,14 @@ class Node:
                 return True
         return False
 
-    def value_str(self):
-        """Get value array in nice str format."""
+    def value_str(self) -> str:
+        """Get value in nice str format."""
         return f"{self.v:.3f}"
+
+    def policy_str(self) -> str:
+        """Get policy in nice str format."""
+        action_probs = [f"{a}: {prob:.3f}" for a, prob in self.policy.items()]
+        return "{" + ",".join(action_probs) + "}"
 
     def clear_belief(self):
         """Delete all particles in belief of node."""
@@ -100,8 +86,8 @@ class Node:
 class NullNode(Node):
     """The Null Node which is the parent of the root node of the tree.
 
-    This class is mainly defined for typechecking convinience...
+    This class is mainly defined for typechecking convenience...
     """
 
     def __init__(self):
-        super().__init__(None, self, B.ParticleBelief())
+        super().__init__(None, self, B.ParticleBelief(), {})

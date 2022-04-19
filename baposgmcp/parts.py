@@ -1,3 +1,4 @@
+import random
 from typing import Dict, Union, Tuple, Any
 
 import posggym.model as M
@@ -12,3 +13,8 @@ PolicyID = Union[int, str]
 OtherAgentPolicyDist = Dict[
     M.AgentID, Tuple[Tuple[PolicyID, ...], Tuple[float, ...]]
 ]
+
+
+def sample_action_dist(dist: ActionDist) -> M.Action:
+    """Sample an action from an action distribution."""
+    return random.choices(list(dist.keys()), weights=dist.values(), k=1)[0]

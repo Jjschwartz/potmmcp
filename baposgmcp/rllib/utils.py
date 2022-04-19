@@ -1,5 +1,6 @@
 from typing import Callable, Any
 
+import numpy as np
 from gym import spaces
 
 import posggym.model as M
@@ -43,3 +44,8 @@ def default_symmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):
     policy_ids = list(episode.policy_map.keys())
     policy_ids.sort()
     return policy_ids[int(agent_id)]
+
+
+def numpy_softmax(x: np.ndarray) -> np.ndarray:
+    """Perform the softmax function on an array."""
+    return np.exp(x) / np.sum(np.exp(x), axis=0)

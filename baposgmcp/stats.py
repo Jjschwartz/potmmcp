@@ -14,6 +14,7 @@ from prettytable import PrettyTable
 import posggym
 import posggym.model as M
 
+import baposgmcp.tree as tree_lib
 import baposgmcp.policy as policy_lib
 from baposgmcp.config import BASE_RESULTS_DIR
 
@@ -224,7 +225,9 @@ class SearchTimeTracker(Tracker):
     TIME_KEYS = [
         "search_time",
         "update_time",
-        "reinvigoration_time"
+        "reinvigoration_time",
+        "policy_calls",
+        "inference_time"
     ]
 
     def __init__(self, num_agents: int):
@@ -300,6 +303,100 @@ class SearchTimeTracker(Tracker):
                 agent_stats[f"{key}_mean"] = np.mean(values, axis=0)
                 agent_stats[f"{key}_std"] = np.std(values, axis=0)
             stats[i] = agent_stats
+        return stats
+
+
+class BayesAccuracyTracker(Tracker):
+    """Tracks Accuracy between distribution over pis and the true pi.
+
+    Only tracks for BAPOSGMCP policy and if the opponent policy has a policy ID
+    that matches a policy ID within the BAPOSGMCP other agent policy
+    distribution.
+    """
+
+    def __init__(self, num_agents: int):
+        self._num_agents = num_agents
+
+        self._num_episodes = 0
+        self._current_episode_steps = 0
+        self._current_episode_acc: Dict[
+            M.AgentID, Dict[M.AgentID, List[float]]
+        ] = {}
+
+        self._steps: List[int] = []
+        self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
+
+        self.reset()
+
+    def step(self,
+             episode_t: int,
+             env: posggym.Env,
+             timestep: M.JointTimestep,
+             action: M.JointAction,
+             policies: Sequence[policy_lib.BasePolicy],
+             episode_end: bool) -> None:
+        if episode_t == 0:
+            return
+
+        self._current_episode_steps += 1
+
+        for i in range(self._num_agents):
+            if not isinstance(policies[i], tree_lib.BAPOSGMCP):
+                continue
+
+            pi_beliefs = tree_lib.get_other_pis_belief(policies[i])
+            for j in range(self._num_agents):
+                if i == j:
+                    continue
+                policy_id_j = policies[j].policy_id
+                acc = self._calculate_acc(pi_beliefs[j], policy_id_j)
+                self._current_episode_acc[i][j].append(acc)
+                print(pi_beliefs[j])
+                print(policy_id_j)
+                print(f"agent={i} accuracy={acc}")
+
+        if episode_end:
+            self._num_episodes += 1
+            self._steps.append(self._current_episode_steps)
+            for i in range(self._num_agents):
+                for j, acc in self._current_episode_acc[i].items():
+                    self._acc[i][j].append(np.mean(acc, axis=0))
+
+    def _calculate_acc(self, policy_dist, true_policy) -> float:
+        if true_policy not in policy_dist:
+            return 0.0
+        return policy_dist[true_policy]
+
+    def reset(self) -> None:
+        self.reset_episode()
+        self._num_episodes = 0
+        self._steps = []
+        self._acc = {}
+        for i in range(self._num_agents):
+            self._acc[i] = {j: [] for j in range(self._num_agents) if j != i}
+
+    def reset_episode(self) -> None:
+        self._current_episode_steps = 0
+        self._current_episode_acc = {}
+        for i in range(self._num_agents):
+            self._current_episode_acc[i] = {
+                j: [] for j in range(self._num_agents) if j != i
+            }
+
+    def get_episode(self) -> AgentStatisticsMap:
+        stats = {}
+        for i in range(self._num_agents):
+            stats[i] = {}
+            for j, acc in self._current_episode_acc[i].items():
+                stats[i]["policy_{j}_accuracy"] = np.mean(acc, axis=0)
+        return stats
+
+    def get(self) -> AgentStatisticsMap:
+        stats = {}
+        for i in range(self._num_agents):
+            stats[i] = {}
+            for j, acc in self._acc[i].items():
+                stats[i]["policy_{j}_accuracy"] = np.mean(acc, axis=0)
         return stats
 
 
