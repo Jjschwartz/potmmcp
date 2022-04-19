@@ -1,0 +1,249 @@
+#+TITLE: Notes on code performance
+
+
+* RL Training Performance Profiling
+
+** Effect of "num_sgd_iter"
+
+Reducing "sgd_minibatch_size" reduces time per iteration with relatively even effect for both CPU and GPU, as expected.
+
+*** Exp 1
+config:
+    "rollout_fragment_length": 100,
+    "train_batch_size": 2000,
+    "sgd_minibatch_size": 128,
+    "num_sgd_iter": 6,
+
+t w/ gpu (0.9) for k=0
+time_this_iter_s: 5.748223781585693
+time_total_s: 23.329596042633057
+
+t w/o gpu for k=0
+time_this_iter_s: 4.784715175628662
+time_total_s: 19.502980709075928
+
+*** Exp 2 (num_sgd_iter / 2)
+config:
+    "rollout_fragment_length": 100,
+    "train_batch_size": 2000,
+    "sgd_minibatch_size": 128,
+    "num_sgd_iter": 3,
+
+t w/ gpu (0.9) for k=0
+time_this_iter_s: 5.090539216995239
+time_total_s: 20.59964418411255
+
+t w/o gpu for k=0
+time_this_iter_s: 3.8174214363098145
+time_total_s: 15.180735349655151
+
+** Effect of "sgd_mini_batch_size"
+
+Iteration and total time decrease with increasing mini batch size when using CPU only, with larger decreases with the initial increases in batch size. I'm pretty sure this is due to reduced overhead caused by minibatch operations as the minibatch size increases. Furthermore, the number of minibatches per batch decreases most significantly for the smaller changes in minibatch size, i.e. 64->128 = 32->16 minibatches, while 512->1024 = 4->2 minibatches.
+
+Iteration and total time also decrease for the GPU, but the decreases are smaller, although they follow a similar patter with larger decreases for the changes between smaller minibatch sizes. This suggests that the gains in performance are primarily due to reduced overhead from reduced number of minibatches per batch.
+
+Another thing to note is that while GPU utility % increases between =gpu=0.9= and =gpu=0.0= by a factor of 9, the overall % used is very low =~0.5 %=. Looking at =nvidia-smi= I can see that the GPU utilization is around =50%= and actually this value is not affected by values of =gpu > 0.= This suggests to me that either the metric reported by rllib is in the incorrect units or rllib is not really using the GPU. The fact that performance is different between =gpu=0.0= and =gpu=0.9= suggest that it is the former.
+
+*** Config
+
+"rollout_fragment_length": 100,
+"train_batch_size": 2048,
+"sgd_minibatch_size": varied,
+"num_sgd_iter": 6,
+
+"stop-iters": 4
+
+*** Results
+
+|      | gpu=0.9 | gpu=0.0 | gpu=0.9 | gpu=0.0 |
+|      | iter t  | iter t  | total t | total t |
+|------+---------+---------+---------+---------|
+|   64 | 6.88    | 6.45    | 27.58   | 25.96   |
+|  128 | 5.85    | 5.00    | 23.72   | 20.14   |
+|  256 | 5.29    | 4.22    | 21.4    | 16.79   |
+|  512 | 5.12    | 3.80    | 20.43   | 15.31   |
+| 1024 | 5.12    | 3.77    | 20.14   | 15.01   |
+| 2048 | 4.97    | 3.61    | 19.93   | 14.64   |
+
+
+|      | gpu=0.9 | gpu=0.9 | gpu=0.9 | gpu=0.0 | gpu=0.0 | gpu=0.0 |
+|      | cpu %   | gpu %   | ram %   | cpu %   | gpu %   | ram %   |
+|------+---------+---------+---------+---------+---------+---------|
+|   64 | 18.68   | 0.57    | 62.7    | 18.32   | 0.05    | 36.1    |
+|  128 | 18.75   | 0.56    | 62.98   | 18.47   | 0.04    | 36.36   |
+|  256 | 18.77   | 0.51    | 63.1    | 18.77   | 0.05    | 36.4    |
+|  512 | 19.23   | 0.51    | 64.66   | 19.32   | 0.1     | 36.72   |
+| 1024 | 18.97   | 0.52    | 64.7    | 18.47   | 0.05    | 38.52   |
+| 2048 | 18.83   | 0.50    | 64.7    | 18.42   | 0.06    | 39.16   |
+
+** Effect of "train_batch_size"
+
+Iteration and total time scale linearly with batch size in both cases of using GPU and using CPU only. CPU only is consistently faster than using GPU. GPU is generally 1.3-1.5 x slower than CPU only, with the gap growing with batch size.
+
+*** Config
+
+"rollout_fragment_length": 100,
+"train_batch_size": varied,
+"sgd_minibatch_size": 256,
+"num_sgd_iter": 6,
+
+"stop-iters": 4
+
+*** Results
+
+|       | gpu=0.9 | gpu=0.0 | gpu=0.9 | gpu=0.0 |
+|       |  iter t |  iter t | total t | total t |
+|-------+---------+---------+---------+---------|
+|   256 |    0.83 |    0.64 |    3.45 |    2.49 |
+|   512 |    1.69 |     1.2 |    6.69 |    4.92 |
+|  1024 |    3.26 |    2.37 |   13.00 |    9.48 |
+|  2048 |    6.65 |    4.95 |   25.89 |   19.45 |
+|  4096 |   14.87 |    9.57 |   56.40 |   39.11 |
+|  8192 |   31.81 |   20.10 |  119.70 |   82.37 |
+| 16384 |   63.84 |   39.45 |  240.76 |  157.05 |
+
+
+|       | gpu=0.9 | gpu=0.9 | gpu=0.9 | gpu=0.0 | gpu=0.0 | gpu=0.0 |
+|       |   cpu % |   gpu % |   ram % |   cpu % |   gpu % |   ram % |
+|-------+---------+---------+---------+---------+---------+---------|
+|   256 |    26.2 |    0.59 |    64.1 |    24.8 |    0.27 |    37.4 |
+|   512 |   24.43 |    0.61 |    64.1 |    24.1 |    0.38 |    37.7 |
+|  1024 |    24.3 |    0.61 |    64.2 |    24.3 |    0.28 |    37.6 |
+|  2048 |   24.46 |    0.60 |    64.4 |    24.7 |    0.34 |    37.9 |
+|  4096 |   24.94 |    0.60 |    64.7 |   24.28 |    0.30 |    37.9 |
+|  8192 |    24.5 |    0.64 |    66.0 |   24.43 |    0.34 |    39.4 |
+| 16384 |   24.98 |    0.64 |    64.9 |   24.23 |    0.36 |   37.94 |
+
+** Effect of changing num rollout workers and num_gpus_per_worker
+
+Looking at "timers" with GPU and CPU runs on batch size 2048.
+
+Basically, for all previous results that used the GPU, the GPU was being used for computing updated, which used batches, and also inference for rollouts, which are single steps and relatively slow on a GPU. This was because we were using a single worker for rollouts and updates. When using a small model it's much more efficient to do rollouts purely on CPU and only use the GPU for batched learning updates and/or for batched inference (which we aren't using). By adding a seperate rollout worker using the CPU (=num_workers=1= and =num_gpus_per_worker=0= ) we make it so that the GPU is only being used for batch updates at the end of each iteration (hence why =gpu %= is low, since it's only infrequently used, I also observed this when looking at the =nvidia-smi=, you can also tell the gpu is being used  based on the =vram_util_percent0= ), this greatly speeds up sampling (=mean_inference_ms= and =sample_throughput=) while gaining the benefits of improved learning time (=learning_throughput=) over just using the CPU or all GPU.
+
+The only thing left to play with is the =num_envs_per_worker=. I tried 1, 2, 3, 4, 6, 8, 10, 16.  1, 2, 4, 8, 16 were even in terms of time. However, 3, 6, 10 were basically exactly twice as slow. I think this is due to using 3, 6, 10 leading to awkward rollout_fragment_lengths or maybe wasted compute since it's not a power of 2 and don't fit into the mini_batch and batch sizes nicely.
+
+*** w 1 rollout worker with 4 envs and 1 learner worker per trainer
+**** CPU
+
+perf:
+  cpu_util_percent: 18.516666666666666
+  gpu_util_percent0: 0.056666666666666664
+  ram_util_percent: 37.0
+  vram_util_percent0: 0.04948634427461789
+sampler_perf:
+  mean_action_processing_ms: 0.07118994790723475
+  mean_env_render_ms: 0.0
+  mean_env_wait_ms: 0.15339180645222739
+  mean_inference_ms: 1.0421286050710157
+  mean_raw_obs_processing_ms: 0.10617074299139728
+time_since_restore: 16.674017667770386
+time_this_iter_s: 4.1533613204956055
+time_total_s: 16.674017667770386
+timers:
+  learn_throughput: 1536.812
+  learn_time_ms: 1332.629
+  sample_throughput: 526.973
+  sample_time_ms: 3886.346
+  update_time_ms: 1.856
+
+**** GPU
+
+perf:
+  cpu_util_percent: 19.2
+  gpu_util_percent0: 0.086
+  ram_util_percent: 63.64
+  vram_util_percent0: 0.30456026058631924
+sampler_perf:
+  mean_action_processing_ms: 0.07216491099746578
+  mean_env_render_ms: 0.0
+  mean_env_wait_ms: 0.15364087557809916
+  mean_inference_ms: 1.0614112600304022
+  mean_raw_obs_processing_ms: 0.10517068690308745
+time_since_restore: 13.873610973358154
+time_this_iter_s: 3.4215638637542725
+time_total_s: 13.873610973358154
+timers:
+  learn_throughput: 3397.075
+  learn_time_ms: 602.872
+  sample_throughput: 605.754
+  sample_time_ms: 3380.908
+  update_time_ms: 2.537
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+** Effect of "rollout_fragment_length"
+
+Increasing rollout fragment length had no significant effect on iteration or total time. This must be because rollout length has no impact on mini batch and batch size. I.e. the same number of transitions are processed independent of rollout length and there is little overhead on rollout fragment processing since rollout workers and on the same process as the learner worker.
+
+*** Config
+
+"rollout_fragment_length": Varied,
+"train_batch_size": 2048,
+"sgd_minibatch_size": 256,
+"num_sgd_iter": 6,
+
+"stop-iters": 4
+
+*** Results
+
+|     | gpu=0.9 | gpu=0.0 | gpu=0.9 | gpu=0.0 |
+|     |  iter t |  iter t | total t | total t |
+|-----+---------+---------+---------+---------|
+|   8 |    6.88 |    4.92 |   27.48 |   19.68 |
+|  16 |    6.39 |    4.92 |   25.79 |   19.63 |
+|  32 |    6.40 |    5.01 |   25.97 |   20.25 |
+|  64 |    6.58 |    4.95 |   26.08 |   20.30 |
+| 128 |    6.65 |    4.97 |   26.11 |   19.71 |
+
+
+|     | gpu=0.9 | gpu=0.9 | gpu=0.9 | gpu=0.0 | gpu=0.0 | gpu=0.0 |
+|     |   cpu % |   gpu % |   ram % |   cpu % |   gpu % |   ram % |
+|-----+---------+---------+---------+---------+---------+---------|
+|   8 |   23.79 |    0.56 |    62.5 |   24.94 |    0.31 |    36.0 |
+|  16 |   24.35 |    0.57 |    62.8 |   24.14 |    0.34 |    36.3 |
+|  32 |   24.09 |    0.58 |    62.4 |    24.5 |    0.34 |    35.9 |
+|  64 |   25.17 |    0.61 |    62.3 |   24.77 |    0.34 |    35.7 |
+| 128 |   24.17 |    0.56 |    62.4 |   24.91 |    0.30 |    35.9 |
+
+*Started listening to music which added extra CPU on a seperate process, hence higher CPU usage than previous experiments
+**The extra GPU usage for the CPU only and GPU runs was from firefox which was hosting a dynamic web page (NTS audo player). I confirmed this by closing the web page and observing a drop in GPU usage.
+
+* BAPOSGMCP performance profiling
+** Issue: each search is very slow due to NN inference
+** Exp: GPU vs CPU
+
+Running on GPU is almost twice as slow as running on CPU only. This makes sense since we are doing only single observation inference, rather than batch inference and so the GPU suffers from the additional overhead.
+
+*** Config
+
+- Running BAPOSGMCP with K=3 (5 policies for other agent)
+- num_sims =32
+
+*** w/ gpu=0.9
+
+for first 10 steps:
+search time ~ 7 s
+search_time_per_sim ~ 0.2 s
+
+*** w/ gpu=0.0
+
+for first 10 steps:
+search time ~ 3.3 s
+search_time_per_sim ~ 0.1 s

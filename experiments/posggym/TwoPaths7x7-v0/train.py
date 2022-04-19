@@ -1,5 +1,4 @@
 """A script training RL policies."""
-import os
 import os.path as osp
 import pathlib
 import argparse
@@ -19,18 +18,21 @@ from baposgmcp import pbt
 import baposgmcp.rllib as ba_rllib
 
 from exp_utils import (
-    ENV_CONFIG, env_creator, policy_mapping_fn, EXP_RL_POLICY_DIR, ENV_NAME
+    ENV_CONFIG, env_creator, klr_policy_mapping_fn, EXP_RL_POLICY_DIR,
+    ENV_NAME, get_br_policy_mapping_fn
 )
 
 
-NUM_GPUS = int(os.environ.get("RLLIB_NUM_GPUS", "0"))
+# NUM_GPUS = int(os.environ.get("RLLIB_NUM_GPUS", "0"))
+NUM_GPUS = 1
 
 # Ref: https://docs.ray.io/en/latest/rllib/rllib-training.html#configuration
 RL_TRAINER_CONFIG = {
     "env_config": ENV_CONFIG,
     # == Rollout worker processes ==
-    "num_workers": 0,
-    "num_envs_per_worker": 2,
+    # A single rollout worker
+    "num_workers": 1,
+    "num_envs_per_worker": 1,
     # == Trainer process and PPO Config ==
     # ref: https://docs.ray.io/en/latest/rllib/rllib-algorithms.html#ppo
     "gamma": 0.95,
@@ -38,11 +40,13 @@ RL_TRAINER_CONFIG = {
     "use_gae": True,
     "lambda": 1.0,
     "kl_coeff": 0.2,
-    "rollout_fragment_length": 100,
-    "train_batch_size": 2000,
-    "sgd_minibatch_size": 128,
+    "rollout_fragment_length": 100,   # = episode length for TwoPaths7x7
+    "train_batch_size": 2048,
+    # "train_batch_size": 256,
+    "sgd_minibatch_size": 256,
     "shuffle_sequences": True,
     "num_sgd_iter": 6,
+    # "num_sgd_iter": 1,
     "lr": 0.0003,
     "lr_schedule": None,
     "vf_loss_coeff": 0.05,
@@ -77,9 +81,52 @@ RL_TRAINER_CONFIG = {
     "observation_filter": "NoFilter",
     "metrics_num_episodes_for_smoothing": 100,
     # == Resource Settungs ==
-    "num_gpus": NUM_GPUS,
-    "num_cpus_per_worker": 1,
+    # we set this to 1.0 and control resource allocation via ray.remote
+    # num_gpus controls the GPU allocation for the learner process
+    # we want the learner using the GPU as it does batch inference
+    "num_gpus": 1.0,
+    "num_cpus_per_worker": 0.5,
+    # number of gpus per rollout worker.
+    # this should be 0 since we want rollout workers using CPU since they
+    # don't do batch inference
+    "num_gpus_per_worker": 0.0
 }
+
+
+def _get_trainer(policies,
+                 policy_mapping_fn,
+                 policies_to_train,
+                 num_gpus_per_trainer,
+                 args):
+    trainer_remote = ray.remote(
+        num_cpus=args.num_workers,
+        num_gpus=num_gpus_per_trainer,
+        memory=None,
+        object_store_memory=None,
+        resources=None
+    )(PPOTrainer)
+
+    trainer_config = dict(RL_TRAINER_CONFIG)
+    trainer_config["multiagent"] = {
+        "policies": policies,
+        "policy_mapping_fn": policy_mapping_fn,
+        "policies_to_train": policies_to_train,
+    }
+    trainer_config["log_level"] = args.log_level
+    trainer_config["seed"] = args.seed
+
+    if num_gpus_per_trainer == 0.0:
+        # needed to avoid error
+        trainer_config["num_gpus"] = 0.0
+    else:
+        trainer_config["num_gpus"] = 1.0
+
+    trainer = trainer_remote.remote(
+        env=ENV_NAME,
+        config=trainer_config
+    )
+
+    return trainer
 
 
 def _get_trainers_and_igraph(args):
@@ -96,8 +143,15 @@ def _get_trainers_and_igraph(args):
     igraph = pbt.construct_klr_interaction_graph(
         agent_ids, args.k, is_symmetric=False
     )
-    igraph.display()
-    input("Press Any Key to Continue")
+
+    num_trainers = (args.k+1) * len(agent_ids)
+    if args.train_best_response:
+        num_trainers += 2
+
+    avail_gpu = args.gpu_utilization * NUM_GPUS
+    num_gpus_per_trainer = avail_gpu / num_trainers
+    print(f"{num_gpus_per_trainer=}")
+    print(f"num_trainers={num_trainers}")
 
     trainers = {i: {} for i in agent_ids}   # type: ignore
     for agent_k_id, k, agent_km1_id in product(
@@ -108,40 +162,74 @@ def _get_trainers_and_igraph(args):
 
         policy_km1_id = pbt.get_klr_policy_id(agent_km1_id, k-1, False)
         policy_k_id = pbt.get_klr_policy_id(agent_k_id, k, False)
-
         policies_k = {    # type: ignore
             policy_km1_id: l0_policy_spec if k == 0 else k_policy_spec,
             policy_k_id: k_policy_spec
         }
 
-        trainer_k_remote = ray.remote(
-            num_cpus=args.num_workers,
-            num_gpus=NUM_GPUS/(args.k+1),
-            memory=None,
-            object_store_memory=None,
-            resources=None
-        )(PPOTrainer)
-
-        trainer_config = dict(RL_TRAINER_CONFIG)
-        trainer_config["multiagent"] = {
-            "policies": policies_k,
-            "policy_mapping_fn": policy_mapping_fn,
-            "policies_to_train": [policy_k_id],
-        }
-        trainer_config["log_level"] = args.log_level
-        trainer_config["seed"] = args.seed
-
-        trainer_k = trainer_k_remote.remote(
-            env=ENV_NAME,
-            config=trainer_config
+        trainer_k = _get_trainer(
+            policies=policies_k,
+            policy_mapping_fn=klr_policy_mapping_fn,
+            policies_to_train=[policy_k_id],
+            num_gpus_per_trainer=num_gpus_per_trainer,
+            args=args
         )
-
         trainers[agent_k_id][policy_k_id] = trainer_k
         igraph.update_policy(
             agent_k_id,
             policy_k_id,
             trainer_k.get_weights.remote(policy_k_id)
         )
+
+    if not args.train_best_response:
+        return trainers, igraph
+
+    for agent_br_id, agent_k_id in product(agent_ids, agent_ids):
+        if agent_br_id == agent_k_id:
+            continue
+
+        policy_br_id = pbt.get_br_policy_id(agent_br_id, False)
+
+        policies_br = {policy_br_id: k_policy_spec}
+        policies_k_dist = []
+        policies_k_ids = []
+        for k in range(-1, args.k+1):
+            policy_k_id = pbt.get_klr_policy_id(agent_k_id, k, False)
+            if k < 0:
+                policies_br[policy_k_id] = l0_policy_spec
+            else:
+                policies_br[policy_k_id] = k_policy_spec
+            policies_k_dist.append(pbt.get_klr_poisson_prob(
+                k, args.k+2, lmbda=1.0
+            ))
+            policies_k_ids.append(policy_k_id)
+
+        unnormalized_prob_sum = sum(policies_k_dist)
+        for i in range(len(policies_k_dist)):
+            policies_k_dist[i] /= unnormalized_prob_sum
+
+        br_policy_mapping_fn = get_br_policy_mapping_fn(
+            policy_br_id, agent_br_id, policies_k_ids, policies_k_dist
+        )
+
+        trainer_br = _get_trainer(
+            policies=policies_br,
+            policy_mapping_fn=br_policy_mapping_fn,
+            policies_to_train=[policy_br_id],
+            num_gpus_per_trainer=num_gpus_per_trainer,
+            args=args
+        )
+
+        trainers[agent_br_id][policy_br_id] = trainer_br
+        igraph.add_policy(
+            agent_br_id,
+            policy_br_id,
+            trainer_br.get_weights.remote(policy_br_id)
+        )
+        for policy_id, policy_prob in zip(policies_k_ids, policies_k_dist):
+            igraph.add_edge(
+                agent_br_id, policy_br_id, agent_k_id, policy_id, policy_prob
+            )
 
     return trainers, igraph
 
@@ -167,24 +255,30 @@ def _train_policies(trainers, igraph, args):
             }
 
         for i, policy_map in results.items():
-            for k in range(args.k+1):
-                print(f"-- Agent ID {i}, Level {k} --")
-                policy_k_id = pbt.get_klr_policy_id(i, k, False)
-                print(pretty_print(policy_map[policy_k_id]))
+            for policy_id, result in policy_map.items():
+                print(f"-- Agent ID {i}, Policy {policy_id} --")
+                print(pretty_print(result))
 
                 igraph.update_policy(
                     i,
-                    policy_k_id,
-                    trainers[i][policy_k_id].get_weights.remote(policy_k_id)
+                    policy_id,
+                    trainers[i][policy_id].get_weights.remote(policy_id)
                 )
 
-        # swap weights of opponent policies
-        for i, k, j in product(agent_ids, range(args.k+1), agent_ids):
-            if i == j:
-                continue
-            policy_k_id = pbt.get_klr_policy_id(i, k, False)
-            _, opp_weights = igraph.sample_policy(i, policy_k_id, j)
-            trainers[i][policy_k_id].set_weights.remote(opp_weights)
+        # # swap weights of opponent policies
+        for i, agent_trainer_map in trainers.items():
+            for policy_id, trainer in agent_trainer_map.items():
+                for j in agent_ids:
+                    if i == j:
+                        continue
+                    other_agent_policies = igraph.get_all_policies(
+                        i, policy_id, j
+                    )
+                    # Notes weights here is a dict from policy id to weights
+                    # ref: https://docs.ray.io/en/master/_modules/ray/rllib/
+                    #      agents/trainer.html#Trainer.get_weights
+                    for (_, weights) in other_agent_policies:
+                        trainer.set_weights.remote(weights)
 
 
 def _export_policies_to_file(igraph, trainers):
@@ -216,7 +310,7 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "--k", type=int, default=3,
+        "-k", "--k", type=int, default=3,
         help="Number of reasoning levels"
     )
     parser.add_argument(
@@ -239,14 +333,28 @@ if __name__ == "__main__":
         "--seed", type=int, default=None,
         help="Random seed."
     )
+    parser.add_argument(
+        "-gpu", "--gpu_utilization", type=float, default=0.9,
+        help="Proportion of availabel GPU to use."
+    )
+    parser.add_argument(
+        "-br", "--train_best_response", action="store_true",
+        help="Train a best response on top of KLR policies."
+    )
+    parser.add_argument(
+        "--save_policies", action="store_true",
+        help="Save policies to file."
+    )
+
     args = parser.parse_args()
 
     ray.init()
     register_env(ENV_NAME, env_creator)
 
     trainers, igraph = _get_trainers_and_igraph(args)
-    _train_policies(trainers, igraph, args)
-    _export_policies_to_file(igraph, trainers)
+    igraph.display()
 
-    # Test final policies ??
-    # print("== Running Evaluation ==")
+    _train_policies(trainers, igraph, args)
+
+    if args.save_policies:
+        _export_policies_to_file(igraph, trainers)

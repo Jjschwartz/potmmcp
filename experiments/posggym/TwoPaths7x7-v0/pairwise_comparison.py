@@ -19,7 +19,7 @@ import baposgmcp.render as render_lib
 import baposgmcp.policy as ba_policy_lib
 
 from exp_utils import (
-    ENV_CONFIG, env_creator, policy_mapping_fn, ENV_NAME, EXP_RESULTS_DIR
+    ENV_CONFIG, env_creator, klr_policy_mapping_fn, ENV_NAME, EXP_RESULTS_DIR
 )
 
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         env_is_symmetric=False,
         trainer_make_fn=_trainer_make_fn,
         trainers_remote=False,
-        policy_mapping_fn=policy_mapping_fn
+        policy_mapping_fn=klr_policy_mapping_fn
     )
 
     print("\n== Importing Policies ==")

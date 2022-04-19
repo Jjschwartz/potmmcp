@@ -32,7 +32,10 @@ def _import_policies(args):
         env_is_symmetric=False,
         trainer_make_fn=_trainer_make_fn,
         trainers_remote=False,
-        policy_mapping_fn=policy_mapping_fn
+        policy_mapping_fn=policy_mapping_fn,
+        extra_config={
+            "num_gpus": args.gpu_utilization
+        }
     )
     policy_map = ba_rllib.get_policy_from_trainer_map(trainer_map)
     return policy_map
@@ -74,7 +77,7 @@ def _load_policy_params(args):
                 policy_params = exp_lib.PolicyParams(
                     name="RandomPolicy",
                     gamma=0.95,
-                    kwargs={},
+                    kwargs={"policy_id": policy_id},
                     init=ba_policy_lib.RandomPolicy
                 )
                 random_policy_added = True
@@ -82,7 +85,7 @@ def _load_policy_params(args):
                 policy_params = exp_lib.PolicyParams(
                     name=f"PPOPolicy_{policy_id}",
                     gamma=0.95,
-                    kwargs={},
+                    kwargs={"policy_id": policy_id},
                     init=_get_rllib_policy_init_fn(policy, agent_id)
                 )
             policy_params_map[agent_id][policy_id] = policy_params
@@ -91,7 +94,7 @@ def _load_policy_params(args):
             policy_params = exp_lib.PolicyParams(
                 name="RandomPolicy",
                 gamma=0.95,
-                kwargs={},
+                kwargs={"policy_id": f"pi_-1_{agent_id}"},
                 init=ba_policy_lib.RandomPolicy
             )
             policy_params_map[agent_id][f"pi_-1_{agent_id}"] = policy_params
@@ -124,13 +127,17 @@ def _load_policies(args):
                     ego_agent=int(agent_id),
                     gamma=0.95,
                     policy=policy,
+                    policy_id=policy_id,
                     preprocessor=preprocessor,
                 )
             policies_map[agent_id][policy_id] = new_policy
 
         if not random_policy_added:
             new_policy = ba_policy_lib.RandomPolicy(
-                env_model, int(agent_id), 0.95
+                env_model,
+                int(agent_id),
+                0.95,
+                policy_id=f"pi_-1_{agent_id}"
             )
             policies_map[agent_id][f"pi_-1_{agent_id}"] = new_policy
 
@@ -150,7 +157,7 @@ if __name__ == "__main__":
         help="Experiment seed."
     )
     parser.add_argument(
-        "--num_episodes", type=int, default=1000,
+        "--num_episodes", type=int, default=1,
         help="Number of episodes per experiment."
     )
     parser.add_argument(
@@ -172,6 +179,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--render", action="store_true",
         help="Render experiment episodes."
+    )
+    parser.add_argument(
+        "-gpu", "--gpu_utilization", type=float, default=0.9,
+        help="Proportion of availabel GPU to use."
     )
     args = parser.parse_args()
 
@@ -227,6 +238,9 @@ if __name__ == "__main__":
             else:
                 policies = [policy_params, baposgmcp_params]
 
+            trackers = stats_lib.get_default_trackers(policies)
+            trackers.append(stats_lib.BayesAccuracyTracker(2))
+
             exp_params = exp_lib.ExpParams(
                 exp_id=exp_id,
                 env_name=ENV_NAME,
@@ -237,12 +251,15 @@ if __name__ == "__main__":
                     episode_step_limit=None,
                     time_limit=args.time_limit
                 ),
-                tracker_fn=lambda: stats_lib.get_default_trackers(policies),
+                tracker_fn=lambda: trackers,
                 render_fn=lambda: renderers,
             )
 
             exp_params_list.append(exp_params)
             exp_id += 1
+
+            break
+        break
 
     print("\n== Running Experiments ==")
     exp_lib.run_experiments(
