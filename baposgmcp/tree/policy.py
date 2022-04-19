@@ -623,10 +623,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
     def _reinvigorate_action_fn(self,
                                 hp_state: H.HistoryPolicyState,
                                 ego_action: M.Action) -> M.JointAction:
-        # self._reset_policies(hp_state)
-        self._reset_policies_by_history(
-            hp_state.history, hp_state.other_policies
-        )
+        self._reset_policies(hp_state)
         return self._get_joint_action(hp_state, ego_action)
 
     def _reinvigorate_update_fn(self,
@@ -671,7 +668,6 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             num_particles=num_particles,
             parent_belief=parent_obs_node.belief,
             joint_action_fn=self._reinvigorate_action_fn,
-            # joint_action_fn=self._get_joint_action,
             joint_update_fn=self._reinvigorate_update_fn,
             **{
                 "use_rejected_samples": True   # used for rejection sampling

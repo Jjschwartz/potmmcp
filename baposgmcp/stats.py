@@ -383,7 +383,9 @@ class BayesAccuracyTracker(Tracker):
     def get_episode(self) -> AgentStatisticsMap:
         stats = {}
         for i in range(self._num_agents):
-            stats[i] = {}
+            stats[i] = {
+                f"bayes_accuracy_{i}": np.nan
+            }
             for j, acc in self._current_episode_acc[i].items():
                 stats[i][f"bayes_accuracy_{j}"] = np.mean(acc, axis=0)
         return stats
@@ -391,7 +393,9 @@ class BayesAccuracyTracker(Tracker):
     def get(self) -> AgentStatisticsMap:
         stats = {}
         for i in range(self._num_agents):
-            stats[i] = {}
+            stats[i] = {
+                f"bayes_accuracy_{i}": np.nan
+            }
             for j, acc in self._acc[i].items():
                 stats[i][f"bayes_accuracy_{j}"] = np.mean(acc, axis=0)
         return stats

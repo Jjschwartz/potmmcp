@@ -89,7 +89,7 @@ if __name__ == "__main__":
         preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
 
         def pi_init(model, ego_agent, gamma, **kwargs):
-            return ba_rllib.RllibPolicy(
+            return ba_rllib.PPORllibPolicy(
                 model=model,
                 ego_agent=ego_agent,
                 gamma=gamma,

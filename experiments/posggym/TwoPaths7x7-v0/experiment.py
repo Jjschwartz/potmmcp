@@ -18,7 +18,7 @@ import baposgmcp.render as render_lib
 import baposgmcp.policy as ba_policy_lib
 
 from exp_utils import (
-    ENV_CONFIG, env_creator, policy_mapping_fn, ENV_NAME, EXP_RESULTS_DIR
+    ENV_CONFIG, env_creator, ENV_NAME, EXP_RESULTS_DIR, klr_policy_mapping_fn
 )
 
 
@@ -32,7 +32,7 @@ def _import_policies(args):
         env_is_symmetric=False,
         trainer_make_fn=_trainer_make_fn,
         trainers_remote=False,
-        policy_mapping_fn=policy_mapping_fn,
+        policy_mapping_fn=klr_policy_mapping_fn,
         extra_config={
             "num_gpus": args.gpu_utilization
         }
@@ -57,7 +57,7 @@ def _load_policy_params(args):
         preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
 
         def pi_init(model, ego_agent, gamma, **kwargs):
-            return ba_rllib.RllibPolicy(
+            return ba_rllib.PPORllibPolicy(
                 model=model,
                 ego_agent=ego_agent,
                 gamma=gamma,
@@ -122,7 +122,7 @@ def _load_policies(args):
             else:
                 obs_space = env_model.obs_spaces[int(agent_id)]
                 preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
-                new_policy = ba_rllib.RllibPolicy(
+                new_policy = ba_rllib.PPORllibPolicy(
                     model=env_model,
                     ego_agent=int(agent_id),
                     gamma=0.95,
@@ -184,6 +184,10 @@ if __name__ == "__main__":
         "-gpu", "--gpu_utilization", type=float, default=0.9,
         help="Proportion of availabel GPU to use."
     )
+    parser.add_argument(
+        "--debug", action="store_true",
+        help="Run debug experiment (runs only a single pairing)."
+    )
     args = parser.parse_args()
 
     ray.init()
@@ -219,10 +223,12 @@ if __name__ == "__main__":
                 "other_policies": other_policies,
                 "other_policy_prior": None,     # uniform
                 "num_sims": args.num_sims,
-                "rollout_policy": ba_policy_lib.RandomRolloutPolicy(
+                "rollout_policy": ba_policy_lib.RandomPolicy(
                     env_model, agent_id, 0.95
                 ),
-                "uct_c": 10.0,
+                "c_init": 1.0,
+                "c_base": 100.0,
+                "truncated": True,
                 "reinvigorator": tree_lib.BABeliefRejectionSampler(env_model),
             },
             init=tree_lib.BAPOSGMCP
@@ -231,6 +237,7 @@ if __name__ == "__main__":
         renderers = []
         if args.render:
             renderers.append(render_lib.EpisodeRenderer())
+            renderers.append(render_lib.PolicyBeliefRenderer())
 
         for policy_params in other_agent_policy_params:
             if agent_id == 0:
@@ -258,8 +265,10 @@ if __name__ == "__main__":
             exp_params_list.append(exp_params)
             exp_id += 1
 
+            if args.debug:
+                break
+        if args.debug:
             break
-        break
 
     print("\n== Running Experiments ==")
     exp_lib.run_experiments(

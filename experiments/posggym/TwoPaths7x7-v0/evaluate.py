@@ -11,7 +11,7 @@ import baposgmcp.rllib as ba_rllib
 from ray.rllib.agents.ppo import PPOTrainer
 
 from exp_utils import (
-    ENV_CONFIG, env_creator, policy_mapping_fn, ENV_NAME
+    ENV_CONFIG, env_creator, klr_policy_mapping_fn, ENV_NAME
 )
 
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         env_is_symmetric=False,
         trainer_make_fn=_trainer_make_fn,
         trainers_remote=False,
-        policy_mapping_fn=policy_mapping_fn,
+        policy_mapping_fn=klr_policy_mapping_fn,
         extra_config=eval_config
     )
     igraph.display()
