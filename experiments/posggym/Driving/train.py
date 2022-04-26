@@ -14,8 +14,7 @@ from baposgmcp import pbt
 import baposgmcp.rllib as ba_rllib
 
 from exp_utils import (
-    ENV_CONFIG, env_creator, EXP_RL_POLICY_DIR,
-    ENV_NAME, get_br_policy_mapping_fn
+    registered_env_creator, EXP_RL_POLICY_DIR, get_br_policy_mapping_fn
 )
 
 
@@ -24,7 +23,6 @@ NUM_GPUS = 1
 
 # Ref: https://docs.ray.io/en/latest/rllib/rllib-training.html#configuration
 RL_TRAINER_CONFIG = {
-    "env_config": ENV_CONFIG,
     # == Rollout worker processes ==
     # A single rollout worker
     "num_workers": 1,
@@ -36,13 +34,11 @@ RL_TRAINER_CONFIG = {
     "use_gae": True,
     "lambda": 1.0,
     "kl_coeff": 0.2,
-    "rollout_fragment_length": 100,   # = episode length for TwoPaths7x7
+    "rollout_fragment_length": 100,
     "train_batch_size": 2048,
-    # "train_batch_size": 256,
     "sgd_minibatch_size": 256,
     "shuffle_sequences": True,
     "num_sgd_iter": 6,
-    # "num_sgd_iter": 1,
     "lr": 0.0003,
     "lr_schedule": None,
     "vf_loss_coeff": 0.05,
@@ -89,8 +85,12 @@ RL_TRAINER_CONFIG = {
 }
 
 
+def _get_env(args):
+    return registered_env_creator({"env_name": args.env_name})
+
+
 def _get_trainers_and_igraph(args):
-    sample_env = env_creator(ENV_CONFIG)
+    sample_env = _get_env(args)
     # obs and action spaces are the same for both agent in TwoPaths env
     obs_space = sample_env.observation_space["0"]
     act_space = sample_env.action_space["0"]
@@ -116,7 +116,7 @@ def _get_trainers_and_igraph(args):
     default_trainer_config = dict(RL_TRAINER_CONFIG)
     default_trainer_config["log_level"] = args.log_level
     default_trainer_config["seed"] = args.seed
-    default_trainer_config["env_config"] = {"env_name": ENV_NAME}
+    default_trainer_config["env_config"] = {"env_name": args.env_name}
 
     trainers = {i: {} for i in agent_ids}   # type: ignore
     for agent_k_id, k, agent_km1_id in product(
@@ -133,7 +133,7 @@ def _get_trainers_and_igraph(args):
         }
 
         trainer_k = ba_rllib.get_remote_trainer(
-            ENV_NAME,
+            args.env_name,
             trainer_class=PPOTrainer,
             policies=policies_k,
             policy_mapping_fn=ba_rllib.default_asymmetric_policy_mapping_fn,
@@ -182,7 +182,7 @@ def _get_trainers_and_igraph(args):
         )
 
         trainer_br = ba_rllib.get_remote_trainer(
-            ENV_NAME,
+            args.env_name,
             trainer_class=PPOTrainer,
             policies=policies_br,
             policy_mapping_fn=br_policy_mapping_fn,
@@ -209,6 +209,10 @@ def _get_trainers_and_igraph(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "env_name", type=str,
+        help="Name of the environment to train on."
     )
     parser.add_argument(
         "-k", "--k", type=int, default=3,
@@ -245,8 +249,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # check env name is valid
+    _get_env(args)
+
     ray.init()
-    register_env(ENV_NAME, env_creator)
+    register_env(args.env_name, registered_env_creator)
 
     trainers, igraph = _get_trainers_and_igraph(args)
     igraph.display()
@@ -256,6 +263,6 @@ if __name__ == "__main__":
     if args.save_policies:
         print("== Exporting Graph ==")
         export_dir = ba_rllib.export_trainers_to_file(
-            EXP_RL_POLICY_DIR, igraph, trainers, ENV_NAME
+            EXP_RL_POLICY_DIR, igraph, trainers, args.env_name
         )
         print(f"{export_dir=}")

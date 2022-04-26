@@ -3,23 +3,30 @@ import argparse
 
 import ray
 
-from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
 
 import baposgmcp.rllib as ba_rllib
 
 from ray.rllib.agents.ppo import PPOTrainer
 
-from exp_utils import ENV_CONFIG, env_creator, ENV_NAME
+from exp_utils import registered_env_creator
 
 
 def _trainer_make_fn(config):
-    return PPOTrainer(env=ENV_NAME, config=config)
+    return PPOTrainer(env=config["env_config"]["env_name"], config=config)
+
+
+def _get_env(args):
+    return registered_env_creator({"env_name": args.env_name})
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "env_name", type=str,
+        help="Name of the environment to train on."
     )
     parser.add_argument(
         "policy_dir", type=str,
@@ -35,12 +42,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    ray.init()
-    register_env(ENV_NAME, env_creator)
+    # check env name is valid
+    _get_env(args)
 
-    sample_env = env_creator(ENV_CONFIG)
+    ray.init()
+    register_env(args.env_name, registered_env_creator)
 
     eval_config = {
+        "env_config": {"env_name": args.env_name},
         "render_env": args.render,
         # If True, store videos in this relative directory inside the default
         # output dir (~/ray_results/...)
@@ -64,16 +73,4 @@ if __name__ == "__main__":
     )
     igraph.display()
 
-    print("== Running Evaluation ==")
-    results = {i: {} for i in trainer_map}
-    for i, policy_map in trainer_map.items():
-        results[i] = {}
-        for policy_k_id, trainer in policy_map.items():
-            print(f"-- Running Agent ID {i}, Policy {policy_k_id} --")
-            results[i][policy_k_id] = trainer.evaluate()
-
-    print("== Evaluation results ==")
-    for i, policy_map in results.items():
-        for policy_k_id, result in policy_map.items():
-            print(f"-- Agent ID {i}, Policy {policy_k_id} --")
-            print(pretty_print(result))
+    ba_rllib.run_evaluation(trainer_map, verbose=True)

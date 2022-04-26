@@ -103,7 +103,6 @@ class PolicyBeliefRenderer(Renderer):
     """Renders a BayesPOSGMCP policy's root belief over other agent pis."""
 
     def __init__(self):
-        # TODO
         self._axs = None
         self._fig = None
 

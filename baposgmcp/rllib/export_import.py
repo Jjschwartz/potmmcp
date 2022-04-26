@@ -1,19 +1,19 @@
 import os
+import os.path as osp
 import copy
 import pickle
+import pathlib
+import datetime
 from typing import Dict, Callable, Tuple, Sequence, Union, Any, Optional
 
 import ray
-from ray import rllib
 from ray.rllib.agents.trainer import Trainer
 
 from baposgmcp import pbt
 from baposgmcp.parts import AgentID, PolicyID, Policy
+from baposgmcp.rllib.utils import RllibTrainerMap, RllibPolicyMap
 
 TRAINER_CONFIG_FILE = "trainer_config.pkl"
-
-RllibTrainerMap = Dict[AgentID, Dict[PolicyID, Trainer]]
-RllibPolicyMap = Dict[AgentID, Dict[PolicyID, rllib.policy.policy.Policy]]
 
 
 def _import_trainer_config(import_dir: str) -> Dict:
@@ -215,3 +215,35 @@ def import_igraph_policies(igraph_dir: str,
     )
     policy_map = get_policy_from_trainer_map(trainer_map)
     return igraph, policy_map
+
+
+def export_trainers_to_file(parent_dir: str,
+                            igraph: pbt.InteractionGraph,
+                            trainers,
+                            policy_dir_name: str = "") -> str:
+    """Export Rllib trainer objects to file.
+
+    Handles creation of directory to store
+    """
+    export_dir = osp.join(
+        parent_dir, f"{policy_dir_name}_{datetime.datetime.now()}"
+    )
+    try:
+        pathlib.Path(export_dir).mkdir(exist_ok=False)
+    except FileExistsError:
+        # A timestamp clash is already rare so this should do
+        export_dir += "_1"
+        pathlib.Path(export_dir).mkdir(exist_ok=False)
+
+    igraph.export_graph(
+        export_dir,
+        get_trainer_export_fn(
+            trainers,
+            True,
+            # remove unpickalable config values
+            config_to_remove=[
+                "evaluation_config", ["multiagent", "policy_mapping_fn"]
+            ]
+        )
+    )
+    return export_dir
