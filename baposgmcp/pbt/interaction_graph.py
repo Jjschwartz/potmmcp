@@ -3,7 +3,7 @@ import json
 import random
 import itertools
 from pprint import pprint
-from typing import Dict, Tuple, Callable, List
+from typing import Dict, Tuple, Callable, List, Optional, Set
 
 from baposgmcp.parts import PolicyID, Policy, AgentID
 
@@ -17,6 +17,7 @@ PolicyImportFn = Callable[[AgentID, PolicyID, str], Policy]
 
 
 IGRAPH_FILE_NAME = "igraph.json"
+IGRAPH_AGENT_ID_FILE_NAME = "igraph_agents.json"
 
 
 class InteractionGraph:
@@ -34,8 +35,10 @@ class InteractionGraph:
     # Need to use str for correct import/export to/from json
     SYMMETRIC_ID = str(None)
 
-    def __init__(self, symmetric: bool):
+    def __init__(self, symmetric: bool, seed: Optional[int]):
         self._symmetric = symmetric
+        self._rng = random.Random(seed)
+        self._agent_ids: Set[AgentID] = set()
         # maps (agent_id, policy_id, other_agent_id) -> Delta(policy_id))
         self._graph: Dict[
             AgentID, Dict[PolicyID, Dict[AgentID, Dict[PolicyID, float]]]
@@ -54,6 +57,21 @@ class InteractionGraph:
         """Get the graph."""
         return self._graph
 
+    @property
+    def is_symmetric(self) -> bool:
+        """Get if interactive graph is symmetric or not."""
+        return self._symmetric
+
+    def get_agent_ids(self) -> List[AgentID]:
+        """Get list of agent ids stored in graph."""
+        return list(self._agent_ids)
+
+    def get_agent_policy_ids(self, agent_id: AgentID) -> List[PolicyID]:
+        """Get list of all policy ids for a given agent."""
+        if self._symmetric:
+            agent_id = self.SYMMETRIC_ID
+        return list(self._policies[agent_id])
+
     def add_policy(self,
                    agent_id: AgentID,
                    policy_id: PolicyID,
@@ -62,6 +80,7 @@ class InteractionGraph:
 
         Note, for symmetric environments agent id is treated as None.
         """
+        self._agent_ids.add(agent_id)
         if self._symmetric:
             agent_id = self.SYMMETRIC_ID
 
@@ -200,7 +219,7 @@ class InteractionGraph:
         other_policy_ids = list(other_policy_dist)
         other_policy_weights = list(other_policy_dist.values())
 
-        sampled_id = random.choices(
+        sampled_id = self._rng.choices(
             other_policy_ids, weights=other_policy_weights, k=1
         )[0]
 
@@ -227,7 +246,7 @@ class InteractionGraph:
                          policy_id: PolicyID,
                          other_agent_id: AgentID,
                          ) -> List[Tuple[PolicyID, Policy]]:
-        """Get all connectected policies for other agent from the graph."""
+        """Get all connected policies for other agent from the graph."""
         if self._symmetric:
             agent_id = self.SYMMETRIC_ID
             other_agent_id = self.SYMMETRIC_ID
@@ -244,10 +263,9 @@ class InteractionGraph:
             f"Policy with ID={policy_id} not in graph. Make sure to add the "
             "policy using the add_policy() function."
         )
-        assert len(self._graph[agent_id][policy_id][other_agent_id]) > 0, (
-            f"No edges added from policy with ID={policy_id}. Make sure to "
-            "add edges from the policy using the add_edge() function"
-        )
+        if len(self._graph[agent_id][policy_id]) == 0:
+            return []
+
         other_policy_dist = self._graph[agent_id][policy_id][other_agent_id]
         other_policy_ids = list(other_policy_dist)
         other_policies = []
@@ -263,6 +281,12 @@ class InteractionGraph:
         igraph_file = os.path.join(export_dir, IGRAPH_FILE_NAME)
         with open(igraph_file, "w", encoding="utf-8") as fout:
             json.dump(self._graph, fout)
+
+        igraph_agent_id_file = os.path.join(
+            export_dir, IGRAPH_AGENT_ID_FILE_NAME
+        )
+        with open(igraph_agent_id_file, "w", encoding="utf-8") as fout:
+            json.dump(list(self._agent_ids), fout)
 
         for agent_id, policy_map in self._policies.items():
             agent_dir = os.path.join(export_dir, str(agent_id))
@@ -285,6 +309,12 @@ class InteractionGraph:
         igraph_file = os.path.join(import_dir, IGRAPH_FILE_NAME)
         with open(igraph_file, "r", encoding="utf-8") as fin:
             self._graph = json.load(fin)
+
+        igraph_agent_id_file = os.path.join(
+            import_dir, IGRAPH_AGENT_ID_FILE_NAME
+        )
+        with open(igraph_agent_id_file, "r", encoding="utf-8") as fin:
+            self._agent_ids = set(json.load(fin))
 
         policies: Dict[AgentID, Dict[PolicyID, Policy]] = {}
         for agent_id, policy_map in self._graph.items():

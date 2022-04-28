@@ -40,10 +40,14 @@ if __name__ == "__main__":
         "--render", action="store_true",
         help="Render environment."
     )
+    parser.add_argument(
+        "--seed", type=int, default=None,
+        help="Random seed."
+    )
     args = parser.parse_args()
 
     # check env name is valid
-    _get_env(args)
+    sample_env = _get_env(args)
 
     ray.init()
     register_env(args.env_name, registered_env_creator)
@@ -65,11 +69,12 @@ if __name__ == "__main__":
     print("\n== Importing Graph ==")
     igraph, trainer_map = ba_rllib.import_igraph_trainers(
         igraph_dir=args.policy_dir,
-        env_is_symmetric=False,
+        env_is_symmetric=True,
         trainer_make_fn=_trainer_make_fn,
         trainers_remote=False,
-        policy_mapping_fn=ba_rllib.uniform_asymmetric_policy_mapping_fn,
-        extra_config=eval_config
+        policy_mapping_fn=None,
+        extra_config=eval_config,
+        seed=args.seed
     )
     igraph.display()
 

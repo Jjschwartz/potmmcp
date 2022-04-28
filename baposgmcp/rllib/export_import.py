@@ -11,7 +11,9 @@ from ray.rllib.agents.trainer import Trainer
 
 from baposgmcp import pbt
 from baposgmcp.parts import AgentID, PolicyID, Policy
-from baposgmcp.rllib.utils import RllibTrainerMap, RllibPolicyMap
+from baposgmcp.rllib.utils import (
+    RllibTrainerMap, RllibPolicyMap, get_igraph_policy_mapping_fn
+)
 
 TRAINER_CONFIG_FILE = "trainer_config.pkl"
 
@@ -156,21 +158,39 @@ def get_trainer_import_fn(trainer_make_fn: Callable[[Dict], Trainer],
     return import_fn, trainer_map
 
 
+def _dummy_trainer_import_fn(agent_id: AgentID,
+                             policy_id: PolicyID,
+                             import_dir: str) -> Policy:
+    return {}
+
+
 def import_igraph_trainers(igraph_dir: str,
                            env_is_symmetric: bool,
                            trainer_make_fn: Callable[[Dict], Trainer],
                            trainers_remote: bool,
                            policy_mapping_fn: Callable,
                            extra_config: Optional[Dict] = None,
+                           seed: Optional[int] = None,
                            ) -> Tuple[pbt.InteractionGraph, RllibTrainerMap]:
-    """Import Rllib trainers from InteractionGraph directory."""
-    igraph = pbt.InteractionGraph(env_is_symmetric)
+    """Import Rllib trainers from InteractionGraph directory.
+
+    If policy_mapping_fn is None then will use function from
+    baposgmcp.rllib.utils.get_igraph_policy_mapping_function.
+    """
+    igraph = pbt.InteractionGraph(env_is_symmetric, seed=seed)
 
     if extra_config is None:
         extra_config = {}
 
     if "multiagent" not in extra_config:
         extra_config["multiagent"] = {}
+
+    if policy_mapping_fn is None:
+        extra_config["multiagent"]["policy_mapping_fn"] = None
+        # import igraph without actual policy objects so we can generate
+        # policy mapping fn
+        igraph.import_graph(igraph_dir, _dummy_trainer_import_fn)
+        policy_mapping_fn = get_igraph_policy_mapping_fn(igraph)
 
     extra_config["multiagent"]["policy_mapping_fn"] = policy_mapping_fn
 
@@ -219,14 +239,15 @@ def import_igraph_policies(igraph_dir: str,
 
 def export_trainers_to_file(parent_dir: str,
                             igraph: pbt.InteractionGraph,
-                            trainers,
-                            policy_dir_name: str = "") -> str:
+                            trainers: RllibTrainerMap,
+                            trainers_remote: bool,
+                            save_dir_name: str = "") -> str:
     """Export Rllib trainer objects to file.
 
     Handles creation of directory to store
     """
     export_dir = osp.join(
-        parent_dir, f"{policy_dir_name}_{datetime.datetime.now()}"
+        parent_dir, f"{save_dir_name}_{datetime.datetime.now()}"
     )
     try:
         pathlib.Path(export_dir).mkdir(exist_ok=False)
@@ -239,7 +260,7 @@ def export_trainers_to_file(parent_dir: str,
         export_dir,
         get_trainer_export_fn(
             trainers,
-            True,
+            trainers_remote,
             # remove unpickalable config values
             config_to_remove=[
                 "evaluation_config", ["multiagent", "policy_mapping_fn"]

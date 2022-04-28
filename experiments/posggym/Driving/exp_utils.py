@@ -1,7 +1,5 @@
-import random
 import pathlib
 import os.path as osp
-from typing import List
 
 import posggym
 from posggym.wrappers import FlattenObservation
@@ -22,18 +20,3 @@ def registered_env_creator(config):
     env = posggym.make(config["env_name"])
     env = FlattenObservation(env)
     return RllibMultiAgentEnv(env)
-
-
-def get_br_policy_mapping_fn(policy_br_id: str,
-                             br_agent_id: str,
-                             other_policy_ids: List[str],
-                             other_policy_dist: List[float]):
-    """Get policy mapping fn for BR agent."""
-    def mapping_fn(agent_id, episode, worker, **kwargs):
-        if agent_id == br_agent_id:
-            return policy_br_id
-        return random.choices(
-            other_policy_ids, weights=other_policy_dist, k=1
-        )[0]
-
-    return mapping_fn

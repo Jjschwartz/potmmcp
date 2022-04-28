@@ -1,6 +1,4 @@
-"""A script training RL policies."""
 import argparse
-from itertools import product
 
 import ray
 
@@ -13,9 +11,7 @@ from ray.rllib.examples.policy.random_policy import RandomPolicy
 from baposgmcp import pbt
 import baposgmcp.rllib as ba_rllib
 
-from exp_utils import (
-    registered_env_creator, EXP_RL_POLICY_DIR, get_br_policy_mapping_fn
-)
+from exp_utils import registered_env_creator, EXP_RL_POLICY_DIR
 
 
 # NUM_GPUS = int(os.environ.get("RLLIB_NUM_GPUS", "0"))
@@ -89,121 +85,94 @@ def _get_env(args):
     return registered_env_creator({"env_name": args.env_name})
 
 
-def _get_trainers_and_igraph(args):
+def _get_igraph(args) -> pbt.InteractionGraph:
     sample_env = _get_env(args)
-    # obs and action spaces are the same for both agent in TwoPaths env
-    obs_space = sample_env.observation_space["0"]
-    act_space = sample_env.action_space["0"]
-
-    l0_policy_spec = PolicySpec(RandomPolicy, obs_space, act_space, {})
-    k_policy_spec = PolicySpec(PPOTorchPolicy, obs_space, act_space, {})
-
     agent_ids = list(sample_env.get_agent_ids())
     agent_ids.sort()
-    igraph = pbt.construct_klr_interaction_graph(
-        agent_ids, args.k, is_symmetric=False
-    )
 
-    num_trainers = (args.k+1) * len(agent_ids)
     if args.train_best_response:
-        num_trainers += 2
+        igraph = pbt.construct_klrbr_interaction_graph(
+            agent_ids,
+            args.k,
+            is_symmetric=True,
+            dist=None,     # uses poisson with lmda=1.0
+            seed=args.seed
+        )
+    else:
+        igraph = pbt.construct_klr_interaction_graph(
+            agent_ids, args.k, is_symmetric=True, seed=args.seed
+        )
+    return igraph
+
+
+def _get_trainer_config(args):
+    default_trainer_config = dict(RL_TRAINER_CONFIG)
+    default_trainer_config["log_level"] = args.log_level
+    default_trainer_config["seed"] = args.seed
+    default_trainer_config["env_config"] = {"env_name": args.env_name}
+
+    num_trainers = (args.k+1)
+    if args.train_best_response:
+        num_trainers += 1
 
     avail_gpu = args.gpu_utilization * NUM_GPUS
     num_gpus_per_trainer = avail_gpu / num_trainers
     print(f"{num_gpus_per_trainer=}")
     print(f"num_trainers={num_trainers}")
 
-    default_trainer_config = dict(RL_TRAINER_CONFIG)
-    default_trainer_config["log_level"] = args.log_level
-    default_trainer_config["seed"] = args.seed
-    default_trainer_config["env_config"] = {"env_name": args.env_name}
+    return {
+        "default_trainer_config": default_trainer_config,
+        "num_workers": args.num_workers,
+        "num_gpus_per_trainer": num_gpus_per_trainer
+    }
 
-    trainers = {i: {} for i in agent_ids}   # type: ignore
-    for agent_k_id, k, agent_km1_id in product(
-            agent_ids, range(0, args.k+1), agent_ids
-    ):
-        if agent_k_id == agent_km1_id:
+
+def _get_trainers(args, igraph, trainer_config):
+    sample_env = _get_env(args)
+    # obs and action spaces are the same for both agent in TwoPaths env
+    obs_space = sample_env.observation_space["0"]
+    act_space = sample_env.action_space["0"]
+
+    lm1_policy_spec = PolicySpec(RandomPolicy, obs_space, act_space, {})
+    k_policy_spec = PolicySpec(PPOTorchPolicy, obs_space, act_space, {})
+
+    policy_mapping_fn = ba_rllib.get_igraph_policy_mapping_fn(igraph)
+
+    trainers = {}
+    for train_policy_id in igraph.get_agent_policy_ids(None):
+        connected_policies = igraph.get_all_policies(
+            None, train_policy_id, None
+        )
+        if len(connected_policies) == 0:
+            # k = -1
             continue
 
-        policy_km1_id = pbt.get_klr_policy_id(agent_km1_id, k-1, False)
-        policy_k_id = pbt.get_klr_policy_id(agent_k_id, k, False)
-        policies_k = {    # type: ignore
-            policy_km1_id: l0_policy_spec if k == 0 else k_policy_spec,
-            policy_k_id: k_policy_spec
-        }
+        train_policy_spec = k_policy_spec
+        policy_spec_map = {train_policy_id: train_policy_spec}
+        for (policy_km1_id, _) in connected_policies:
+            _, k = pbt.parse_klr_policy_id(policy_km1_id)
+            km1_policy_spec = lm1_policy_spec if k == -1 else k_policy_spec
+            policy_spec_map[policy_km1_id] = km1_policy_spec
 
         trainer_k = ba_rllib.get_remote_trainer(
             args.env_name,
             trainer_class=PPOTrainer,
-            policies=policies_k,
-            policy_mapping_fn=ba_rllib.default_asymmetric_policy_mapping_fn,
-            policies_to_train=[policy_k_id],
-            num_workers=args.num_workers,
-            num_gpus_per_trainer=num_gpus_per_trainer,
-            default_trainer_config=default_trainer_config
+            policies=policy_spec_map,
+            policy_mapping_fn=policy_mapping_fn,
+            policies_to_train=[train_policy_id],
+            **trainer_config
         )
 
-        trainers[agent_k_id][policy_k_id] = trainer_k
+        trainers[train_policy_id] = trainer_k
         igraph.update_policy(
-            agent_k_id,
-            policy_k_id,
-            trainer_k.get_weights.remote(policy_k_id)
+            None,
+            train_policy_id,
+            trainer_k.get_weights.remote(train_policy_id)
         )
 
-    if not args.train_best_response:
-        return trainers, igraph
-
-    for agent_br_id, agent_k_id in product(agent_ids, agent_ids):
-        if agent_br_id == agent_k_id:
-            continue
-
-        policy_br_id = pbt.get_br_policy_id(agent_br_id, False)
-
-        policies_br = {policy_br_id: k_policy_spec}
-        policies_k_dist = []
-        policies_k_ids = []
-        for k in range(-1, args.k+1):
-            policy_k_id = pbt.get_klr_policy_id(agent_k_id, k, False)
-            if k < 0:
-                policies_br[policy_k_id] = l0_policy_spec
-            else:
-                policies_br[policy_k_id] = k_policy_spec
-            policies_k_dist.append(pbt.get_klr_poisson_prob(
-                k, args.k+2, lmbda=1.0
-            ))
-            policies_k_ids.append(policy_k_id)
-
-        unnormalized_prob_sum = sum(policies_k_dist)
-        for i in range(len(policies_k_dist)):
-            policies_k_dist[i] /= unnormalized_prob_sum
-
-        br_policy_mapping_fn = get_br_policy_mapping_fn(
-            policy_br_id, agent_br_id, policies_k_ids, policies_k_dist
-        )
-
-        trainer_br = ba_rllib.get_remote_trainer(
-            args.env_name,
-            trainer_class=PPOTrainer,
-            policies=policies_br,
-            policy_mapping_fn=br_policy_mapping_fn,
-            policies_to_train=[policy_br_id],
-            num_workers=args.num_workers,
-            num_gpus_per_trainer=num_gpus_per_trainer,
-            default_trainer_config=default_trainer_config
-        )
-
-        trainers[agent_br_id][policy_br_id] = trainer_br
-        igraph.add_policy(
-            agent_br_id,
-            policy_br_id,
-            trainer_br.get_weights.remote(policy_br_id)
-        )
-        for policy_id, policy_prob in zip(policies_k_ids, policies_k_dist):
-            igraph.add_edge(
-                agent_br_id, policy_br_id, agent_k_id, policy_id, policy_prob
-            )
-
-    return trainers, igraph
+    # need to map from agent_id to trainers
+    trainer_map = {pbt.InteractionGraph.SYMMETRIC_ID: trainers}
+    return trainer_map
 
 
 if __name__ == "__main__":
@@ -255,14 +224,21 @@ if __name__ == "__main__":
     ray.init()
     register_env(args.env_name, registered_env_creator)
 
-    trainers, igraph = _get_trainers_and_igraph(args)
+    igraph = _get_igraph(args)
     igraph.display()
+
+    trainer_config = _get_trainer_config(args)
+    trainers = _get_trainers(args, igraph, trainer_config)
 
     ba_rllib.run_training(trainers, igraph, args.num_iterations, verbose=True)
 
     if args.save_policies:
         print("== Exporting Graph ==")
         export_dir = ba_rllib.export_trainers_to_file(
-            EXP_RL_POLICY_DIR, igraph, trainers, args.env_name
+            EXP_RL_POLICY_DIR,
+            igraph,
+            trainers,
+            trainers_remote=True,
+            save_dir_name=args.env_name
         )
         print(f"{export_dir=}")
