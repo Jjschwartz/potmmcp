@@ -3,6 +3,7 @@ from itertools import product
 from typing import Tuple, Optional, List, Callable
 
 from baposgmcp import parts
+import baposgmcp.pbt.utils as pbt_utils
 from baposgmcp.pbt.interaction_graph import InteractionGraph
 
 
@@ -10,28 +11,13 @@ def get_klr_policy_id(agent_id: Optional[parts.AgentID],
                       k: int,
                       is_symmetric: bool) -> str:
     """Get the policy ID string for a K-level reasoning policy."""
-    if is_symmetric:
-        return f"pi_{k}"
-    return f"pi_{k}_{agent_id}"
+    return pbt_utils.get_policy_id(agent_id, str(k), is_symmetric)
 
 
 def get_br_policy_id(agent_id: Optional[parts.AgentID],
                      is_symmetric: bool) -> str:
     """Get the policy ID string for a Best Response policy."""
-    if is_symmetric:
-        return "pi_BR"
-    return f"pi_BR_{agent_id}"
-
-
-def get_agent_id_from_policy_id(policy_id: str) -> parts.AgentID:
-    """Get agent id from policy id.
-
-    Assumes pbt naming and that env is asymmetric.
-    """
-    tokens = policy_id.split("_")
-    if len(tokens) == 2:
-        return None
-    return tokens[2]
+    return pbt_utils.get_policy_id(agent_id, "BR", is_symmetric)
 
 
 def get_klr_poisson_prob(k: int, num_levels: int, lmbda: float = 1.0) -> float:

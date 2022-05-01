@@ -11,6 +11,7 @@ from ray.tune.registry import register_env
 
 from ray.rllib.agents.ppo import PPOTrainer
 
+from baposgmcp import pbt
 from baposgmcp import runner
 import baposgmcp.exp as exp_lib
 import baposgmcp.rllib as ba_rllib
@@ -18,15 +19,98 @@ import baposgmcp.stats as stats_lib
 import baposgmcp.render as render_lib
 import baposgmcp.policy as ba_policy_lib
 
-from exp_utils import registered_env_creator, EXP_RESULTS_DIR
+from exp_utils import registered_env_creator, EXP_RESULTS_DIR, get_base_env
 
 
 def _trainer_make_fn(config):
     return PPOTrainer(env=config["env_config"]["env_name"], config=config)
 
 
-def _get_env(args):
-    return registered_env_creator({"env_name": args.env_name})
+def _import_rllib_policies(args):
+    print("\n== Importing Graph ==")
+    igraph, trainer_map = ba_rllib.import_igraph_trainers(
+        igraph_dir=args.policy_dir,
+        env_is_symmetric=True,
+        trainer_make_fn=_trainer_make_fn,
+        trainers_remote=False,
+        policy_mapping_fn=None,
+        extra_config={
+            # only using policies for rollouts so no GPU
+            "num_gpus": 0.0
+        }
+    )
+    print("\n== Importing Policies ==")
+    policy_map = ba_rllib.get_policy_from_trainer_map(trainer_map)
+    return policy_map
+
+
+def _load_agent_policies(args):
+    policy_map = _import_rllib_policies(args)
+
+    sample_env = get_base_env(args)
+    env_model = sample_env.model
+
+    def _get_rllib_policy_init_fn(pi):
+        """Get init function for rllib policy.
+
+        This is a little hacky but gets around issure of copying kwargs.
+        """
+        obs_space = env_model.obs_spaces[0]
+        preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
+
+        def pi_init(model, ego_agent, gamma, **kwargs):
+            return ba_rllib.PPORllibPolicy(
+                model=model,
+                ego_agent=ego_agent,
+                gamma=gamma,
+                policy=pi,
+                preprocessor=preprocessor,
+                **kwargs
+            )
+
+        return pi_init
+
+    policy_params_map = {}
+    symmetric_agent_id = pbt.InteractionGraph.SYMMETRIC_ID
+    random_policy_added = False
+    for policy_id, policy in policy_map[symmetric_agent_id].items():
+        if "-1" in policy_id:
+            policy_params = exp_lib.PolicyParams(
+                name="RandomPolicy",
+                gamma=args.gamma,
+                kwargs={"policy_id": "pi_-1"},
+                init=ba_policy_lib.RandomPolicy
+            )
+            random_policy_added = True
+        else:
+            policy_params = exp_lib.PolicyParams(
+                name=f"PPOPolicy_{policy_id}",
+                gamma=args.gamma,
+                kwargs={"policy_id": policy_id},
+                init=_get_rllib_policy_init_fn(policy)
+            )
+        policy_params_map[policy_id] = policy_params
+
+    if not random_policy_added:
+        policy_params = exp_lib.PolicyParams(
+            name="RandomPolicy",
+            gamma=args.gamma,
+            kwargs={"policy_id": "pi_-1"},
+            init=ba_policy_lib.RandomPolicy
+        )
+        policy_params_map["pi_-1"] = policy_params
+
+    return policy_params_map
+
+
+def _load_policies(args):
+    env = get_base_env(args)
+    # Need to load seperate policies for each agent to ensure same policy
+    # object is not used for two agents at the same time
+    policy_params_map = {
+        i: _load_agent_policies(args) for i in range(env.n_agents)
+    }
+    return policy_params_map
 
 
 if __name__ == "__main__":
@@ -44,6 +128,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--seed", type=int, default=0,
         help="Experiment seed."
+    )
+    parser.add_argument(
+        "--gamma", type=int, default=0.99,
+        help="Discount hyperparam."
     )
     parser.add_argument(
         "--num_episodes", type=int, default=1000,
@@ -68,67 +156,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # check env name is valid
-    sample_env = _get_env(args)
+    get_base_env(args)
 
     ray.init()
     register_env(args.env_name, registered_env_creator)
 
-    print("\n== Importing Graph ==")
-    igraph, trainer_map = ba_rllib.import_igraph_trainers(
-        igraph_dir=args.policy_dir,
-        env_is_symmetric=False,
-        trainer_make_fn=_trainer_make_fn,
-        trainers_remote=False,
-        policy_mapping_fn=ba_rllib.uniform_asymmetric_policy_mapping_fn
-    )
-
-    print("\n== Importing Policies ==")
-    policy_map = ba_rllib.get_policy_from_trainer_map(trainer_map)
-
-    env_model = sample_env.unwrapped.model
-
-    def _get_rllib_policy_init_fn(pi, agent_id):
-        """Get init function for rllib policy.
-
-        This is a little hacky but gets around issure of copying kwargs.
-        """
-        obs_space = env_model.obs_spaces[int(agent_id)]
-        preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
-
-        def pi_init(model, ego_agent, gamma, **kwargs):
-            return ba_rllib.PPORllibPolicy(
-                model=model,
-                ego_agent=ego_agent,
-                gamma=gamma,
-                policy=pi,
-                preprocessor=preprocessor,
-                **kwargs
-            )
-
-        return pi_init
-
-    policy_params_map = {}
-
-    for agent_id, agent_policy_map in policy_map.items():
-        policy_params_map[agent_id] = {}
-        for policy_id, policy in agent_policy_map.items():
-            if "-1" in policy_id:
-                policy_params = exp_lib.PolicyParams(
-                    name="RandomPolicy",
-                    gamma=0.95,
-                    kwargs={},
-                    init=ba_policy_lib.RandomPolicy
-                )
-            else:
-                obs_space = env_model.obs_spaces[int(agent_id)]
-                preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
-                policy_params = exp_lib.PolicyParams(
-                    name=f"PPOPolicy_{policy_id}",
-                    gamma=0.95,
-                    kwargs={},
-                    init=_get_rllib_policy_init_fn(policy, agent_id)
-                )
-            policy_params_map[agent_id][policy_id] = policy_params
+    policy_params_map = _load_policies(args)
 
     print("\n== Running Experiments ==")
     # Run the different ba_rllib.RllibPolicy policies against each other
@@ -137,8 +170,8 @@ if __name__ == "__main__":
     result_dir = osp.join(EXP_RESULTS_DIR, str(datetime.now()))
     pathlib.Path(result_dir).mkdir(exist_ok=False)
 
-    agent_0_policies = list(policy_params_map["0"].values())
-    agent_1_policies = list(policy_params_map["1"].values())
+    agent_0_policies = list(policy_params_map[0].values())
+    agent_1_policies = list(policy_params_map[1].values())
     exp_params_list = []
 
     renderers = []

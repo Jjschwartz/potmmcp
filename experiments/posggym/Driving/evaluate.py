@@ -9,15 +9,11 @@ import baposgmcp.rllib as ba_rllib
 
 from ray.rllib.agents.ppo import PPOTrainer
 
-from exp_utils import registered_env_creator
+from exp_utils import registered_env_creator, get_rllib_env
 
 
 def _trainer_make_fn(config):
     return PPOTrainer(env=config["env_config"]["env_name"], config=config)
-
-
-def _get_env(args):
-    return registered_env_creator({"env_name": args.env_name})
 
 
 if __name__ == "__main__":
@@ -47,13 +43,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # check env name is valid
-    sample_env = _get_env(args)
+    sample_env = get_rllib_env(args)
 
     ray.init()
     register_env(args.env_name, registered_env_creator)
 
     eval_config = {
-        "env_config": {"env_name": args.env_name},
+        "env_config": {
+            "env_name": args.env_name,
+            "seed": args.seed
+        },
         "render_env": args.render,
         # If True, store videos in this relative directory inside the default
         # output dir (~/ray_results/...)

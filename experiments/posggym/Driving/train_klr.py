@@ -11,82 +11,13 @@ from ray.rllib.examples.policy.random_policy import RandomPolicy
 from baposgmcp import pbt
 import baposgmcp.rllib as ba_rllib
 
-from exp_utils import registered_env_creator, EXP_RL_POLICY_DIR
-
-
-# NUM_GPUS = int(os.environ.get("RLLIB_NUM_GPUS", "0"))
-NUM_GPUS = 1
-
-# Ref: https://docs.ray.io/en/latest/rllib/rllib-training.html#configuration
-RL_TRAINER_CONFIG = {
-    # == Rollout worker processes ==
-    # A single rollout worker
-    "num_workers": 1,
-    "num_envs_per_worker": 1,
-    # == Trainer process and PPO Config ==
-    # ref: https://docs.ray.io/en/latest/rllib/rllib-algorithms.html#ppo
-    "gamma": 0.95,
-    "use_critic": True,
-    "use_gae": True,
-    "lambda": 1.0,
-    "kl_coeff": 0.2,
-    "rollout_fragment_length": 100,
-    "train_batch_size": 2048,
-    "sgd_minibatch_size": 256,
-    "shuffle_sequences": True,
-    "num_sgd_iter": 6,
-    "lr": 0.0003,
-    "lr_schedule": None,
-    "vf_loss_coeff": 0.05,
-    "model": {
-        "use_lstm": True,
-        "vf_share_layers": True,
-    },
-    "entropy_coeff": 0.0,
-    "entropy_coeff_schedule": None,
-    "clip_param": 0.3,
-    "vf_clip_param": 15.0,
-    "grad_clip": None,
-    "kl_target": 0.01,
-    # "trancate_episodes" or "complete_episodes"
-    "batch_mode": "truncate_episodes",
-    "optimizer": {},
-    # == Environment settings ==
-    # ...
-
-    # == Deep LEarning Framework Settings ==
-    "framework": "torch",
-    # == Exploration Settings ==
-    "explore": True,
-    "exploration_config": {
-        "type": "StochasticSampling"
-    },
-    # == Evaluation settings ==
-    "evaluation_interval": None,
-    "evaluation_duration": 10,
-    "evaluation_duration_unit": "episodes",
-    # == Advanced Rollout Settings ==
-    "observation_filter": "NoFilter",
-    "metrics_num_episodes_for_smoothing": 100,
-    # == Resource Settungs ==
-    # we set this to 1.0 and control resource allocation via ray.remote
-    # num_gpus controls the GPU allocation for the learner process
-    # we want the learner using the GPU as it does batch inference
-    "num_gpus": 1.0,
-    "num_cpus_per_worker": 0.5,
-    # number of gpus per rollout worker.
-    # this should be 0 since we want rollout workers using CPU since they
-    # don't do batch inference
-    "num_gpus_per_worker": 0.0
-}
-
-
-def _get_env(args):
-    return registered_env_creator({"env_name": args.env_name})
+from exp_utils import (
+    registered_env_creator, EXP_RL_POLICY_DIR, RL_TRAINER_CONFIG, get_rllib_env
+)
 
 
 def _get_igraph(args) -> pbt.InteractionGraph:
-    sample_env = _get_env(args)
+    sample_env = get_rllib_env(args)
     agent_ids = list(sample_env.get_agent_ids())
     agent_ids.sort()
 
@@ -95,7 +26,7 @@ def _get_igraph(args) -> pbt.InteractionGraph:
             agent_ids,
             args.k,
             is_symmetric=True,
-            dist=None,     # uses poisson with lmda=1.0
+            dist=None,     # uses poisson with lambda=1.0
             seed=args.seed
         )
     else:
@@ -109,16 +40,16 @@ def _get_trainer_config(args):
     default_trainer_config = dict(RL_TRAINER_CONFIG)
     default_trainer_config["log_level"] = args.log_level
     default_trainer_config["seed"] = args.seed
-    default_trainer_config["env_config"] = {"env_name": args.env_name}
+    default_trainer_config["env_config"] = {
+        "env_name": args.env_name,
+        "seed": args.seed
+    }
 
     num_trainers = (args.k+1)
     if args.train_best_response:
         num_trainers += 1
 
-    avail_gpu = args.gpu_utilization * NUM_GPUS
-    num_gpus_per_trainer = avail_gpu / num_trainers
-    print(f"{num_gpus_per_trainer=}")
-    print(f"num_trainers={num_trainers}")
+    num_gpus_per_trainer = args.num_gpus / num_trainers
 
     return {
         "default_trainer_config": default_trainer_config,
@@ -128,13 +59,13 @@ def _get_trainer_config(args):
 
 
 def _get_trainers(args, igraph, trainer_config):
-    sample_env = _get_env(args)
+    sample_env = get_rllib_env(args)
     # obs and action spaces are the same for both agent in TwoPaths env
     obs_space = sample_env.observation_space["0"]
     act_space = sample_env.action_space["0"]
 
-    lm1_policy_spec = PolicySpec(RandomPolicy, obs_space, act_space, {})
-    k_policy_spec = PolicySpec(PPOTorchPolicy, obs_space, act_space, {})
+    random_policy_spec = PolicySpec(RandomPolicy, obs_space, act_space, {})
+    ppo_policy_spec = PolicySpec(PPOTorchPolicy, obs_space, act_space, {})
 
     policy_mapping_fn = ba_rllib.get_igraph_policy_mapping_fn(igraph)
 
@@ -147,12 +78,12 @@ def _get_trainers(args, igraph, trainer_config):
             # k = -1
             continue
 
-        train_policy_spec = k_policy_spec
+        train_policy_spec = ppo_policy_spec
         policy_spec_map = {train_policy_id: train_policy_spec}
-        for (policy_km1_id, _) in connected_policies:
-            _, k = pbt.parse_klr_policy_id(policy_km1_id)
-            km1_policy_spec = lm1_policy_spec if k == -1 else k_policy_spec
-            policy_spec_map[policy_km1_id] = km1_policy_spec
+        for (policy_j_id, _) in connected_policies:
+            _, k = pbt.parse_klr_policy_id(policy_j_id)
+            policy_spec_j = random_policy_spec if k == -1 else ppo_policy_spec
+            policy_spec_map[policy_j_id] = policy_spec_j
 
         trainer_k = ba_rllib.get_remote_trainer(
             args.env_name,
@@ -188,7 +119,7 @@ if __name__ == "__main__":
         help="Number of reasoning levels"
     )
     parser.add_argument(
-        "--num_iterations", type=int, default=50,
+        "--num_iterations", type=int, default=2500,
         help="Number of iterations to train."
     )
     parser.add_argument(
@@ -204,8 +135,8 @@ if __name__ == "__main__":
         help="Random seed."
     )
     parser.add_argument(
-        "-gpu", "--gpu_utilization", type=float, default=0.9,
-        help="Proportion of availabel GPU to use."
+        "--num_gpus", type=float, default=1.0,
+        help="Number of GPUs to use (can be a proportion)."
     )
     parser.add_argument(
         "-br", "--train_best_response", action="store_true",
@@ -219,7 +150,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # check env name is valid
-    _get_env(args)
+    get_rllib_env(args)
 
     ray.init()
     register_env(args.env_name, registered_env_creator)

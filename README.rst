@@ -11,7 +11,8 @@ Installing this library requires installing three main dependencies:
 
 1. Pytorch
 2. Rllib (version 1.12)
-4. baposgmcp (this project)
+3. baposgmcp (this projec)
+4. posggym
 
 Both ``pytorch`` and ``rllib`` will need to be installed before installing ``baposgmcp``. Instructions for installing these can be found on the relevant websites: https://pytorch.org and https://docs.ray.io/en/master/rllib/.
 
@@ -27,6 +28,8 @@ After ``pytorch`` and ``rllib`` are both installed, to install ``baposgmcp`` you
 .. code-block:: bash
 
    pip install -e .
+
+``posggym`` can be installed by first cloning the repo from https://github.com/RDLLab/posggym and then installing locally as above.
 
 
 And voila.
