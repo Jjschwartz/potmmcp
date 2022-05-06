@@ -87,6 +87,3 @@ Performance is similar between big and small networks tested (except 1 seed for 
 [[./figures/64x32_timesteps.png]]
 
 [[./figures/64x32_time.png]]
-
-* Exploration
-**

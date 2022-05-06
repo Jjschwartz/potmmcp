@@ -1,0 +1,65 @@
+#+TITLE: BAPOSGMCP Driving Environment Notes
+
+* Memory Usage
+
+Memory usage is affected by:
+
+- Network size
+- Batch size
+- Optimizer (since GPU stores optimizer state)
+- Sequence Length
+
+And probably other things as well, but these are the main ones (I think).
+
+** Batch size vs memory usage
+
+Using the default network size =[64, 32]= with =256= LSTM units.
+
+*Summary*:
+
+- GPU memory usage increases with both =sgd_minibatch_size= and =train_batch_size=.
+- Need to monitor =nvtop= output to get actual memory usage, output from rllib tells you nothing since it is only a sample (?)
+- Memory usage seems to scale super linearly with batch size, but increases are not too drastic. E.g. increasing =train_batch_size= from =256= to =8192= lead to an increase of =127MB= and =114MB= in Host and GPU memory usage respectively which is only around =1%= of an =8GB= GPU's RAM.
+
+  *Note* =Host Mem= is the =Resident Memory= of the host (i.e. the CPU RAM being used by the process) while =GPU Mem= is the GPU RAM being used. What we are really interested in is the =GPU Mem= and =GPU= measure since these determine how much of the GPU is being used and ultimately the size and number of networks we can run at the same time.
+
+*** Testing effect of =sgd_minibatch_size=
+
+| train_batch_size | sgd_minibatch_size |  CPU | CPU Ram |  GPU | GPU Ram | Host Mem | GPU Mem      |
+|------------------+--------------------+------+---------+------+---------+----------+--------------|
+|             2048 |                 64 | 14.8 |   71.19 | 32.1 |    20.0 |          |              |
+|             2048 |                128 | 14.9 |   71.28 | 28.0 |    20.0 |          |              |
+|             2048 |                256 | 15.4 |    71.6 | 28.8 |    20.3 | 2804 MB  | 1041MB (13%) |
+|             2048 |                512 | 14.7 |    71.6 | 22.3 |    20.3 |          |              |
+|             2048 |               1024 | 14.8 |    71.9 | 19.3 |    20.5 | 2808 MB  |              |
+|             2048 |               2048 | 14.8 |    72.0 | 13.0 |    20.2 | 2806 MB  | 1085MB (14%) |
+
+*** Testing effect of =train_batch_size=
+
+| train_batch_size | sgd_minibatch_size |  CPU | CPU Ram |  GPU | GPU ram | Host Mem | GPU Mem      |
+|------------------+--------------------+------+---------+------+---------+----------+--------------|
+|              256 |                256 | 17.5 |    72.1 | 27.0 |    19.2 | 2783MB   | 1005MB (13%) |
+|              512 |                256 | 16.5 |    72.1 | 22.0 |    19.2 | 2786MB   |              |
+|             1024 |                256 | 14.3 |    72.4 | 22.5 |    19.3 | 2789MB   |              |
+|             2048 |                256 | 14.8 |    72.7 | 20.0 |    19.5 | 2804MB   | 1041MB (13%) |
+|             4096 |                256 | 14.7 |    73.1 | 22.8 |    19.8 | 2838MB   |              |
+|             8192 |                256 | 15.5 |    74.2 | 23.2 |    20.6 | 2910MB   | 1119MB (14%) |
+
+** Network size vs memory usage
+
+Here we test network size vs memory usage. We use the default =train_batch_size=2048= and =sgd_batch_size=256= and =256= LSTM units.
+
+*Summary*
+
+- As expected GPU memory usage increases with network size, both Fully connected network
+- Scaling is not too drastic though, at least for the small networks I am using.
+
+| Network size    | LSTM |  CPU | CPU Ram |  GPU | GPU Ram | Host Mem | GPU Mem      |
+|-----------------+------+------+---------+------+---------+----------+--------------|
+| [64, 32]        |  256 | 11.5 |    72.1 | 27.0 |    21.1 | 2804MB   | 1039MB (13%) |
+| [256, 256]      |  256 | 13.2 |    72.5 | 18.8 |    21.2 | 2823MB   | 1047MB (13%) |
+| [512, 512]      |  256 | 11.7 |    73.0 | 26.3 |    20.0 | 2838MB   | 1069MB (13%) |
+| [64, 32]        |  512 | 11.5 |    73.5 | 28.0 |    20.2 | 2839MB   | 1081MB (14%) |
+| [256, 256, 256] |  256 | 13.5 |    73.8 | 26.7 |    19.8 | 2814MB   | 1051MB (13%) |
+| [256]           |  256 | 11.5 |    74.1 | 20.0 |    19.7 | 2807MB   | 1045MB (13%) |
+|                 |      |      |         |      |         |          |              |
