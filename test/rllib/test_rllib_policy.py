@@ -40,6 +40,10 @@ def _env_creator(config):
     return RllibMultiAgentEnv(env)
 
 
+def _get_env():
+    return posggym.make(TEST_ENV_NAME)
+
+
 ray.init()
 register_env(TEST_ENV_NAME, _env_creator)
 
@@ -118,7 +122,7 @@ def _get_baposgmcp(model, agent_id, other_policies, rollout_policy, truncated):
 
 
 def _run_sims(env, policies):
-    logging.basicConfig(level="INFO", format='%(message)s')
+    logging.basicConfig(level=logging.INFO-10, format='%(message)s')
     trackers = stats_lib.get_default_trackers(policies)
 
     renderers = []
@@ -136,8 +140,7 @@ def _run_sims(env, policies):
 
 def test_rllib_ppopolicy():
     """Run integration test for PPORLlibPolicy."""
-    env_config = {"env_name": TEST_ENV_NAME}
-    sample_env = _env_creator(env_config).unwrapped
+    sample_env = _get_env()
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model
@@ -165,8 +168,7 @@ def test_rllib_ppopolicy():
 
 def test_rllib_ppopolicy_with_tree():
     """Run integration test for PPORLlibPolicy."""
-    env_config = {"env_name": TEST_ENV_NAME}
-    sample_env = _env_creator(env_config).unwrapped
+    sample_env = _get_env()
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model
@@ -197,8 +199,7 @@ def test_rllib_ppopolicy_with_tree():
 
 def test_rllib_ppopolicy_with_tree_truncated():
     """Run integration test for PPORLlibPolicy."""
-    env_config = {"env_name": TEST_ENV_NAME}
-    sample_env = _env_creator(env_config).unwrapped
+    sample_env = _get_env()
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model
@@ -229,8 +230,7 @@ def test_rllib_ppopolicy_with_tree_truncated():
 
 def test_rllib_ppopolicy_with_tree_as_rollout():
     """Run integration test for BAPOSGMCP using PPO Policy as rollout pi."""
-    env_config = {"env_name": TEST_ENV_NAME}
-    sample_env = _env_creator(env_config).unwrapped
+    sample_env = _get_env()
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model
@@ -261,8 +261,7 @@ def test_rllib_ppopolicy_with_tree_as_rollout():
 
 def test_rllib_ppopolicy_with_tree_as_rollout_truncated():
     """Run integration test for BAPOSGMCP using PPO Policy as rollout pi."""
-    env_config = {"env_name": TEST_ENV_NAME}
-    sample_env = _env_creator(env_config).unwrapped
+    sample_env = _get_env()
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model

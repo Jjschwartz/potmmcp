@@ -12,7 +12,7 @@ RENDER = False
 
 
 def _run_sims(env, policies):
-    logging.basicConfig(level="INFO", format='%(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
     trackers = stats_lib.get_default_trackers(policies)
 
     renderers = []

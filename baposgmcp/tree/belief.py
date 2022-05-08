@@ -178,7 +178,8 @@ class HPSParticleBelief(BaseParticleBelief):
             self._agent_policy_particles[i][pi_id].append(state)
 
     def add_particles(self, states: Sequence[H.HistoryPolicyState]):
-        map(self.add_particle, states)
+        for s in states:
+            self.add_particle(s)
 
     def is_depleted(self) -> bool:
         return len(self._particles) == 0
@@ -197,7 +198,7 @@ class HPSParticleBelief(BaseParticleBelief):
         dist = {}
         prob_sum = 0.0
         for particle in unique_particles:
-            count = self.particles.count(particle)
+            count = self._particles.count(particle)
             prob = count / self.size()
             dist[particle] = prob
             prob_sum += prob

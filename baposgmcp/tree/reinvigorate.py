@@ -44,7 +44,7 @@ class BeliefReinvigorator(abc.ABC):
         joint_action_fn : Callable[[H.HistoryState, M.Action], M.JointAction]
             joint action selection function
         joint_update_fn : Callable[
-            [M.JointAction, M.JointObservation, H.PolicyState],
+            [H.HistoryPolicyState, M.JointAction, M.JointObservation],
             H.PolicyHiddenStates
         ]
             update function for policies
@@ -118,7 +118,7 @@ class BABeliefRejectionSampler(BeliefReinvigorator):
 
             new_history = hp_state.history.extend(joint_action, joint_obs)
             next_policy_hidden_state = joint_update_fn(
-                joint_action, joint_obs, hp_state.other_policies
+                hp_state, joint_action, joint_obs
             )
             next_hp_state = H.HistoryPolicyState(
                 joint_step.state,
@@ -197,7 +197,7 @@ class BABeliefRandomSampler(BeliefReinvigorator):
 
             new_history = hp_state.history.extend(joint_action, joint_obs)
             next_policy_hidden_state = joint_update_fn(
-                joint_action, joint_obs, hp_state.other_policies
+                hp_state, joint_action, joint_obs
             )
             next_hp_state = H.HistoryPolicyState(
                 joint_step.state,

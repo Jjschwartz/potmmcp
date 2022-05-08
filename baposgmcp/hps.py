@@ -5,7 +5,8 @@ import posggym.model as M
 
 PolicyID = int
 PolicyState = Tuple[PolicyID, ...]
-PolicyHiddenStates = Tuple[Dict[str, Any], ...]
+PolicyHiddenState = Dict[str, Any]
+PolicyHiddenStates = Tuple[PolicyHiddenState, ...]
 
 
 class AgentHistory:

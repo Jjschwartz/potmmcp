@@ -13,7 +13,7 @@ import baposgmcp.policy as policy_lib
 from baposgmcp.rllib import utils
 
 
-HiddenState = List[Any]
+RllibHiddenState = List[Any]
 
 
 _ACTION_DIST_INPUTS = "action_dist_inputs"
@@ -69,10 +69,20 @@ class RllibPolicy(policy_lib.BasePolicy):
         _, _, a_t, _ = self._unroll_history(history)
         return a_t
 
+    def get_action_by_hidden_state(self,
+                                   hidden_state: H.PolicyHiddenState
+                                   ) -> M.Action:
+        return hidden_state["last_action"]
+
     def get_pi(self,
                history: Optional[H.AgentHistory] = None
                ) -> parts.ActionDist:
         return self._get_pi_from_info(self._get_info(history))
+
+    def get_pi_from_hidden_state(self,
+                                 hidden_state: H.PolicyHiddenState
+                                 ) -> parts.ActionDist:
+        return self._get_pi_from_info(hidden_state["last_pi_info"])
 
     @abc.abstractmethod
     def _get_pi_from_info(self, info: Dict[str, Any]) -> parts.ActionDist:
@@ -80,6 +90,10 @@ class RllibPolicy(policy_lib.BasePolicy):
 
     def get_value(self, history: Optional[H.AgentHistory]) -> float:
         return self._get_value_from_info(self._get_info(history))
+
+    def get_value_by_hidden_state(self,
+                                  hidden_state: H.PolicyHiddenState) -> float:
+        return self._get_value_from_info(hidden_state["last_pi_info"])
 
     @abc.abstractmethod
     def _get_value_from_info(self, info: Dict[str, Any]) -> float:
@@ -109,28 +123,52 @@ class RllibPolicy(policy_lib.BasePolicy):
         self._last_action = output[2]
         self._last_pi_info = output[3]
 
-    def get_hidden_state(self) -> Dict[str, Any]:
+    def get_next_hidden_state(self,
+                              hidden_state: H.PolicyHiddenState,
+                              action: M.Action,
+                              obs: M.Observation
+                              ) -> H.PolicyHiddenState:
+        next_hidden_state = super().get_next_hidden_state(
+            hidden_state, action, obs
+        )
+        h_tm1 = hidden_state["last_hidden_state"]
+        output = self._compute_action(obs, h_tm1, action, explore=False)
+        next_hidden_state["last_obs"] = obs
+        next_hidden_state["last_action"] = output[0]
+        next_hidden_state["last_hidden_state"] = output[1]
+        next_hidden_state["last_pi_info"] = output[2]
+        return next_hidden_state
+
+    def get_initial_hidden_state(self) -> H.PolicyHiddenState:
+        hidden_state = super().get_initial_hidden_state()
+        hidden_state["last_obs"] = None
+        hidden_state["last_hidden_state"] = self._get_initial_hidden_state()
+        hidden_state["last_action"] = None
+        hidden_state["last_pi_info"] = {}
+        return hidden_state
+
+    def get_hidden_state(self) -> H.PolicyHiddenState:
         hidden_state = super().get_hidden_state()
         hidden_state["last_obs"] = self._last_obs
         hidden_state["last_hidden_state"] = self._last_hidden_state
         hidden_state["last_pi_info"] = self._last_pi_info
         return hidden_state
 
-    def set_hidden_state(self, hidden_state: Dict[str, Any]):
+    def set_hidden_state(self, hidden_state: H.PolicyHiddenState):
         super().set_hidden_state(hidden_state)
         self._last_obs = hidden_state["last_obs"]
         self._last_hidden_state = hidden_state["last_hidden_state"]
         self._last_pi_info = hidden_state["last_pi_info"]
 
-    def _get_initial_hidden_state(self) -> HiddenState:
+    def _get_initial_hidden_state(self) -> RllibHiddenState:
         return self._policy.get_initial_state()
 
     def _compute_action(self,
                         obs: M.Observation,
-                        h_tm1: HiddenState,
+                        h_tm1: RllibHiddenState,
                         last_action: M.Action,
                         explore: bool = False
-                        ) -> Tuple[M.Action, HiddenState, Dict[str, Any]]:
+                        ) -> Tuple[M.Action, RllibHiddenState, Dict[str, Any]]:
         obs = self._preprocessor(obs)
         output = self._policy.compute_single_action(
             obs, h_tm1, prev_action=last_action, explore=explore
@@ -139,11 +177,11 @@ class RllibPolicy(policy_lib.BasePolicy):
 
     def _compute_actions(self,
                          obs_batch: List[M.Observation],
-                         h_tm1_batch: List[HiddenState],
+                         h_tm1_batch: List[RllibHiddenState],
                          last_action_batch: List[M.Action],
                          explore: bool = False
                          ) -> List[
-                             Tuple[M.Action, HiddenState, Dict[str, Any]]
+                             Tuple[M.Action, RllibHiddenState, Dict[str, Any]]
                          ]:
         obs_batch = [self._preprocessor[o] for o in obs_batch]
         output = self._policy.compute_actions(
@@ -157,12 +195,11 @@ class RllibPolicy(policy_lib.BasePolicy):
         info_batch = [x[2] for x in output]
         return (actions, h_t_batch, info_batch)
 
-
     def _unroll_history(self,
                         history: H.AgentHistory
                         ) -> Tuple[
                             M.Observation,
-                            HiddenState,
+                            RllibHiddenState,
                             M.Action,
                             Dict[str, Any]
                         ]:

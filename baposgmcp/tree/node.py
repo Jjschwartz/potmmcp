@@ -3,6 +3,7 @@ from typing import Optional, List
 
 import posggym.model as M
 
+import baposgmcp.hps as H
 from baposgmcp import parts
 import baposgmcp.tree.belief as B
 
@@ -34,6 +35,7 @@ class ObsNode(Node):
                  obs: M.Observation,
                  belief: B.HPSParticleBelief,
                  policy: parts.ActionDist,
+                 rollout_policy_hidden_state: H.PolicyHiddenState,
                  init_value: float = 0.0,
                  init_visits: int = 0):
         super().__init__()
@@ -41,6 +43,7 @@ class ObsNode(Node):
         self.obs = obs
         self.belief = belief
         self.policy = policy
+        self.rollout_policy_hidden_state = rollout_policy_hidden_state
         self.value = init_value
         self.visits = init_visits
         self.children: List['ActionNode'] = []
