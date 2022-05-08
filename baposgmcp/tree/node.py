@@ -1,5 +1,7 @@
 """A node in the search tree."""
-from typing import Optional, Any, List
+from typing import Optional, List
+
+import posggym.model as M
 
 from baposgmcp import parts
 import baposgmcp.tree.belief as B
@@ -11,44 +13,57 @@ class Node:
     # class variable
     node_count = 0
 
-    def __init__(self,
-                 h: Any,
-                 parent: Optional['Node'],
-                 belief: B.BaseParticleBelief,
-                 policy: parts.ActionDist,
-                 v_init: float = 0.0,
-                 n_init: float = 0.0):
+    def __init__(self):
         self.nid = Node.node_count
         Node.node_count += 1
-        self.parent: 'Node' = NullNode() if parent is None else parent
-        self.h = h
+
+    def __hash__(self):
+        return self.nid
+
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return False
+        return self.nid == other.nid
+
+
+class ObsNode(Node):
+    """An observation node in the search tree."""
+
+    def __init__(self,
+                 parent: Optional['ActionNode'],
+                 obs: M.Observation,
+                 belief: B.HPSParticleBelief,
+                 policy: parts.ActionDist,
+                 init_value: float = 0.0,
+                 init_visits: int = 0):
+        super().__init__()
+        self.parent: 'ActionNode' = NullNode() if parent is None else parent
+        self.obs = obs
         self.belief = belief
         self.policy = policy
-        self.v = v_init
-        self.n = n_init
-        self.children: List['Node'] = []
+        self.value = init_value
+        self.visits = init_visits
+        self.children: List['ActionNode'] = []
 
-    def get_child(self, target_h: Any):
-        """Get child node with given history value."""
-        for child in self.children:
-            if child.h == target_h:
-                return child
-        raise AssertionError(f"Child with {target_h=} not in {str(self)}")
+    def get_child(self, action: M.Action) -> 'ActionNode':
+        """Get child node for given action value."""
+        for action_node in self.children:
+            if action_node.action == action:
+                return action_node
+        raise AssertionError(
+            f"ObsNode {str(self)} has no child node for {action=}"
+        )
 
-    def has_child(self, target_h: Any) -> bool:
-        """Check if node has a child node matching history."""
-        for child in self.children:
-            if child.h == target_h:
+    def has_child(self, action: M.Action) -> bool:
+        """Check if this obs node has a child node matching action."""
+        for action_node in self.children:
+            if action_node.action == action:
                 return True
         return False
 
-    def value_str(self) -> str:
-        """Get value in nice str format."""
-        return f"{self.v:.3f}"
-
     def policy_str(self) -> str:
         """Get policy in nice str format."""
-        action_probs = [f"{a}: {prob:.3f}" for a, prob in self.policy.items()]
+        action_probs = [f"{a}: {prob:.2f}" for a, prob in self.policy.items()]
         return "{" + ",".join(action_probs) + "}"
 
     def clear_belief(self):
@@ -62,32 +77,81 @@ class Node:
     def __str__(self):
         return (
             f"N{self.nid}"
-            f"\nh={self.h}"
-            f"\nv={self.value_str()}"
-            f"\nn={self.n}"
+            f"\no={self.obs}"
+            f"\nv={self.value:.2f}"
+            f"\nn={self.visits}"
             f"\n|B|={self.belief.size()}"
         )
 
     def __repr__(self):
         return (
-            f"<{self.__class__.__name__}: N{self.nid} h={self.h} "
-            f"v={self.value_str()} n={self.n}>"
+            f"<{self.__class__.__name__}: N{self.nid} o={self.obs} "
+            f"v={self.value:.2f} n={self.visits}>"
         )
 
-    def __hash__(self):
-        return self.nid
 
-    def __eq__(self, other):
-        if not isinstance(other, type(self)):
-            return False
-        return self.nid == other.nid
+class ActionNode(Node):
+    """An action node in the search tree."""
+
+    def __init__(self,
+                 parent: ObsNode,
+                 action: M.Action,
+                 prob: float,
+                 init_value: float = 0.0,
+                 init_visits: float = 0.0,
+                 init_total_value: float = 0.0):
+        super().__init__()
+        self.parent = parent
+        self.action = action
+        self.prob = prob
+        self.value = init_value
+        self.visits = init_visits
+        self.total_value = init_total_value
+        self.children: List[ObsNode] = []
+
+    def get_child(self, obs: M.Observation) -> ObsNode:
+        """Get child obs node matching given observation."""
+        for obs_node in self.children:
+            if obs_node.obs == obs:
+                return obs_node
+        raise AssertionError(
+            f"ActionNode {str(self)} has no child node for {obs=}"
+        )
+
+    def has_child(self, obs: M.Observation) -> bool:
+        """Check if node has a child node matching history."""
+        for obs_node in self.children:
+            if obs_node.obs == obs:
+                return True
+        return False
+
+    def __str__(self):
+        return (
+            f"N{self.nid}"
+            f"\na={self.action}"
+            f"\nv={self.value:.2f}"
+            f"\nn={self.visits}"
+            f"\nw={self.total_value:.2f}"
+            f"\np={self.prob:.2f}"
+        )
+
+    def __repr__(self):
+        return (
+            f"<{self.__class__.__name__}: "
+            f"N{self.nid} "
+            f"a={self.action} "
+            f"v={self.value:.2f} "
+            f"n={self.visits} "
+            f"w={self.total_value:.2f} "
+            f"p={self.prob:.2f}>"
+        )
 
 
-class NullNode(Node):
+class NullNode(ActionNode):
     """The Null Node which is the parent of the root node of the tree.
 
     This class is mainly defined for typechecking convenience...
     """
 
     def __init__(self):
-        super().__init__(None, self, B.ParticleBelief(), {})
+        super().__init__(self, None, 1.0)

@@ -1,4 +1,5 @@
 import abc
+import time
 from typing import Optional, List, Any, Tuple, Dict
 
 from ray import rllib
@@ -54,8 +55,11 @@ class RllibPolicy(policy_lib.BasePolicy):
         self._last_pi_info: Dict[str, Any] = {}
 
     def step(self, obs: M.Observation) -> M.Action:
+        self._log_info1(f"Step obs={obs}")
+        start_time = time.time()
         self.update(self._last_action, obs)
         self._last_action = self.get_action()
+        self._log_info1(f"Step time = {time.time() - start_time:.4f}s")
         return self._last_action
 
     def get_action(self) -> M.Action:
@@ -92,6 +96,7 @@ class RllibPolicy(policy_lib.BasePolicy):
 
     def reset(self) -> None:
         super().reset()
+        self._log_info1("Reset")
         self._last_obs = None
         self._last_hidden_state = self._get_initial_hidden_state()
         self._last_pi_info = {}
@@ -131,6 +136,27 @@ class RllibPolicy(policy_lib.BasePolicy):
             obs, h_tm1, prev_action=last_action, explore=explore
         )
         return output
+
+    def _compute_actions(self,
+                         obs_batch: List[M.Observation],
+                         h_tm1_batch: List[HiddenState],
+                         last_action_batch: List[M.Action],
+                         explore: bool = False
+                         ) -> List[
+                             Tuple[M.Action, HiddenState, Dict[str, Any]]
+                         ]:
+        obs_batch = [self._preprocessor[o] for o in obs_batch]
+        output = self._policy.compute_actions(
+            obs_batch,
+            h_tm1_batch,
+            prev_action_batch=last_action_batch,
+            explore=explore
+        )
+        actions = [x[0] for x in output]
+        h_t_batch = [x[1] for x in output]
+        info_batch = [x[2] for x in output]
+        return (actions, h_t_batch, info_batch)
+
 
     def _unroll_history(self,
                         history: H.AgentHistory

@@ -42,8 +42,17 @@ class ExpParams(NamedTuple):
     env_name: str
     policy_params_list: List[PolicyParams]
     run_config: runner.RunConfig
-    tracker_fn: Optional[Callable[[], Sequence[stats_lib.Tracker]]] = None
-    render_fn: Optional[Callable[[], Sequence[render_lib.Renderer]]] = None
+    tracker_fn: Optional[
+        Callable[
+            [List[policy_lib.BasePolicy], Dict[str, Any]],
+            Sequence[stats_lib.Tracker]
+        ]
+    ] = None
+    tracker_kwargs: Optional[Dict[str, Any]] = None
+    renderer_fn: Optional[
+        Callable[[Dict[str, Any]], Sequence[render_lib.Renderer]]
+    ] = None
+    renderer_kwargs: Optional[Dict[str, Any]] = None
     stream_log_level: int = logging.INFO
     file_log_level: int = logging.DEBUG
 
@@ -147,6 +156,30 @@ def _get_param_statistics(params: ExpParams
     return stats
 
 
+def _get_exp_trackers(params: ExpParams,
+                      policies: List[policy_lib.BasePolicy]
+                      ) -> Sequence[stats_lib.Tracker]:
+    if params.tracker_fn:
+        tracker_kwargs = params.tracker_kwargs if params.tracker_kwargs else {}
+        trackers = params.tracker_fn(
+            policies, **tracker_kwargs
+        )
+    else:
+        trackers = stats_lib.get_default_trackers(policies)
+    return trackers
+
+
+def _get_exp_renderers(params: ExpParams) -> Sequence[render_lib.Renderer]:
+    if params.renderer_fn:
+        renderer_kwargs = {}
+        if params.renderer_kwargs:
+            renderer_kwargs = params.renderer_kwargs
+        renderers = params.renderer_fn(**renderer_kwargs)
+    else:
+        renderers = []
+    return renderers
+
+
 def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
     """Run a single experiment and write results to a file."""
     params, result_dir = args
@@ -171,17 +204,21 @@ def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
         # kwargs = copy.deepcopy(pi_params.kwargs)
         kwargs["logger"] = exp_logger
 
-        pi = pi_params.init(
-            env.model, i, pi_params.gamma, **pi_params.kwargs
-        )
+        # Use lock to handle case where multiple experiments may be loading
+        # policies from the same file
+        # LOCK.acquire()
+        try:
+            pi = pi_params.init(
+                env.model, i, pi_params.gamma, **pi_params.kwargs
+            )
+        finally:
+            pass
+        #    LOCK.release()
+
         policies.append(pi)
 
-    if params.tracker_fn:
-        trackers = params.tracker_fn()
-    else:
-        trackers = stats_lib.get_default_trackers(policies)
-
-    renderers = params.render_fn() if params.render_fn else []
+    trackers = _get_exp_trackers(params, policies)
+    renderers = _get_exp_renderers(params)
 
     try:
         statistics = runner.run_sims(

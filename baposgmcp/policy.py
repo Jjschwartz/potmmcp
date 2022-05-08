@@ -7,8 +7,8 @@ from typing import Optional, Dict, Mapping, Any
 import gym
 import posggym.model as M
 
-from baposgmcp import parts
 import baposgmcp.hps as H
+from baposgmcp import parts
 
 
 class BasePolicy(abc.ABC):

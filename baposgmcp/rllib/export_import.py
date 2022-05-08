@@ -12,7 +12,8 @@ from ray.rllib.agents.trainer import Trainer
 from baposgmcp import pbt
 from baposgmcp.parts import AgentID, PolicyID, Policy
 from baposgmcp.rllib.utils import (
-    RllibTrainerMap, RllibPolicyMap, get_igraph_policy_mapping_fn
+    RllibTrainerMap, RllibPolicyMap, get_igraph_policy_mapping_fn,
+    default_asymmetric_policy_mapping_fn, default_symmetric_policy_mapping_fn
 )
 
 TRAINER_CONFIG_FILE = "trainer_config.pkl"
@@ -87,11 +88,59 @@ def get_trainer_export_fn(trainer_map: RllibTrainerMap,
     return export_fn
 
 
-def get_trainer_import_fn(trainer_make_fn: Callable[[Dict], Trainer],
-                          trainers_remote: bool,
-                          extra_config: Dict,
-                          ) -> Tuple[pbt.PolicyImportFn, RllibTrainerMap]:
-    """Get function for importing trained policies from local directory.
+def import_trainer(trainer_dir: str,
+                   trainer_make_fn: Callable[[Dict], Trainer],
+                   trainers_remote: bool,
+                   extra_config: Optional[Dict] = None) -> Trainer:
+    """Import trainer."""
+    checkpoints = [
+        f for f in os.listdir(trainer_dir) if f.startswith("checkpoint")
+    ]
+
+    if len(checkpoints) == 0:
+        # untrained policy, e.g. a random policy
+        return {}
+
+    # In case multiple checkpoints are stored, take the latest one
+    # Checkpoints are named as 'checkpoint_{iteration}'
+    checkpoints.sort()
+    checkpoint_dir_path = os.path.join(trainer_dir, checkpoints[-1])
+
+    # Need to filter checkpoint file from the other files saved alongside
+    # the checkpoint (theres probably a better way to do this...)
+    checkpoint_files = [
+        f for f in os.listdir(checkpoint_dir_path)
+        if (
+            os.path.isfile(os.path.join(checkpoint_dir_path, f))
+            and f.startswith("checkpoint") and "." not in f
+        )
+    ]
+
+    checkpoint_path = os.path.join(
+        checkpoint_dir_path, checkpoint_files[-1]
+    )
+
+    config = _import_trainer_config(trainer_dir)
+
+    _nested_update(config, extra_config)
+
+    trainer = trainer_make_fn(config)
+
+    if trainers_remote:
+        ray.get(trainer.restore.remote(checkpoint_path))  # type: ignore
+    else:
+        trainer.restore(checkpoint_path)
+
+    return trainer
+
+
+def get_trainer_weights_import_fn(trainer_make_fn: Callable[[Dict], Trainer],
+                                  trainers_remote: bool,
+                                  extra_config: Dict,
+                                  ) -> Tuple[
+                                      pbt.PolicyImportFn, RllibTrainerMap
+                                  ]:
+    """Get function for importing trained policy weights from local directory.
 
     The function also returns a reference to a trainer map object which is
     populated with Trainer objects as the trainer import function is called.
@@ -107,48 +156,24 @@ def get_trainer_import_fn(trainer_make_fn: Callable[[Dict], Trainer],
     def import_fn(agent_id: AgentID,
                   policy_id: PolicyID,
                   import_dir: str) -> Policy:
-
-        checkpoints = [
-            f for f in os.listdir(import_dir) if f.startswith("checkpoint")
-        ]
-
-        if len(checkpoints) == 0:
-            # untrained policy, e.g. a random policy
-            return {}
-
-        # In case multiple checkpoints are stored, take the latest one
-        # Checkpoints are named as 'checkpoint_{iteration}'
-        checkpoints.sort()
-        checkpoint_dir_path = os.path.join(import_dir, checkpoints[-1])
-
-        # Need to filter checkpoint file from the other files saved alongside
-        # the checkpoint (theres probably a better way to do this...)
-        checkpoint_files = [
-            f for f in os.listdir(checkpoint_dir_path)
-            if (
-                os.path.isfile(os.path.join(checkpoint_dir_path, f))
-                and f.startswith("checkpoint") and "." not in f
-            )
-        ]
-
-        checkpoint_path = os.path.join(
-            checkpoint_dir_path, checkpoint_files[-1]
+        trainer = import_trainer(
+            trainer_dir=import_dir,
+            trainer_make_fn=trainer_make_fn,
+            trainers_remote=trainers_remote,
+            extra_config=extra_config
         )
+
+        if trainer == {}:
+            # handle save dirs that contain no exported trainer
+            # e.g. save dirs for random policy
+            return {}
 
         if agent_id not in trainer_map:
             trainer_map[agent_id] = {}
 
-        config = _import_trainer_config(import_dir)
-
-        _nested_update(config, extra_config)
-
-        trainer = trainer_make_fn(config)
-
         if trainers_remote:
-            ray.get(trainer.restore.remote(checkpoint_path))  # type: ignore
             weights = trainer.get_weights.remote(policy_id)   # type: ignore
         else:
-            trainer.restore(checkpoint_path)
             weights = trainer.get_weights(policy_id)
 
         trainer_map[agent_id][policy_id] = trainer
@@ -158,17 +183,81 @@ def get_trainer_import_fn(trainer_make_fn: Callable[[Dict], Trainer],
     return import_fn, trainer_map
 
 
+def import_policy_trainer(policy_id: PolicyID,
+                          igraph_dir: str,
+                          env_is_symmetric: bool,
+                          agent_id: Optional[AgentID],
+                          trainer_make_fn: Callable[[Dict], Trainer],
+                          policy_mapping_fn: Optional[Callable] = None,
+                          trainers_remote: bool = False,
+                          extra_config: Optional[Dict] = None) -> Trainer:
+    """Import trainer for given policy."""
+    if agent_id is None or env_is_symmetric:
+        agent_id = pbt.InteractionGraph.SYMMETRIC_ID
+
+    if policy_mapping_fn is None and env_is_symmetric:
+        policy_mapping_fn = default_symmetric_policy_mapping_fn
+    elif policy_mapping_fn is None and not env_is_symmetric:
+        policy_mapping_fn = default_asymmetric_policy_mapping_fn
+
+    if extra_config is None:
+        extra_config = {}
+
+    if "multiagent" not in extra_config:
+        extra_config["multiagent"] = {}
+
+    extra_config["multiagent"]["policy_mapping_fn"] = policy_mapping_fn
+
+    policy_dir = osp.join(igraph_dir, agent_id, policy_id)
+
+    trainer = import_trainer(
+        policy_dir, trainer_make_fn, trainers_remote, extra_config
+    )
+    return trainer
+
+
+def import_policy(policy_id: PolicyID,
+                  igraph_dir: str,
+                  env_is_symmetric: bool,
+                  agent_id: Optional[AgentID],
+                  trainer_make_fn: Callable[[Dict], Trainer],
+                  policy_mapping_fn: Optional[Callable] = None,
+                  trainers_remote: bool = False,
+                  extra_config: Optional[Dict] = None) -> Trainer:
+    """Import trainer for given policy."""
+    trainer = import_policy_trainer(
+        policy_id,
+        igraph_dir,
+        env_is_symmetric,
+        agent_id,
+        trainer_make_fn,
+        policy_mapping_fn=policy_mapping_fn,
+        trainers_remote=trainers_remote,
+        extra_config=extra_config
+    )
+    return trainer.get_policy(policy_id)
+
+
 def _dummy_trainer_import_fn(agent_id: AgentID,
                              policy_id: PolicyID,
                              import_dir: str) -> Policy:
     return {}
 
 
+def import_igraph(igraph_dir: str,
+                  env_is_symmetric: bool,
+                  seed: Optional[int] = None) -> pbt.InteractionGraph:
+    """Import Interaction Graph without loading stored policies."""
+    igraph = pbt.InteractionGraph(env_is_symmetric, seed=seed)
+    igraph.import_graph(igraph_dir, _dummy_trainer_import_fn)
+    return igraph
+
+
 def import_igraph_trainers(igraph_dir: str,
                            env_is_symmetric: bool,
                            trainer_make_fn: Callable[[Dict], Trainer],
                            trainers_remote: bool,
-                           policy_mapping_fn: Callable,
+                           policy_mapping_fn: Optional[Callable],
                            extra_config: Optional[Dict] = None,
                            seed: Optional[int] = None,
                            ) -> Tuple[pbt.InteractionGraph, RllibTrainerMap]:
@@ -194,7 +283,7 @@ def import_igraph_trainers(igraph_dir: str,
 
     extra_config["multiagent"]["policy_mapping_fn"] = policy_mapping_fn
 
-    import_fn, trainer_map = get_trainer_import_fn(
+    import_fn, trainer_map = get_trainer_weights_import_fn(
         trainer_make_fn, trainers_remote, extra_config
     )
 
@@ -218,7 +307,7 @@ def import_igraph_policies(igraph_dir: str,
                            env_is_symmetric: bool,
                            trainer_make_fn: Callable[[Dict], Trainer],
                            trainers_remote: bool,
-                           policy_mapping_fn: Callable,
+                           policy_mapping_fn: Optional[Callable],
                            extra_config: Optional[Dict] = None,
                            ) -> Tuple[pbt.InteractionGraph, RllibPolicyMap]:
     """Import rllib.Policy from InteractionGraph directory.
@@ -226,12 +315,12 @@ def import_igraph_policies(igraph_dir: str,
     Assumes trainers are not Remote.
     """
     igraph, trainer_map = import_igraph_trainers(
-        igraph_dir,
-        env_is_symmetric,
-        trainer_make_fn,
-        trainers_remote,
-        policy_mapping_fn,
-        extra_config
+        igraph_dir=igraph_dir,
+        env_is_symmetric=env_is_symmetric,
+        trainer_make_fn=trainer_make_fn,
+        trainers_remote=trainers_remote,
+        policy_mapping_fn=policy_mapping_fn,
+        extra_config=extra_config
     )
     policy_map = get_policy_from_trainer_map(trainer_map)
     return igraph, policy_map
