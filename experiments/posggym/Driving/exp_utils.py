@@ -1,9 +1,19 @@
 import pathlib
 import os.path as osp
+from typing import Optional, List, Dict
+
+from ray.tune.logger import NoopLogger
+from ray.rllib.agents.ppo import PPOTrainer
 
 import posggym
+import posggym.model as M
 from posggym.wrappers import FlattenObservation
 from posggym.wrappers.rllib_multi_agent_env import RllibMultiAgentEnv
+
+from baposgmcp import pbt
+import baposgmcp.exp as exp_lib
+import baposgmcp.rllib as ba_rllib
+import baposgmcp.policy as ba_policy_lib
 
 
 EXP_BASE_DIR = osp.dirname(osp.abspath(__file__))
@@ -29,9 +39,256 @@ def get_rllib_env(args) -> RllibMultiAgentEnv:
     )
 
 
-def get_base_env(args) -> posggym.Env:
+def get_base_env(env_name: str, seed: Optional[int]) -> posggym.Env:
     """Create POSGGYM base (unwrapped)  environment from commandline args."""
-    return posggym.make(args.env_name, **{"seed": args.seed})
+    return posggym.make(env_name, **{"seed": seed})
+
+
+def _trainer_make_fn(config):
+    return PPOTrainer(
+        env=config["env_config"]["env_name"],
+        config=config,
+        logger_creator=lambda c: NoopLogger(c, "")
+    )
+
+
+def import_rllib_policy(policy_dir,
+                        policy_id,
+                        agent_id,
+                        num_gpus: float = 0.0,
+                        num_workers: int = 0,
+                        env_name: Optional[str] = None,
+                        log_level: str = "ERROR"):
+    """Import rllib policy from file.
+
+    Recommended to use:
+    - num_gpus=0.0 if only using policy for inference on single observation
+      (i.e. for rollouts not batched training).
+    - num_workers=0.0 agains if only using policy for inference on single
+      observation
+
+    Include env_name in case you are running on an environment that is
+    different to the one used for training and the original training env has
+    not been registered with rllib.
+
+    """
+    extra_config = {
+        "num_gpus": num_gpus,
+        "num_workers": num_workers,
+        "log_level": log_level,
+        "num_envs_per_worker": 1,
+        # disables logging of CPU and GPU usage
+        "log_sys_usage": False,
+    }
+
+    if env_name:
+        extra_config["env_config"] = {
+            "env_name": env_name
+        }
+
+    return ba_rllib.import_policy(
+        policy_id=policy_id,
+        igraph_dir=policy_dir,
+        env_is_symmetric=True,
+        agent_id=agent_id,
+        trainer_make_fn=_trainer_make_fn,
+        policy_mapping_fn=None,
+        trainers_remote=False,
+        extra_config=extra_config
+    )
+
+
+def load_agent_policy(policy_dir: str,
+                      policy_id: str,
+                      agent_id: M.AgentID,
+                      env_name: str,
+                      gamma: float,
+                      seed: Optional[int] = None
+                      ) -> ba_rllib.PPORllibPolicy:
+    """Load BAPOSGMCP rllib agent policy from file.
+
+    Note this function differs from the import_rllib_policy function. This
+    function calls the import_rllib_policy function and then handles wrapping
+    the rllib policy within a BAPOSGMCP policy, so it's compatible with the
+    BAPOSGMCP code.
+    """
+    rllib_policy = import_rllib_policy(
+        policy_dir, policy_id, agent_id, env_name=env_name
+    )
+
+    sample_env = get_base_env(env_name, seed)
+    env_model = sample_env.unwrapped.model
+    obs_space = env_model.obs_spaces[agent_id]
+    preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
+
+    policy = ba_rllib.PPORllibPolicy(
+        model=env_model,
+        ego_agent=agent_id,
+        gamma=gamma,
+        policy=rllib_policy,
+        policy_id=policy_id,
+        preprocessor=preprocessor,
+    )
+    return policy
+
+
+def rllib_policy_init_fn(model, ego_agent, gamma, **kwargs):
+    """Initialize a PPORllibPolicy from kwargs.
+
+    Expects kwargs:
+      'policy_dir' - save directory of rllib policy
+      'policy_id' - ID of the rllib policy
+
+    """
+    policy_dir = kwargs.pop("policy_dir")
+
+    env_name = None
+    if "env_name" in kwargs:
+        env_name = kwargs.pop("env_name")
+
+    preprocessor = ba_rllib.get_flatten_preprocessor(
+        model.obs_spaces[ego_agent]
+    )
+
+    pi = import_rllib_policy(
+        policy_dir,
+        kwargs["policy_id"],
+        ego_agent,
+        num_gpus=0.0,
+        num_workers=0,
+        env_name=env_name
+    )
+
+    return ba_rllib.PPORllibPolicy(
+        model=model,
+        ego_agent=ego_agent,
+        gamma=gamma,
+        policy=pi,
+        preprocessor=preprocessor,
+        **kwargs
+    )
+
+
+def load_agent_policy_params(policy_dir: str,
+                             gamma: float,
+                             env_name: Optional[str] = None,
+                             include_random_policy: bool = True
+                             ) -> List[exp_lib.PolicyParams]:
+    """Load agent rllib policy params from file.
+
+    Note, this function imports policy params such that policies will only be
+    loaded from file only when the policy is to be used in an experiment. This
+    saves on memory usage and also ensures a different policy object is used
+    for each experiment run.
+    """
+    igraph = ba_rllib.import_igraph(policy_dir, True)
+
+    info = {
+        # this helps differentiate policies trained on different
+        # envs or from different training runs/seeds
+        "policy_dir": policy_dir
+    }
+
+    policy_params_list = []
+    random_policy_added = False
+    for policy_id in igraph.policies[pbt.InteractionGraph.SYMMETRIC_ID]:
+        if "-1" in policy_id:
+            policy_params = exp_lib.PolicyParams(
+                name="RandomPolicy",
+                gamma=gamma,
+                kwargs={"policy_id": policy_id},
+                init=ba_policy_lib.RandomPolicy,
+                info=info
+            )
+            random_policy_added = True
+        else:
+            policy_params = exp_lib.PolicyParams(
+                name=f"PPOPolicy_{policy_id}",
+                gamma=gamma,
+                kwargs={
+                    "policy_dir": policy_dir,
+                    "policy_id": policy_id,
+                    "env_name": env_name
+                },
+                init=rllib_policy_init_fn,
+                info=info
+            )
+        policy_params_list.append(policy_params)
+
+    if include_random_policy and not random_policy_added:
+        policy_params = exp_lib.PolicyParams(
+            name="RandomPolicy",
+            gamma=gamma,
+            kwargs={"policy_id": "pi_-1"},
+            init=ba_policy_lib.RandomPolicy,
+            info=info
+        )
+        policy_params_list.append(policy_params)
+
+    return policy_params_list
+
+
+def load_agent_policies(agent_id: int,
+                        env_name: str,
+                        policy_dir: str,
+                        gamma: float,
+                        include_random_policy: bool = False,
+                        env_seed: Optional[int] = None
+                        ) -> Dict[str, ba_policy_lib.BasePolicy]:
+    """Load agent rllib policies from file."""
+    sample_env = get_base_env(env_name, env_seed)
+    env_model = sample_env.unwrapped.model
+
+    _, policy_map = ba_rllib.import_igraph_policies(
+        igraph_dir=policy_dir,
+        env_is_symmetric=True,
+        trainer_make_fn=_trainer_make_fn,
+        trainers_remote=False,
+        policy_mapping_fn=None,
+        extra_config={
+            # only using policies for rollouts so no GPU
+            "num_gpus": 0.0,
+            # no need for seperate rollout workers either
+            "num_workers": 0,
+            "log_level": "ERROR",
+            "env_config": {"env_name": env_name},
+            # disables logging of CPU and GPU usage
+            "log_sys_usage": False,
+        }
+    )
+
+    policies_map = {}
+    random_policy_added = False
+    symmetric_agent_id = pbt.InteractionGraph.SYMMETRIC_ID
+    for policy_id, policy in policy_map[symmetric_agent_id].items():
+        if "-1" in policy_id:
+            new_policy = ba_policy_lib.RandomPolicy(
+                env_model, agent_id, gamma
+            )
+            random_policy_added = True
+        else:
+            obs_space = env_model.obs_spaces[agent_id]
+            preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
+            new_policy = ba_rllib.PPORllibPolicy(
+                model=env_model,
+                ego_agent=agent_id,
+                gamma=gamma,
+                policy=policy,
+                policy_id=policy_id,
+                preprocessor=preprocessor,
+            )
+        policies_map[policy_id] = new_policy
+
+    if include_random_policy and not random_policy_added:
+        new_policy = ba_policy_lib.RandomPolicy(
+            env_model,
+            agent_id,
+            gamma,
+            policy_id="pi_-1"
+        )
+        policies_map["pi_-1"] = new_policy
+
+    return policies_map
 
 
 # Ref: https://docs.ray.io/en/latest/rllib/rllib-training.html#configuration
@@ -136,4 +393,8 @@ RL_TRAINER_CONFIG = {
     # == Advanced Rollout Settings ==
     "observation_filter": "NoFilter",
     "metrics_num_episodes_for_smoothing": 100,
+    # == Logging ==
+    # default is "WARN". Options (in order of verbosity, most to least) are:
+    # "DEBUG", "INFO", "WARN", "ERROR"
+    "log_level": "WARN"
 }

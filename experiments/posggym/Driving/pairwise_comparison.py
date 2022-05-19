@@ -1,116 +1,130 @@
+"""Script for running pairwise evaluation of trained Rllib policies.
+
+The script takes a list of environments names and a list of rllib policy save
+directories as arguments. It then runs a pairwise evaluation between each
+policy in each of the policy directories for each environment.
+
+"""
 import logging
 import pathlib
 import argparse
 import os.path as osp
 from datetime import datetime
-from itertools import product
-
-import ray
+from typing import Sequence, List
+from itertools import combinations_with_replacement, product
 
 from ray.tune.registry import register_env
 
-from ray.rllib.agents.ppo import PPOTrainer
-
-from baposgmcp import pbt
 from baposgmcp import runner
 import baposgmcp.exp as exp_lib
-import baposgmcp.rllib as ba_rllib
 import baposgmcp.stats as stats_lib
+import baposgmcp.policy as policy_lib
 import baposgmcp.render as render_lib
-import baposgmcp.policy as ba_policy_lib
 
-from exp_utils import registered_env_creator, EXP_RESULTS_DIR, get_base_env
+from exp_utils import (
+    registered_env_creator,
+    EXP_RESULTS_DIR,
+    load_agent_policy_params,
+    get_base_env
+)
 
 
-def _trainer_make_fn(config):
-    return PPOTrainer(env=config["env_config"]["env_name"], config=config)
+def _renderer_fn(**kwargs) -> Sequence[render_lib.Renderer]:
+    renderers = []
+    if kwargs["render"]:
+        renderers.append(render_lib.EpisodeRenderer())
+    return renderers
 
 
-def _import_rllib_policies(args):
-    print("\n== Importing Graph ==")
-    igraph, trainer_map = ba_rllib.import_igraph_trainers(
-        igraph_dir=args.policy_dir,
-        env_is_symmetric=True,
-        trainer_make_fn=_trainer_make_fn,
-        trainers_remote=False,
-        policy_mapping_fn=None,
-        extra_config={
-            # only using policies for rollouts so no GPU
-            "num_gpus": 0.0
-        }
+def _tracker_fn(policies: List[policy_lib.BasePolicy],
+                **kwargs) -> Sequence[stats_lib.Tracker]:
+    trackers = stats_lib.get_default_trackers(policies)
+    return trackers
+
+
+def _get_env_policies_exp_params(env_name: str,
+                                 agent_0_policy_dir: str,
+                                 agent_1_policy_dir: str,
+                                 result_dir: str,
+                                 args,
+                                 exp_id_init: int) -> List[exp_lib.ExpParams]:
+    agent_0_policy_params = load_agent_policy_params(
+        agent_0_policy_dir,
+        args.gamma,
+        env_name,
+        include_random_policy=False
     )
-    print("\n== Importing Policies ==")
-    policy_map = ba_rllib.get_policy_from_trainer_map(trainer_map)
-    return policy_map
 
+    agent_1_policy_params = load_agent_policy_params(
+        agent_1_policy_dir,
+        args.gamma,
+        env_name,
+        include_random_policy=False
+    )
 
-def _load_agent_policies(args):
-    policy_map = _import_rllib_policies(args)
+    renderers = []
+    if args.render:
+        renderers.append(render_lib.EpisodeRenderer())
 
-    sample_env = get_base_env(args)
-    env_model = sample_env.model
-
-    def _get_rllib_policy_init_fn(pi):
-        """Get init function for rllib policy.
-
-        This is a little hacky but gets around issure of copying kwargs.
-        """
-        obs_space = env_model.obs_spaces[0]
-        preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
-
-        def pi_init(model, ego_agent, gamma, **kwargs):
-            return ba_rllib.PPORllibPolicy(
-                model=model,
-                ego_agent=ego_agent,
-                gamma=gamma,
-                policy=pi,
-                preprocessor=preprocessor,
-                **kwargs
-            )
-
-        return pi_init
-
-    policy_params_map = {}
-    symmetric_agent_id = pbt.InteractionGraph.SYMMETRIC_ID
-    random_policy_added = False
-    for policy_id, policy in policy_map[symmetric_agent_id].items():
-        if "-1" in policy_id:
-            policy_params = exp_lib.PolicyParams(
-                name="RandomPolicy",
-                gamma=args.gamma,
-                kwargs={"policy_id": "pi_-1"},
-                init=ba_policy_lib.RandomPolicy
-            )
-            random_policy_added = True
-        else:
-            policy_params = exp_lib.PolicyParams(
-                name=f"PPOPolicy_{policy_id}",
-                gamma=args.gamma,
-                kwargs={"policy_id": policy_id},
-                init=_get_rllib_policy_init_fn(policy)
-            )
-        policy_params_map[policy_id] = policy_params
-
-    if not random_policy_added:
-        policy_params = exp_lib.PolicyParams(
-            name="RandomPolicy",
-            gamma=args.gamma,
-            kwargs={"policy_id": "pi_-1"},
-            init=ba_policy_lib.RandomPolicy
+    exp_params_list = []
+    for i, policies in enumerate(
+            product(agent_0_policy_params, agent_1_policy_params)
+    ):
+        exp_params = exp_lib.ExpParams(
+            exp_id=exp_id_init+i,
+            env_name=env_name,
+            policy_params_list=policies,
+            run_config=runner.RunConfig(
+                seed=args.seed,
+                num_episodes=args.num_episodes,
+                episode_step_limit=None,
+                time_limit=args.time_limit
+            ),
+            tracker_fn=_tracker_fn,
+            tracker_kwargs={},
+            renderer_fn=_renderer_fn,
+            renderer_kwargs={"render": args.render},
         )
-        policy_params_map["pi_-1"] = policy_params
+        exp_params_list.append(exp_params)
+    return exp_params_list
 
-    return policy_params_map
 
+def _main(args):
+    # check env name is valid
+    for env_name in args.env_names:
+        get_base_env(env_name, args.seed)
+        register_env(env_name, registered_env_creator)
 
-def _load_policies(args):
-    env = get_base_env(args)
-    # Need to load seperate policies for each agent to ensure same policy
-    # object is not used for two agents at the same time
-    policy_params_map = {
-        i: _load_agent_policies(args) for i in range(env.n_agents)
-    }
-    return policy_params_map
+    print("\n== Running Experiments ==")
+    logging.basicConfig(level="INFO", format='%(message)s')
+    result_dir = osp.join(EXP_RESULTS_DIR, str(datetime.now()))
+    pathlib.Path(result_dir).mkdir(exist_ok=False)
+
+    exp_params_list = []
+
+    # since env is symmetric we only need every combination of policies
+    # rather than the full product of the policy spaces
+    policy_combos = list(combinations_with_replacement(args.policy_dirs, 2))
+    for env_name in args.env_names:
+        for (agent_0_policy_dir, agent_1_policy_dir) in policy_combos:
+            exp_params_list.extend(
+                _get_env_policies_exp_params(
+                    env_name,
+                    agent_0_policy_dir,
+                    agent_1_policy_dir,
+                    result_dir,
+                    args,
+                    exp_id_init=len(exp_params_list)
+                )
+            )
+
+    print(f"== Running {len(exp_params_list)} Experiments ==")
+    exp_lib.run_experiments(
+        exp_params_list=exp_params_list,
+        exp_log_level=args.log_level,
+        n_procs=args.n_procs,
+        result_dir=result_dir
+    )
 
 
 if __name__ == "__main__":
@@ -118,12 +132,12 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "env_name", type=str,
-        help="Name of the environment to train on."
+        "--env_names", type=str, nargs="+",
+        help="Name of the environments to train on."
     )
     parser.add_argument(
-        "policy_dir", type=str,
-        help="Path to dir containing trained RL policies"
+        "--policy_dirs", type=str, nargs="+",
+        help="Paths to dirs containing trained RL policies"
     )
     parser.add_argument(
         "--seed", type=int, default=0,
@@ -153,50 +167,4 @@ if __name__ == "__main__":
         "--render", action="store_true",
         help="Render experiment episodes."
     )
-    args = parser.parse_args()
-
-    # check env name is valid
-    get_base_env(args)
-
-    ray.init()
-    register_env(args.env_name, registered_env_creator)
-
-    policy_params_map = _load_policies(args)
-
-    print("\n== Running Experiments ==")
-    # Run the different ba_rllib.RllibPolicy policies against each other
-    logging.basicConfig(level="INFO", format='%(message)s')
-
-    result_dir = osp.join(EXP_RESULTS_DIR, str(datetime.now()))
-    pathlib.Path(result_dir).mkdir(exist_ok=False)
-
-    agent_0_policies = list(policy_params_map[0].values())
-    agent_1_policies = list(policy_params_map[1].values())
-    exp_params_list = []
-
-    renderers = []
-    if args.render:
-        renderers.append(render_lib.EpisodeRenderer())
-
-    for i, policies in enumerate(product(agent_0_policies, agent_1_policies)):
-        exp_params = exp_lib.ExpParams(
-            exp_id=i,
-            env_name=args.env_name,
-            policy_params_list=policies,
-            run_config=runner.RunConfig(
-                seed=args.seed,
-                num_episodes=args.num_episodes,
-                episode_step_limit=None,
-                time_limit=args.time_limit
-            ),
-            tracker_fn=lambda: stats_lib.get_default_trackers(policies),
-            render_fn=lambda: renderers,
-        )
-        exp_params_list.append(exp_params)
-
-    exp_lib.run_experiments(
-        exp_params_list=exp_params_list,
-        exp_log_level=args.log_level,
-        n_procs=args.n_procs,
-        result_dir=result_dir
-    )
+    _main(parser.parse_args())

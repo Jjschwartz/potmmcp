@@ -71,7 +71,6 @@
 
 #+end_src
 
-
 * fcnetwork sizes:
 
 Performance is similar between big and small networks tested (except 1 seed for small network) however small network was faster, requiring only 25 min to train as opposed to 30 min for the bigger network (due to faster learn and inference time). There was no noticeable difference in CPU memory usage between the different network sizes.

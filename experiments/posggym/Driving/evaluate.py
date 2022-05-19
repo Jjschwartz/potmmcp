@@ -56,8 +56,8 @@ if __name__ == "__main__":
         "render_env": args.render,
         # If True, store videos in this relative directory inside the default
         # output dir (~/ray_results/...)
-        # TO ME: I added this here for referent in case I want to use it later
-        "record_env": True,
+        # Must be True for rendering to work, not sure why :/
+        "record_env": args.render,
         "evaluation_interval": 1,
         # In episodes (by default)
         # Can be changed to 'timesteps' if desired
