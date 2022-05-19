@@ -98,8 +98,6 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         self._statistics: Dict[str, float] = {}
         self._reset_step_statistics()
 
-        # Threading for handling simoultaneeous simulations
-
     #######################################################
     # Other Policy Functions
     #######################################################
@@ -260,23 +258,26 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         # remove all actions and obs from parent nodes that are not in
         # last step of history
         h_node = self._fill_traverse(history)
-        last_action, _ = history.get_last_step()
+        last_action, last_obs = history.get_last_step()
         parent_obs_node = h_node.parent.parent
         parent_action_node = parent_obs_node.get_child(last_action)
         # remove references to pruned branches
         parent_obs_node.children = [parent_action_node]
         parent_action_node.children = [h_node]
 
-        self._log_debug(
-            f"Belief size before reinvigoration = {h_node.belief.size()}"
-        )
-        self._log_debug(
-            f"Parent belief size = {parent_obs_node.belief.size()}"
-        )
-        self._reinvigorate(history, obs_node=h_node)
-        self._log_debug(
-            f"Belief size after reinvigoration = {h_node.belief.size()}"
-        )
+        if self.model.is_absorbing(last_obs, self.ego_agent):
+            self._log_debug("Absorbing state reached.")
+        else:
+            self._log_debug(
+                f"Belief size before reinvigoration = {h_node.belief.size()}"
+            )
+            self._log_debug(
+                f"Parent belief size = {parent_obs_node.belief.size()}"
+            )
+            self._reinvigorate(history, obs_node=h_node)
+            self._log_debug(
+                f"Belief size after reinvigoration = {h_node.belief.size()}"
+            )
 
     #######################################################
     # SEARCH
@@ -290,11 +291,14 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         if len(root.children) == 0:
             self._expand(root, self.history)
 
-        root_b = root.belief
-        for _ in range(self.num_sims):
-            hp_state: H.HistoryPolicyState = root_b.sample()
-            self._simulate(hp_state, root, 0)
-            root.visits += 1
+        if self.model.is_absorbing(root.obs, self.ego_agent):
+            self._log_debug("Agent in absorbing state. Not running search.")
+        else:
+            root_b = root.belief
+            for _ in range(self.num_sims):
+                hp_state: H.HistoryPolicyState = root_b.sample()
+                self._simulate(hp_state, root, 0)
+                root.visits += 1
 
         search_time = time.time() - start_time
         search_time_per_sim = search_time / self.num_sims
@@ -349,7 +353,10 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         child_obs_node.visits += 1
         child_obs_node.belief.add_particle(next_hp_state)
 
-        if not joint_step.done:
+        if (
+            not joint_step.done
+            and not self.model.is_absorbing(ego_obs, self.ego_agent)
+        ):
             ego_return += self.gamma * self._simulate(
                 next_hp_state, child_obs_node, depth+1
             )
@@ -369,7 +376,9 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         joint_step = self.model.step(hp_state.state, joint_action)
         joint_obs = joint_step.observations
         reward = joint_step.rewards[self.ego_agent]
-        if joint_step.done:
+
+        ego_obs = joint_obs[self.ego_agent]
+        if joint_step.done or self.model.is_absorbing(ego_obs, self.ego_agent):
             return reward
 
         new_history = hp_state.history.extend(joint_action, joint_obs)

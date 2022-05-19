@@ -10,6 +10,8 @@ from typing import (
     List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple
 )
 
+import ray
+
 import numpy as np
 
 import posggym
@@ -24,16 +26,23 @@ LINE_BREAK = "-"*60
 
 
 class PolicyParams(NamedTuple):
-    """Params for a policy in a single experiment run."""
+    """Params for a policy in a single experiment run.
+
+    `init` should be a function which takes arguments
+    [model: posggym.POSGModel, agent_id: M.AgentID, gamma: float, kwargs]
+    and return a policy. The experiment logger will be added to the kwargs to
+    handle logging to the correct log file.
+
+    `info` is an optional dictionary whose contents will be saved to the
+    results file. It can be used to add additional information alongside the
+    policy, such as additional identifying info like the env trained on,
+    nesting level, population ID, etc.
+    """
     name: str
     gamma: float
     kwargs: Dict[str, Any]
-    # This should take as arguments:
-    # [posggym.POSGModel, M.AgentID, float, **kwargs]
-    # i.e. [model, agent_id, gamma, kwargs]
-    # and return a policy
-    # The experiment logger will be added to the kwargs
     init: Callable[..., policy_lib.BasePolicy]
+    info: Optional[Dict[str, Any]] = None
 
 
 class ExpParams(NamedTuple):
@@ -55,6 +64,8 @@ class ExpParams(NamedTuple):
     renderer_kwargs: Optional[Dict[str, Any]] = None
     stream_log_level: int = logging.INFO
     file_log_level: int = logging.DEBUG
+    setup_fn: Optional[Callable] = None
+    cleanup_fn: Optional[Callable] = None
 
 
 # A global lock used for controlling when processes print to stdout
@@ -81,6 +92,9 @@ def _log_exp_start(params: ExpParams,
             logger.info(f"Agent = {i} Policy class = {pi_params.name}")
             logger.info("Policy kwargs:")
             logger.info(pformat(pi_params.kwargs))
+            if pi_params.info:
+                logger.info("Policy info:")
+                logger.info(pformat(pi_params.info))
 
         logger.info("Run Config:")
         logger.info(pformat(params.run_config))
@@ -148,6 +162,10 @@ def _get_param_statistics(params: ExpParams
         _add_dict(stats[i], pi_params.kwargs)
         policy_headers.update(pi_params.kwargs)
 
+        if pi_params.info:
+            _add_dict(stats[i], pi_params.info)
+            policy_headers.update(pi_params.info)
+
     for i in range(num_agents):
         for header in policy_headers:
             if header not in stats[i]:
@@ -183,6 +201,10 @@ def _get_exp_renderers(params: ExpParams) -> Sequence[render_lib.Renderer]:
 def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
     """Run a single experiment and write results to a file."""
     params, result_dir = args
+
+    if params.setup_fn is not None:
+        params.setup_fn(params)
+
     exp_logger = get_exp_run_logger(
         params.exp_id,
         result_dir,
@@ -201,20 +223,8 @@ def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
     policies: List[policy_lib.BasePolicy] = []
     for i, pi_params in enumerate(params.policy_params_list):
         kwargs = copy.copy(pi_params.kwargs)
-        # kwargs = copy.deepcopy(pi_params.kwargs)
         kwargs["logger"] = exp_logger
-
-        # Use lock to handle case where multiple experiments may be loading
-        # policies from the same file
-        # LOCK.acquire()
-        try:
-            pi = pi_params.init(
-                env.model, i, pi_params.gamma, **pi_params.kwargs
-            )
-        finally:
-            pass
-        #    LOCK.release()
-
+        pi = pi_params.init(env.model, i, pi_params.gamma, **pi_params.kwargs)
         policies.append(pi)
 
     trackers = _get_exp_trackers(params, policies)
@@ -241,6 +251,9 @@ def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
         exp_logger.exception("Exception occured: %s", str(ex))
         exp_logger.error(pformat(locals()))
         raise ex
+    finally:
+        if params.cleanup_fn is not None:
+            params.cleanup_fn(params)
 
     return fname
 
@@ -251,6 +264,8 @@ def run_experiments(exp_params_list: List[ExpParams],
                     result_dir: Optional[str] = None,
                     extra_output_dir: Optional[str] = None) -> str:
     """Run series of experiments."""
+    print(f"run_experiments - {ray.is_initialized()}")
+
     exp_start_time = time.time()
     logging.basicConfig(level=exp_log_level, format='%(message)s')
 

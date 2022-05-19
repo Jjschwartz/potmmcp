@@ -235,7 +235,12 @@ def import_policy(policy_id: PolicyID,
         trainers_remote=trainers_remote,
         extra_config=extra_config
     )
-    return trainer.get_policy(policy_id)
+    policy = trainer.get_policy(policy_id)
+
+    # release trainer resources to avoid accumulation of background processes
+    trainer.stop()
+
+    return policy
 
 
 def _dummy_trainer_import_fn(agent_id: AgentID,
@@ -323,6 +328,12 @@ def import_igraph_policies(igraph_dir: str,
         extra_config=extra_config
     )
     policy_map = get_policy_from_trainer_map(trainer_map)
+
+    # release trainer resources to avoid accumulation of background processes
+    for agent_trainer_map in trainer_map.values():
+        for trainer in agent_trainer_map.values():
+            trainer.stop()
+
     return igraph, policy_map
 
 
