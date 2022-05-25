@@ -16,7 +16,9 @@ try:
 except ImportError:
     print(
         "BA-POSGMCP depends on the ray RLlib library. For installation "
-        "instructions visit https://docs.ray.io/en/latest/rllib/index.html"
+        "instructions visit https://docs.ray.io/en/latest/rllib/index.html. "
+        "Only tested with version 1.12, which is installable via pip with: "
+        'pip install "ray[rllib]"==1.12'
     )
     sys.exit(1)
 
@@ -44,13 +46,19 @@ setup(
         package for package in find_packages()
         if package.startswith('baposgmcp')
     ],
-    install_requires=[],
+    install_requires=[
+        "gym>=0.21",
+        "numpy>=1.22",
+        "pandas>=1.4",
+        "prettytable>=3.3"
+    ],
     extras_require=extras,
-    python_requires='>=3.9',
+    python_requires='>=3.8',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
     ],
     zip_safe=False
