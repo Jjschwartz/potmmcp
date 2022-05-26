@@ -33,3 +33,9 @@ After ``pytorch`` and ``rllib`` are both installed, to install ``baposgmcp`` you
 
 
 And voila.
+
+
+Results
+-------
+
+By default experiment results are saved to the ``~/baposgmcp_results`` directory.

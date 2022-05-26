@@ -1,0 +1,158 @@
+#+TITLE: BAPOSGMCP Driving Environment Notes
+
+* Memory Usage
+
+Memory usage is affected by:
+
+- Network size
+- Batch size
+- Optimizer (since GPU stores optimizer state)
+- Sequence Length
+
+And probably other things as well, but these are the main ones (I think).
+
+** Batch size vs memory usage
+
+Using the default network size =[64, 32]= with =256= LSTM units.
+
+*Summary*:
+
+- GPU memory usage increases with both =sgd_minibatch_size= and =train_batch_size=.
+- Need to monitor =nvtop= output to get actual memory usage, output from rllib tells you nothing since it is only a sample (?)
+- Memory usage seems to scale super linearly with batch size, but increases are not too drastic. E.g. increasing =train_batch_size= from =256= to =8192= lead to an increase of =127MB= and =114MB= in Host and GPU memory usage respectively which is only around =1%= of an =8GB= GPU's RAM.
+
+  *Note* =Host Mem= is the =Resident Memory= of the host (i.e. the CPU RAM being used by the process) while =GPU Mem= is the GPU RAM being used. What we are really interested in is the =GPU Mem= and =GPU= measure since these determine how much of the GPU is being used and ultimately the size and number of networks we can run at the same time.
+
+*** Testing effect of =sgd_minibatch_size=
+
+| train_batch_size | sgd_minibatch_size |  CPU | CPU Ram |  GPU | GPU Ram | Host Mem | GPU Mem      |
+|------------------+--------------------+------+---------+------+---------+----------+--------------|
+|             2048 |                 64 | 14.8 |   71.19 | 32.1 |    20.0 |          |              |
+|             2048 |                128 | 14.9 |   71.28 | 28.0 |    20.0 |          |              |
+|             2048 |                256 | 15.4 |    71.6 | 28.8 |    20.3 | 2804 MB  | 1041MB (13%) |
+|             2048 |                512 | 14.7 |    71.6 | 22.3 |    20.3 |          |              |
+|             2048 |               1024 | 14.8 |    71.9 | 19.3 |    20.5 | 2808 MB  |              |
+|             2048 |               2048 | 14.8 |    72.0 | 13.0 |    20.2 | 2806 MB  | 1085MB (14%) |
+
+*** Testing effect of =train_batch_size=
+
+| train_batch_size | sgd_minibatch_size |  CPU | CPU Ram |  GPU | GPU ram | Host Mem | GPU Mem      |
+|------------------+--------------------+------+---------+------+---------+----------+--------------|
+|              256 |                256 | 17.5 |    72.1 | 27.0 |    19.2 | 2783MB   | 1005MB (13%) |
+|              512 |                256 | 16.5 |    72.1 | 22.0 |    19.2 | 2786MB   |              |
+|             1024 |                256 | 14.3 |    72.4 | 22.5 |    19.3 | 2789MB   |              |
+|             2048 |                256 | 14.8 |    72.7 | 20.0 |    19.5 | 2804MB   | 1041MB (13%) |
+|             4096 |                256 | 14.7 |    73.1 | 22.8 |    19.8 | 2838MB   |              |
+|             8192 |                256 | 15.5 |    74.2 | 23.2 |    20.6 | 2910MB   | 1119MB (14%) |
+
+** Network size vs memory usage
+
+Here we test network size vs memory usage. We use the default =train_batch_size=2048= and =sgd_batch_size=256= and =256= LSTM units.
+
+*Summary*
+
+- As expected GPU memory usage increases with network size, both Fully connected network
+- Scaling is not too drastic though, at least for the small networks I am using.
+
+| Network size    | LSTM |  CPU | CPU Ram |  GPU | GPU Ram | Host Mem | GPU Mem      |
+|-----------------+------+------+---------+------+---------+----------+--------------|
+| [64, 32]        |  256 | 11.5 |    72.1 | 27.0 |    21.1 | 2804MB   | 1039MB (13%) |
+| [256, 256]      |  256 | 13.2 |    72.5 | 18.8 |    21.2 | 2823MB   | 1047MB (13%) |
+| [512, 512]      |  256 | 11.7 |    73.0 | 26.3 |    20.0 | 2838MB   | 1069MB (13%) |
+| [64, 32]        |  512 | 11.5 |    73.5 | 28.0 |    20.2 | 2839MB   | 1081MB (14%) |
+| [256, 256, 256] |  256 | 13.5 |    73.8 | 26.7 |    19.8 | 2814MB   | 1051MB (13%) |
+| [256]           |  256 | 11.5 |    74.1 | 20.0 |    19.7 | 2807MB   | 1045MB (13%) |
+|                 |      |      |         |      |         |          |              |
+
+* Solving issue with performance slowing down over time - solved :)
+
+From the  experiment logs I can see that the average time per episode increases over time even though the number of steps per episode remains the same and the policies shouldn't be affected (in terms of episode time) by the experiment parameters. The general trend is that performance is fast (< 1 sec per episode) and then at some point, after a certain number of experiments or time has passed, performance slows significantly. At it's worst I observed episodes taking 500+ seconds!
+
+After viewing =htop= during a run where the episode times had slowed significantly my hypothesis is that for each experiment run =ray= is spawning processes and threads and these are not being cleaned up. Overtime this leads to multiple threads/processes competing for limited resources, eventually leading to significant slowing of the main processes actually running the experiments.
+
+** Before the fix
+
+Running command:
+
+#+begin_src shell
+
+  python pairwise_comparison.py --env_names Driving7x7CrissCross1-v0  Driving7x7CrissCross2-v0 Driving7x7CrissCross3-v0 Driving7x7CrissCross4-v0 --policy_dirs rl_policies/Driving7x7CrissCross1-v0_2022-05-12\ 13\:47\:17.024979/ rl_policies/Driving7x7CrissCross1-v0_2022-05-13\ 10\:12\:22.733385/ rl_policies/Driving7x7CrissCross2-v0_2022-05-13\ 00\:13\:44.494543/ rl_policies/Driving7x7CrissCross2-v0_2022-05-13\ 10\:12\:13.059530/ --num_episodes 1000 --seed 0 --n_procs 3
+
+#+end_src
+
+*** Observations from log files
+
+- *Run started*: 21:07:09
+- *Exp 10*
+  - Start time = 21:08:59
+  - pi_1 vs pi_1
+  - End time = 21:09:16
+  - Ep time mean = 0.016  +/- 0.005
+  - Ep steps mean = 6.88 +/- 1.55
+  - Time per step = 0.0023
+- *Exp 77*
+  - Start time = 21:33:01
+  - pi_1 vs pi_1
+  - End time = 21:36:15
+  - Ep time mean = 0.19 +/- 0.19
+  - Ep steps mean = 17.09 +/- 16.94
+  - Time per step = 0.011
+- *Exp 97*
+  - Start time = 22:05:49
+  - pi_1 vs pi_1
+  - End time = 22:12:06
+  - Ep time mean = 0.373 +/- 0.416
+  - Ep steps mean = 11.29 +/- 11.98
+  - Time per step = 0.033
+
+    There is a more drastic increase in episode time starting from around experiment 100, with episode time increasing from 0.5 s to upto 4 s for exps 100-105, then in exp 106 times shoot up to 23.44 +/- 30.11 (steps = 11.56 +/- 11/41).
+
+    Exp 106 took a total of around 6.5 hours to run.
+
+    Times were lower for exp 107 (5.8 +/- 7.06 s per episode), but then increased again for exp 108 and 109 which had many episodes lasting 90 sec +.
+
+*** Other observations
+
+Issue is present if running experiments sequentially, and also if running 1000, 100, or 10 episodes.
+
+** Fix attempt 1 - reduce logging from ray - faile
+
+I noticed in =htop= a lot of processes spawned by =ray= are to do with logging and a dashboard. I also notice when killing a slowed down experiment run a lot of messages relating to =logging.cc= being killed.
+
+My hypothesis is that for each experiment a new rllib trainer is loaded, in order to load the policy, which in turn loads a bunch of extra processes that are not cleaned up until all experiments are finished.
+
+From the documentation it's possible to control ray tuning using arguments passed to the =ray.init= function.
+
+ref: https://docs.ray.io/en/latest/ray-core/package-ref.html
+
+*Outcome* = fail
+
+In this fix I set the following arguments for the =ray.init= function:
+
+- =include_dashboard=False=
+- =log_to_driver=False=
+
+This lead to the program freezing :( I think it may be due to trying to spawn multiple processes within a multi-process program (i.e. after ray.init() is called)
+
+** Fix attempt 2 - adding =trainer.cleanup()= call after importing policy - fail-
+
+*Outcome* = fail
+
+The hope here is that any unused processes created when importing a policy get cleaned up.
+
+*** Observations from =htop=
+
+I ran the command and noticed that on htop the =load average= gradually increased overtime with the number of experiments run. This was true when the number of episodes being run was =1000=, =100=, or =10= providing some support for the hypothesis that the slowdown is due to the extra processes spawned per experiment.
+** Fix attempt 3 - calling =ray.shutdown= then =ray.init= within each new experiment process - fail
+
+I think each call to a new experiment was adding more ray processes without cleaning up the old ones. By calling =ray.shutdown= within each each new process it closes all ray resources spawned by the previous experiment within the same process before starting the new experiment.
+
+This doesn't seem to have solved the issue :/
+
+** Fix attempt 4 - setting ="log_sys_usage=False"= in the PPOTrainer config - worked
+
+By default each trainer uses the =ray.tune.utils.UtilMonitor= to monitor CPU, GPU, VRAM, RAM usage. This involves creating a new thread which queries the OS every x seconds to get the latest usage figures. Since in my experiments I am creating a new trainer each experiment, that means each time a new trainer is created there is an additional thread that is periodically querying the OS. This slowly builds up until the OS has to keep interupting running processes in order to respond to these queries, and the issue only gets worse as the number of experiments and hence trainers grows.
+
+Setting ="log_sys_usage=False"= in the trainer config solves this problem. It can also be solved by running the =trainer.stop()= function which releases all resources used by the trainer. Note, however using the first solution greatly reduces the overhead each time a new trainer is created since there is no waiting for the sys_usage monitor thread to end - i.e. 210 sec with =true= vs 63 sec with =false= for 268 experiments each with 10 episodes.
+
+I added cleanup of trainers to the =baposgmcp.rllib.import_rllib_policy= and =baposgmcp.rllib.import_igraph_policies=, so hopefully this issue won't be a thing in the future
