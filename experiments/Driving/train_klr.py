@@ -170,6 +170,6 @@ if __name__ == "__main__":
             igraph,
             trainers,
             trainers_remote=True,
-            save_dir_name=args.env_name
+            save_dir_name=f"{args.env_name}_{args.seed}"
         )
         print(f"{export_dir=}")
