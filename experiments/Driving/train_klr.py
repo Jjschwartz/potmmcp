@@ -12,7 +12,11 @@ from baposgmcp import pbt
 import baposgmcp.rllib as ba_rllib
 
 from exp_utils import (
-    registered_env_creator, EXP_RL_POLICY_DIR, RL_TRAINER_CONFIG, get_rllib_env
+    registered_env_creator,
+    EXP_RL_POLICY_DIR,
+    RL_TRAINER_CONFIG,
+    get_rllib_env,
+    get_training_logger_creator
 )
 
 
@@ -51,10 +55,15 @@ def _get_trainer_config(args):
 
     num_gpus_per_trainer = args.num_gpus / num_trainers
 
+    logger_creator = get_training_logger_creator(
+        "train_klr", args.env_name, args.seed, f"k={args.k}"
+    )
+
     return {
         "default_trainer_config": default_trainer_config,
         "num_workers": args.num_workers,
-        "num_gpus_per_trainer": num_gpus_per_trainer
+        "num_gpus_per_trainer": num_gpus_per_trainer,
+        "logger_creator": logger_creator
     }
 
 
@@ -165,11 +174,12 @@ if __name__ == "__main__":
 
     if args.save_policies:
         print("== Exporting Graph ==")
+        save_dir = f"train_klr_{args.env_name}_k={args.k}_seed={args.seed}"
         export_dir = ba_rllib.export_trainers_to_file(
             EXP_RL_POLICY_DIR,
             igraph,
             trainers,
             trainers_remote=True,
-            save_dir_name=f"{args.env_name}_{args.seed}"
+            save_dir_name=save_dir
         )
         print(f"{export_dir=}")

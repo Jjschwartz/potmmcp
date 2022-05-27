@@ -1,8 +1,13 @@
+import os
 import random
+import tempfile
+from datetime import datetime
 from typing import Callable, Any, Dict, List, Union, Optional
 
 from ray import rllib
+from ray.tune.logger import UnifiedLogger
 from ray.rllib.agents.trainer import Trainer
+from ray.tune.result import DEFAULT_RESULTS_DIR
 
 import numpy as np
 from gym import spaces
@@ -201,3 +206,31 @@ def get_symmetric_br_policy_mapping_fn(policy_br_id: str,
 def numpy_softmax(x: np.ndarray) -> np.ndarray:
     """Perform the softmax function on an array."""
     return np.exp(x) / np.sum(np.exp(x), axis=0)
+
+
+def custom_log_creator(custom_path: str,
+                       custom_str: str,
+                       within_default_base_dir: bool = True) -> Callable:
+    """Get custom log creator that can be passed to a Trainer.
+
+    In particular `custom_path` specifies the path where results will be
+    written by the trainer. If `within_default_base_dir=True` then this will
+    be within the RLLIB Default results dir `~/ray_results`.
+
+    `custom_str` is used as the prefix for the logdir.
+    """
+    timestr = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
+    logdir_prefix = "{}_{}".format(custom_str, timestr)
+
+    if within_default_base_dir:
+        custom_path = os.path.join(DEFAULT_RESULTS_DIR, custom_path)
+
+    def logger_creator(config):
+        if not os.path.exists(custom_path):
+            os.makedirs(custom_path)
+        # use mkdtemp to handle race conditions if two processes try create
+        # same directory
+        logdir = tempfile.mkdtemp(prefix=logdir_prefix, dir=custom_path)
+        return UnifiedLogger(config, logdir, loggers=None)
+
+    return logger_creator

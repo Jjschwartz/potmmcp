@@ -1,3 +1,5 @@
+from typing import Optional, Callable
+
 import ray
 from ray.tune.logger import pretty_print
 
@@ -13,7 +15,8 @@ def get_remote_trainer(env_name: str,
                        policies_to_train,
                        num_workers: int,
                        num_gpus_per_trainer: float,
-                       default_trainer_config):
+                       default_trainer_config,
+                       logger_creator: Optional[Callable] = None):
     """Get remote trainer."""
     trainer_remote = ray.remote(
         num_cpus=num_workers,
@@ -38,7 +41,8 @@ def get_remote_trainer(env_name: str,
 
     trainer = trainer_remote.remote(
         env=env_name,
-        config=trainer_config
+        config=trainer_config,
+        logger_creator=logger_creator
     )
 
     return trainer

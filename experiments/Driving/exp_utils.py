@@ -1,6 +1,6 @@
 import pathlib
 import os.path as osp
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Callable
 
 from ray.tune.logger import NoopLogger
 from ray.rllib.agents.ppo import PPOTrainer
@@ -44,6 +44,26 @@ def get_rllib_env(args) -> RllibMultiAgentEnv:
 def get_base_env(env_name: str, seed: Optional[int]) -> posggym.Env:
     """Create POSGGYM base (unwrapped)  environment from commandline args."""
     return posggym.make(env_name, **{"seed": seed})
+
+
+def get_training_logger_creator(parent_dir: str,
+                                env_name: str,
+                                seed: Optional[int],
+                                suffix: Optional[str]) -> Callable:
+    """Get logger creator for training.
+
+    `parent_dir` is the directory within which files will be logged.
+    This will be a subdirectory of `~/ray_results/Driving`
+    """
+    custom_path = osp.join("Driving", parent_dir)
+
+    custom_str = f"PPOTrainer_{env_name}"
+    if seed is not None:
+        custom_str += f"_seed={seed}"
+    if suffix is not None:
+        custom_str += f"_{suffix}"
+
+    return ba_rllib.custom_log_creator(custom_path, custom_str, True)
 
 
 def _trainer_make_fn(config):
