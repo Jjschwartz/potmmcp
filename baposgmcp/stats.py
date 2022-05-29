@@ -417,7 +417,11 @@ def compile_results(result_dir: str,
     """
     result_filepaths = [
         os.path.join(result_dir, f) for f in os.listdir(result_dir)
-        if os.path.isfile(os.path.join(result_dir, f)) and f.endswith(".csv")
+        if (
+            os.path.isfile(os.path.join(result_dir, f))
+            and f.endswith(".csv")
+            and not f.startswith("compiled_results")
+        )
     ]
 
     concat_results_filepath = os.path.join(result_dir, "compiled_results.csv")
