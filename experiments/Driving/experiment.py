@@ -37,11 +37,11 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
     env_name = kwargs.pop("env_name")
     other_agent_policy_dir = kwargs.pop("other_agent_policy_dir")
 
-    if "rollout_policy_id" in kwargs:
-        rollout_policy_id = kwargs.pop("rollout_policy_id")
+    if "rollout_policy_ids" in kwargs:
+        rollout_policy_ids = kwargs.pop("rollout_policy_ids")
         rollout_policy_dir = kwargs.pop("rollout_policy_dir")
     else:
-        rollout_policy_id = None
+        rollout_policy_ids = None
         rollout_policy_dir = ""
 
     other_agent_id = (ego_agent + 1) % 2
@@ -56,12 +56,12 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
         )
     }
 
-    if rollout_policy_id is None:
+    if rollout_policy_ids is None:
         rollout_policy = ba_policy_lib.RandomPolicy(
             model, ego_agent, gamma
         )
     else:
-        for pi_id in rollout_policy_id:
+        for pi_id in rollout_policy_ids:
             if pi_id in other_policies[other_agent_id]:
                 rollout_policy = load_agent_policy(
                     rollout_policy_dir,
@@ -141,13 +141,13 @@ def _get_env_policies_exp_params(env_name: str,
                 "args": args,
                 "env_name": env_name,
                 "other_agent_policy_dir": baposgmcp_policy_dir,
-                "rollout_policy_id": args.rollout_policy_id,
+                "rollout_policy_ids": args.rollout_policy_ids,
                 "rollout_policy_dir": baposgmcp_policy_dir
             },
             init=_baposgmcp_init_fn,
             info={
                 "other_agent_policy_dir": baposgmcp_policy_dir,
-                "rollout_policy_id": args.rollout_policy_id,
+                "rollout_policy_ids": args.rollout_policy_ids,
                 "rollout_policy_dir": baposgmcp_policy_dir
             }
         )
@@ -287,7 +287,7 @@ if __name__ == "__main__":
         help="Render experiment episodes."
     )
     parser.add_argument(
-        "--rollout_policy_id", type=str, default="None", nargs="*",
+        "--rollout_policy_ids", type=str, default="None", nargs="*",
         help=(
             "ID/s of policy to use for BAPOSGMCP rollouts, if None use random."
             "This will use the policy within the BAPOSGMCP policies that "
