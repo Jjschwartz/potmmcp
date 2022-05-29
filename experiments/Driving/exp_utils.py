@@ -135,7 +135,12 @@ def load_agent_policy(policy_dir: str,
     BAPOSGMCP code.
     """
     rllib_policy = import_rllib_policy(
-        policy_dir, policy_id, agent_id, env_name=env_name
+        policy_dir,
+        policy_id,
+        agent_id,
+        num_gpus=0.0,
+        num_workers=0,
+        env_name=env_name
     )
 
     sample_env = get_base_env(env_name, seed)

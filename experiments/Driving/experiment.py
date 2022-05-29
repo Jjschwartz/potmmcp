@@ -61,14 +61,16 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
             model, ego_agent, gamma
         )
     else:
-        rollout_policy = load_agent_policy(
-            rollout_policy_dir,
-            rollout_policy_id,
-            ego_agent,
-            env_name,
-            gamma,
-            args.seed
-        )
+        for pi_id in rollout_policy_id:
+            if pi_id in other_policies[other_agent_id]:
+                rollout_policy = load_agent_policy(
+                    rollout_policy_dir,
+                    pi_id,
+                    ego_agent,
+                    env_name,
+                    gamma,
+                    args.seed
+                )
 
     return tree_lib.BAPOSGMCP(
         model,
@@ -111,7 +113,6 @@ def _get_env_policies_exp_params(env_name: str,
     other_agent_policy_dir specifiec the directory to load policies from that
     are used as the other agent policies during testing.
     """
-    print("== Creating Experiments ==")
     sample_env = get_base_env(env_name, args.seed)
     env_model = sample_env.model
 
@@ -195,10 +196,14 @@ def _main(args):
         register_env(env_name, registered_env_creator)
 
     print("== Running Experiments ==")
-    logging.basicConfig(level="INFO", format='%(message)s')
-    result_dir = osp.join(EXP_RESULTS_DIR, str(datetime.now()))
+    logging.basicConfig(level=args.log_level, format='%(message)s')
+    result_dir = osp.join(
+        EXP_RESULTS_DIR,
+        f"baposgmcp_numsims={args.num_sims}_{str(datetime.now())}"
+    )
     pathlib.Path(result_dir).mkdir(exist_ok=False)
 
+    print("== Creating Experiments ==")
     exp_params_list = []
     for env_name in args.env_names:
         for (baposgmcp_policy_dir, other_agent_policy_dir) in product(
@@ -282,8 +287,13 @@ if __name__ == "__main__":
         help="Render experiment episodes."
     )
     parser.add_argument(
-        "--rollout_policy_id", type=str, default="None",
-        help="ID of policy to use for BAPOSGMCP rollouts, if None use random."
+        "--rollout_policy_id", type=str, default="None", nargs="*",
+        help=(
+            "ID/s of policy to use for BAPOSGMCP rollouts, if None use random."
+            "This will use the policy within the BAPOSGMCP policies that "
+            "matches the given ID. Multiple IDs can be provided and the first "
+            "matching ID will be used."
+        )
     )
     parser.add_argument(
         "--debug", action="store_true",
