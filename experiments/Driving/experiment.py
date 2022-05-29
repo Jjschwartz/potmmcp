@@ -252,7 +252,7 @@ if __name__ == "__main__":
         help="Experiment seed."
     )
     parser.add_argument(
-        "--gamma", type=int, default=0.99,
+        "--gamma", type=float, default=0.99,
         help="Discount hyperparam."
     )
     parser.add_argument(
