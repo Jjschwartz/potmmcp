@@ -174,7 +174,7 @@ if __name__ == "__main__":
 
     if args.save_policies:
         print("== Exporting Graph ==")
-        save_dir = f"train_klr_{args.env_name}_k={args.k}_seed={args.seed}"
+        save_dir = f"train_klr_{args.env_name}_k{args.k}_seed{args.seed}"
         export_dir = ba_rllib.export_trainers_to_file(
             EXP_RL_POLICY_DIR,
             igraph,

@@ -1,7 +1,6 @@
 import logging
-import pathlib
 import argparse
-import os.path as osp
+import tempfile
 from datetime import datetime
 from itertools import product
 from typing import Sequence, List
@@ -197,11 +196,11 @@ def _main(args):
 
     print("== Running Experiments ==")
     logging.basicConfig(level=args.log_level, format='%(message)s')
-    result_dir = osp.join(
-        EXP_RESULTS_DIR,
-        f"baposgmcp_numsims={args.num_sims}_{str(datetime.now())}"
-    )
-    pathlib.Path(result_dir).mkdir(exist_ok=False)
+    time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
+    num_sim_str = "_".join([str(n) for n in args.num_sims])
+    result_dir_name = f"experiment_numsims_{num_sim_str}_{time_str}"
+    result_dir = tempfile.mkdtemp(prefix=result_dir_name, dir=EXP_RESULTS_DIR)
+    exp_lib.write_experiment_arguments(vars(args), result_dir)
 
     print("== Creating Experiments ==")
     exp_params_list = []
@@ -220,6 +219,7 @@ def _main(args):
             exp_params_list.extend(exp_params)
 
     print(f"== Running {len(exp_params_list)} Experiments ==")
+    print(f"== Using {args.n_procs} CPUs ==")
     if args.debug:
         input("In DEBUG mode. Continue?")
 

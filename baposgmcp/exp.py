@@ -1,6 +1,7 @@
 """Functions and data structures for running experiments."""
 import os
 import copy
+import json
 import time
 import random
 import logging
@@ -23,6 +24,7 @@ import baposgmcp.policy as policy_lib
 
 
 LINE_BREAK = "-"*60
+EXP_ARG_FILE_NAME = "exp_args.json"
 
 
 class PolicyParams(NamedTuple):
@@ -304,3 +306,11 @@ def run_experiments(exp_params_list: List[ExpParams],
     )
 
     return result_dir
+
+
+def write_experiment_arguments(args: Dict[str, Any], result_dir: str) -> str:
+    """Write experiment arguments to file."""
+    arg_file = os.path.join(result_dir, EXP_ARG_FILE_NAME)
+    with open(arg_file, "w", encoding="utf-8") as fout:
+        json.dump(args, fout)
+    return arg_file

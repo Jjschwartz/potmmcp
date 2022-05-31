@@ -2,8 +2,8 @@ import os
 import os.path as osp
 import copy
 import pickle
-import pathlib
 import datetime
+import tempfile
 from typing import Dict, Callable, Tuple, Sequence, Union, Any, Optional
 
 import ray
@@ -346,15 +346,9 @@ def export_trainers_to_file(parent_dir: str,
 
     Handles creation of directory to store
     """
-    export_dir = osp.join(
-        parent_dir, f"{save_dir_name}_{datetime.datetime.now()}"
-    )
-    try:
-        pathlib.Path(export_dir).mkdir(exist_ok=False)
-    except FileExistsError:
-        # A timestamp clash is already rare so this should do
-        export_dir += "_1"
-        pathlib.Path(export_dir).mkdir(exist_ok=False)
+    timestr = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
+    export_dir_name = f"{save_dir_name}_{timestr}"
+    export_dir = tempfile.mkdtemp(prefix=export_dir_name, dir=parent_dir)
 
     igraph.export_graph(
         export_dir,

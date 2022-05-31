@@ -8,6 +8,7 @@ policy in each of the policy directories for each environment.
 import logging
 import pathlib
 import argparse
+import tempfile
 import os.path as osp
 from datetime import datetime
 from typing import Sequence, List
@@ -96,12 +97,13 @@ def _main(args):
         register_env(env_name, registered_env_creator)
 
     print("\n== Running Experiments ==")
-    logging.basicConfig(level="INFO", format='%(message)s')
-    result_dir = osp.join(EXP_RESULTS_DIR, str(datetime.now()))
-    pathlib.Path(result_dir).mkdir(exist_ok=False)
+    logging.basicConfig(level=args.log_level, format='%(message)s')
+    timestr = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
+    result_dir_name = f"pairwise_comparison_{timestr}"
+    result_dir = tempfile.mkdtemp(prefix=result_dir_name, dir=EXP_RESULTS_DIR)
+    exp_lib.write_experiment_arguments(vars(args), result_dir)
 
     exp_params_list = []
-
     # since env is symmetric we only need every combination of policies
     # rather than the full product of the policy spaces
     policy_combos = list(combinations_with_replacement(args.policy_dirs, 2))
