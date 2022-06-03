@@ -3,7 +3,7 @@
 # RESOURCES
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=12    # number of comparisons to be run in parallel
+#SBATCH --cpus-per-task=16   # number of comparisons to be run in parallel
 #SBATCH --mem=60GB           # should be > 4GB*cpus-per-task
 #SBATCH --time=0-24:00:00    # 0 days, 24 hours, 00 minutes, 00 seconds
 # OTHER
@@ -26,6 +26,10 @@ time_limit=7200     # 2 hours
 num_sims=${test_sims[$SLURM_ARRAY_TASK_ID]}
 rollout_policy_ids=(pi_BR pi_SP)
 
+root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$(date -I)_$(SLURM_JOB_ID)
+if [ $SLURM_ARRAY_TASK_ID == 0 ]; then
+	mkdir -p $root_save_dir
+fi
 
 pwd; hostname; date
 echo "--- Running BAPOSGMCP Experiment ---"
@@ -36,6 +40,7 @@ echo "Num episodes = $num_episodes"
 echo "Time limit = $time_limit"
 echo "Num sims = $num_sims"
 echo "Rollout policy ids = ${rollout_policy_ids[*]}"
+echo "Root save_dir = $root_save_dir"
 singularity exec \
 			-B ~/.local-baposgmcp:$Home/.local \
 			~/containers/baposgmcp.sif \
@@ -49,5 +54,6 @@ singularity exec \
 			--seed 0 \
 			--num_sims $num_sims \
 			--rollout_policy_ids ${rollout_policy_ids[*]} \
-			--n_procs $SLURM_CPUS_PER_TASK
+			--n_procs $SLURM_CPUS_PER_TASK \
+			--root_save_dir $root_save_dir
 echo "Job complete"

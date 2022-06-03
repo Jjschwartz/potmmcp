@@ -409,25 +409,40 @@ def make_dir(exp_name: str) -> str:
 
 
 def compile_results(result_dir: str,
-                    extra_output_dir: Optional[str] = None) -> str:
+                    extra_output_dir: Optional[str] = None,
+                    handle_duplicate_exp_ids: bool = True) -> str:
     """Compile all .tsv results files in a directory into a single file.
 
     If extra_output_dir is provided then will additionally compile_result to
     the extra_output_dir.
+
+    If handle_duplicate_exp_ids is True, then function will assign new unique
+    exp_ids to entries that have duplicate exp_ids.
     """
     result_filepaths = [
         os.path.join(result_dir, f) for f in os.listdir(result_dir)
         if (
             os.path.isfile(os.path.join(result_dir, f))
             and f.endswith(".csv")
-            and not f.startswith("compiled_results")
+            and not f.startswith("compiled_results.csv")
         )
     ]
 
     concat_results_filepath = os.path.join(result_dir, "compiled_results.csv")
 
-    dfs = map(pd.read_csv, result_filepaths)
-    concat_df = pd.concat(dfs)
+    dfs = list(map(pd.read_csv, result_filepaths))
+
+    def do_concat_df(df0, df1):
+        exp_ids0 = df0["exp_id"].unique().tolist()
+        exp_ids1 = df1["exp_id"].unique().tolist()
+        if len(set(exp_ids0).intersection(exp_ids1)) > 0:
+            df1["exp_id"] += max(exp_ids0) + 1
+        return pd.concat([df0, df1], ignore_index=True)
+
+    concat_df = dfs[0]
+    for df_i in dfs[1:]:
+        concat_df = do_concat_df(concat_df, df_i)
+
     concat_df.to_csv(concat_results_filepath)
 
     if extra_output_dir:

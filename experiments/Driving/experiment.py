@@ -1,7 +1,5 @@
 import logging
 import argparse
-import tempfile
-from datetime import datetime
 from itertools import product
 from typing import Sequence, List
 
@@ -16,12 +14,12 @@ import baposgmcp.render as render_lib
 import baposgmcp.policy as ba_policy_lib
 
 from exp_utils import (
-    EXP_RESULTS_DIR,
     registered_env_creator,
     get_base_env,
     load_agent_policy_params,
     load_agent_policies,
-    load_agent_policy
+    load_agent_policy,
+    get_result_dir
 )
 
 
@@ -196,10 +194,9 @@ def _main(args):
 
     print("== Running Experiments ==")
     logging.basicConfig(level=args.log_level, format='%(message)s')
-    time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
     num_sim_str = "_".join([str(n) for n in args.num_sims])
-    result_dir_name = f"experiment_numsims_{num_sim_str}_{time_str}"
-    result_dir = tempfile.mkdtemp(prefix=result_dir_name, dir=EXP_RESULTS_DIR)
+    result_dir_name_prefix = f"experiment_numsims_{num_sim_str}"
+    result_dir = get_result_dir(result_dir_name_prefix, args.root_save_dir)
     exp_lib.write_experiment_arguments(vars(args), result_dir)
 
     print("== Creating Experiments ==")
@@ -298,5 +295,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--debug", action="store_true",
         help="Run debug experiment (runs only a single pairing)."
+    )
+    parser.add_argument(
+        "--root_save_dir", type=str, default=None,
+        help=(
+            "Optional directory to save results in. If supplied then it must "
+            "be an existing directory. If None uses default Driving/results/ "
+            "dir as root dir."
+        )
     )
     _main(parser.parse_args())

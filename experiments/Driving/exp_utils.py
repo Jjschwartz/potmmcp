@@ -1,5 +1,8 @@
-import pathlib
+import os
 import os.path as osp
+import pathlib
+import datetime
+import tempfile
 from typing import Optional, List, Dict, Callable
 
 from ray.tune.logger import NoopLogger
@@ -64,6 +67,19 @@ def get_training_logger_creator(parent_dir: str,
         custom_str += f"_{suffix}"
 
     return ba_rllib.custom_log_creator(custom_path, custom_str, True)
+
+
+def get_result_dir(prefix, root_dir: Optional[str] = None) -> str:
+    """Get experiment result dir. Handles creating dir."""
+    if root_dir is None:
+        root_dir = EXP_RESULTS_DIR
+    else:
+        assert osp.isdir(root_dir)
+
+    time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
+    result_dir_name = f"{prefix}_{time_str}"
+    result_dir = tempfile.mkdtemp(prefix=result_dir_name, dir=root_dir)
+    return result_dir
 
 
 def _trainer_make_fn(config):

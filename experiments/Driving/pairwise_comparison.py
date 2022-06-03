@@ -6,14 +6,11 @@ policy in each of the policy directories for each environment.
 
 """
 import logging
-import pathlib
 import argparse
-import tempfile
-import os.path as osp
-from datetime import datetime
 from typing import Sequence, List
 from itertools import combinations_with_replacement, product
 
+import ray
 from ray.tune.registry import register_env
 
 from baposgmcp import runner
@@ -24,9 +21,9 @@ import baposgmcp.render as render_lib
 
 from exp_utils import (
     registered_env_creator,
-    EXP_RESULTS_DIR,
     load_agent_policy_params,
-    get_base_env
+    get_base_env,
+    get_result_dir
 )
 
 
@@ -96,11 +93,11 @@ def _main(args):
         get_base_env(env_name, args.seed)
         register_env(env_name, registered_env_creator)
 
+    ray.init(num_cpus=args.n_procs, include_dashboard=False)
+
     print("\n== Running Experiments ==")
     logging.basicConfig(level=args.log_level, format='%(message)s')
-    timestr = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
-    result_dir_name = f"pairwise_comparison_{timestr}"
-    result_dir = tempfile.mkdtemp(prefix=result_dir_name, dir=EXP_RESULTS_DIR)
+    result_dir = get_result_dir("pairwise_comparison", args.root_save_dir)
     exp_lib.write_experiment_arguments(vars(args), result_dir)
 
     exp_params_list = []
@@ -168,5 +165,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--render", action="store_true",
         help="Render experiment episodes."
+    )
+    parser.add_argument(
+        "--root_save_dir", type=str, default=None,
+        help=(
+            "Optional directory to save results in. If supplied then it must "
+            "be an existing directory. If None uses default Driving/results/ "
+            "dir as root dir."
+        )
     )
     _main(parser.parse_args())
