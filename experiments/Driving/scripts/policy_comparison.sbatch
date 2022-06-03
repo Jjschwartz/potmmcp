@@ -24,7 +24,7 @@ echo "Seed=0"
 singularity exec \
 			-B ~/.local-baposgmcp:$Home/.local \
 			~/containers/baposgmcp.sif \
-			python3 $python_file \
+			python3 -u $python_file \
 			--env_names $env_name \
 			--policy_dirs $policy_dirs \
 			--num_episodes $num_episodes \

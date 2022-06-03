@@ -44,7 +44,7 @@ echo "Root save_dir = $root_save_dir"
 singularity exec \
 			-B ~/.local-baposgmcp:$Home/.local \
 			~/containers/baposgmcp.sif \
-			python3 $python_file \
+			python3 -u $python_file \
 			--env_names $env_name \
 			--baposgmcp_policy_dirs $baposgmcp_policy_dirs \
 			--other_agent_policy_dirs $other_agent_policy_dirs \
