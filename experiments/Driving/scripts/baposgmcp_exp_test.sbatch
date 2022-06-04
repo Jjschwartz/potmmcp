@@ -36,14 +36,14 @@ base_policy_dir=~/baposgmcp_results/Driving/rl_policies/2022-06-01/
 # EXPERIMENT PARAMETERS
 python_file=~/code/ba-posgmcp/experiments/Driving/experiment.py
 env_name=Driving7x7RoundAbout-v0
-baposgmcp_policy_dirs=$($base_policy_dir${policy_dir_names[(($SLURM_ARRAY_TASK_ID % $num_policy_dirs))]})
+baposgmcp_policy_dirs=$base_policy_dir${policy_dir_names[(($SLURM_ARRAY_TASK_ID % $num_policy_dirs))]}
 other_agent_policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-06-01/*
 num_episodes=100
 time_limit=7200     # 2 hours
-num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_baposgmcp_policy_dirs))]}
+num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_policy_dirs))]}
 rollout_policy_ids=(pi_BR pi_SP)
 
-root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$(date -I)_$(SLURM_JOB_ID)
+root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$(date -I)_$SLURM_JOB_ID
 if [ $SLURM_ARRAY_TASK_ID == 0 ]; then
 	mkdir -p $root_save_dir
 fi
