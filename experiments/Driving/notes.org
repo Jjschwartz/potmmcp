@@ -156,3 +156,19 @@ By default each trainer uses the =ray.tune.utils.UtilMonitor= to monitor CPU, GP
 Setting ="log_sys_usage=False"= in the trainer config solves this problem. It can also be solved by running the =trainer.stop()= function which releases all resources used by the trainer. Note, however using the first solution greatly reduces the overhead each time a new trainer is created since there is no waiting for the sys_usage monitor thread to end - i.e. 210 sec with =true= vs 63 sec with =false= for 268 experiments each with 10 episodes.
 
 I added cleanup of trainers to the =baposgmcp.rllib.import_rllib_policy= and =baposgmcp.rllib.import_igraph_policies=, so hopefully this issue won't be a thing in the future
+
+* Solving issue with some pairwise comparisons not running when using slurm
+
+*Problem* When running =pairwise_comparison.py= on the sococluster using slurm I am encountering the problem where some experiments fail to run for some reason, instead they just hang and are only terminated once the slurm time limit is reached.
+
+** Fix attempt 1 - include =ray.init(num_cpus=n_procs, include_dashboard=False)= in main function - failed
+
+[[https://stackoverflow.com/questions/72464756/ray-on-slurm-problems-with-initialization][reference]]
+
+The belief here is that ray is trying to assign more CPUs than it's allowed. This results in some processes being killed by slurm.
+
+This fix failed to work as it lead the program hanging. I think the hanging is due to the interaction between =ray= and python multiprocessing. I saw a similar issue when trying to debug the slow down problem.
+
+** Fix - it weirdly started working when I set the "log_level" of rllib policies to be "DEBUG"
+
+I have no idea why this seems to have fixed the issue :/

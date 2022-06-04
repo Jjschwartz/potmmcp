@@ -1,5 +1,6 @@
 import logging
 import argparse
+from pprint import pprint
 from itertools import product
 from typing import Sequence, List
 
@@ -218,7 +219,11 @@ def _main(args):
     print(f"== Running {len(exp_params_list)} Experiments ==")
     print(f"== Using {args.n_procs} CPUs ==")
     if args.debug:
-        input("In DEBUG mode. Continue?")
+        for i, p in exp_params_list:
+            print(f"\nExperiment={i}")
+            pprint(p)
+
+        return
 
     exp_lib.run_experiments(
         exp_params_list=exp_params_list,

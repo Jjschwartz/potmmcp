@@ -7,12 +7,15 @@
 #SBATCH --mem=62GB           # should be > 4GB*cpus-per-task
 #SBATCH --time=0-24:00:00    # 0 days, 24 hours, 00 minutes, 00 seconds
 # OTHER
-#SBATCH --output=baposgmcp_experiment_%J.out
-#SBATCH --job-name="baposgmcp_exp"  # job name used by slurm
+#SBATCH --output=baposgmcp_exp_test_%J.out
+#SBATCH --job-name="baposgmcp_exp_test"  # job name used by slurm
 #SBATCH --mail-type=all
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
 # ARRAY
 #SBATCH --array=0-40         # 4 num sims * 10 BAPOSGMCP policy dirs
+
+# TEST SCRIPT
+# runs with debug flag
 
 test_sims=(8 16 32 64)
 num_policy_dirs=10
@@ -69,5 +72,6 @@ singularity exec \
 			--num_sims $num_sims \
 			--rollout_policy_ids ${rollout_policy_ids[*]} \
 			--n_procs $SLURM_CPUS_PER_TASK \
-			--root_save_dir $root_save_dir
+			--root_save_dir $root_save_dir \
+			--debug
 echo "Job complete"
