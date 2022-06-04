@@ -219,7 +219,7 @@ def _main(args):
     print(f"== Running {len(exp_params_list)} Experiments ==")
     print(f"== Using {args.n_procs} CPUs ==")
     if args.debug:
-        for i, p in exp_params_list:
+        for i, p in enumerate(exp_params_list):
             print(f"\nExperiment={i}")
             pprint(p)
 
