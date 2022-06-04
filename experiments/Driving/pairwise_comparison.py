@@ -93,8 +93,6 @@ def _main(args):
         get_base_env(env_name, args.seed)
         register_env(env_name, registered_env_creator)
 
-    ray.init(num_cpus=args.n_procs, include_dashboard=False)
-
     print("\n== Running Experiments ==")
     logging.basicConfig(level=args.log_level, format='%(message)s')
     result_dir = get_result_dir("pairwise_comparison", args.root_save_dir)
@@ -143,7 +141,7 @@ if __name__ == "__main__":
         help="Experiment seed."
     )
     parser.add_argument(
-        "--gamma", type=int, default=0.99,
+        "--gamma", type=float, default=0.99,
         help="Discount hyperparam."
     )
     parser.add_argument(
