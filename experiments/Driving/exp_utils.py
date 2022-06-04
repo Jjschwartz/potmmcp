@@ -95,7 +95,7 @@ def import_rllib_policy(policy_dir,
                         num_gpus: float = 0.0,
                         num_workers: int = 0,
                         env_name: Optional[str] = None,
-                        log_level: str = "ERROR"):
+                        log_level: str = "DEBUG"):
     """Import rllib policy from file.
 
     Recommended to use:
