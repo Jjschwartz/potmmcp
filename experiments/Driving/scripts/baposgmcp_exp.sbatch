@@ -5,9 +5,13 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16   # number of comparisons to be run in parallel
 #SBATCH --mem=62GB           # should be > 4GB*cpus-per-task
-#SBATCH --time=0-24:00:00    # 0 days, 24 hours, 00 minutes, 00 seconds
+# Time = (|other pis| * |seeds|) / cpus-per-task  * time_limit
+#      = (8*5)/16 * 2h
+#      = 3 * 2 h
+#      = 6 h
+#SBATCH --time=0-8:00:00    # 0 days, 8 hours, 00 minutes, 00 seconds
 # OTHER
-#SBATCH --output=baposgmcp_experiment_%J.out
+#SBATCH --output=baposgmcp_exp_%J.out
 #SBATCH --job-name="baposgmcp_exp"  # job name used by slurm
 #SBATCH --mail-type=all
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
@@ -40,10 +44,13 @@ time_limit=7200     # 2 hours
 num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_policy_dirs))]}
 rollout_policy_ids=(pi_BR pi_SP)
 
-root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$(date -I)_$SLURM_JOB_ID
+root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$(date -I)_$SLURM_ARRAY_JOB_ID
 if [ $SLURM_ARRAY_TASK_ID == 0 ]; then
 	mkdir -p $root_save_dir
 fi
+
+# give time for directory to be created
+sleep 3
 
 pwd; hostname; date
 echo "--- Running BAPOSGMCP Experiment ---"
