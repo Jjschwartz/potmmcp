@@ -231,6 +231,8 @@ def _main(args):
         result_dir=result_dir
     )
 
+    print("== All done ==")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

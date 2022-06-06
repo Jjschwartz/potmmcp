@@ -11,8 +11,6 @@ from typing import (
     List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple
 )
 
-import ray
-
 import numpy as np
 
 import posggym
@@ -101,6 +99,21 @@ def _log_exp_start(params: ExpParams,
         logger.info("Run Config:")
         logger.info(pformat(params.run_config))
         logger.info(f"Result dir = {result_dir}")
+        logger.info(LINE_BREAK)
+    finally:
+        LOCK.release()
+
+
+def _log_exp_end(params: ExpParams,
+                 result_dir: str,
+                 logger: logging.Logger,
+                 exp_time: float):
+    LOCK.acquire()
+    try:
+        logger.info(LINE_BREAK)
+        logger.info(f"Finished exp num {params.exp_id}")
+        logger.info(f"Result dir = {result_dir}")
+        logger.info(f"Experiment Run time {exp_time:.2f} seconds")
         logger.info(LINE_BREAK)
     finally:
         LOCK.release()
@@ -203,6 +216,7 @@ def _get_exp_renderers(params: ExpParams) -> Sequence[render_lib.Renderer]:
 def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
     """Run a single experiment and write results to a file."""
     params, result_dir = args
+    exp_start_time = time.time()
 
     if params.setup_fn is not None:
         params.setup_fn(params)
@@ -256,6 +270,9 @@ def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
     finally:
         if params.cleanup_fn is not None:
             params.cleanup_fn(params)
+        _log_exp_end(
+            params, result_dir, exp_logger, time.time() - exp_start_time
+        )
 
     return fname
 
@@ -266,8 +283,6 @@ def run_experiments(exp_params_list: List[ExpParams],
                     result_dir: Optional[str] = None,
                     extra_output_dir: Optional[str] = None) -> str:
     """Run series of experiments."""
-    print(f"run_experiments - {ray.is_initialized()}")
-
     exp_start_time = time.time()
     logging.basicConfig(level=exp_log_level, format='%(message)s')
 
