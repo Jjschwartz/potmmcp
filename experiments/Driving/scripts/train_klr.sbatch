@@ -44,8 +44,8 @@
 #SBATCH --partition=gpu      # slurm partition to use
 #SBATCH --gres=gpu:2         # request a single GPU, use gpu:2 for 2 gpus
 # OTHER
-#SBATCH --output=train_klr_k=4.%J.out      # stores stdout/stderr to file
-#SBATCH --job-name="train_klr_k=4"         # job name used by slurm
+#SBATCH --output=train_klr_k4_%A_%a.out      # stores stdout/stderr to file
+#SBATCH --job-name="train_klr_k4"         # job name used by slurm
 #SBATCH --mail-type=all                # send email on job start, end and fault
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
 # ARRAY

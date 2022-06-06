@@ -3,19 +3,20 @@
 # RESOURCES
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=4   # number of comparisons to be run in parallel
-#SBATCH --mem=18GB           # should be > 4GB*cpus-per-task
+#SBATCH --cpus-per-task=16   # number of comparisons to be run in parallel
+#SBATCH --mem=62GB           # should be > 4GB*cpus-per-task
 # Time = (|other pis| * |seeds|) / cpus-per-task * time_limit
-#      = (8*2)/4 * 1 min
-#      = 4 min
-#SBATCH --time=0-00:10:00
+#      = (8*2)/16 * 10 min
+#      = 10 min
+#SBATCH --time=0-00:20:00
+#SBATCH --partition=gpu
 # OTHER
 #SBATCH --output=baposgmcp_exp_test_%A_%a.out
 #SBATCH --job-name="baposgmcp_exp_test"  # job name used by slurm
 #SBATCH --mail-type=all
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
 # ARRAY
-#SBATCH --array=0-8         # |num sims| * |BAPOSGMCP policy dirs|
+#SBATCH --array=0-7         # |num sims| * |BAPOSGMCP policy dirs|
 
 # TEST SCRIPT
 # runs with debug flag
@@ -35,12 +36,12 @@ python_file=~/code/ba-posgmcp/experiments/Driving/experiment.py
 env_name=Driving7x7RoundAbout-v0
 baposgmcp_policy_dirs=$base_policy_dir${policy_dir_names[(($SLURM_ARRAY_TASK_ID % $num_policy_dirs))]}
 other_agent_policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-06-01/*
-num_episodes=100
-time_limit=60    # 1 min
+num_episodes=2
+time_limit=600    # 10 min
 num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_policy_dirs))]}
 rollout_policy_ids=(pi_BR pi_SP)
 
-root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$(date -I)_$SLURM_ARRAY_JOB_ID
+root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_test_$(date -I)_$SLURM_ARRAY_JOB_ID
 if [ $SLURM_ARRAY_TASK_ID == 0 ]; then
 	mkdir -p $root_save_dir
 fi
@@ -76,5 +77,5 @@ singularity exec \
 			--rollout_policy_ids ${rollout_policy_ids[*]} \
 			--n_procs $SLURM_CPUS_PER_TASK \
 			--root_save_dir $root_save_dir \
-			--debug
+			# --debug
 echo "Job complete"

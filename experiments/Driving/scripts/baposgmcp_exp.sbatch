@@ -7,16 +7,16 @@
 #SBATCH --mem=62GB           # should be > 4GB*cpus-per-task
 # Time = (|other pis| * |seeds|) / cpus-per-task  * time_limit
 #      = (8*5)/16 * 2h
-#      = 3 * 2 h
 #      = 6 h
-#SBATCH --time=0-8:00:00    # 0 days, 8 hours, 00 minutes, 00 seconds
+#SBATCH --time=08:00:00
+#SBATCH --partition=gpu      # use GPU partition since more nodes available
 # OTHER
 #SBATCH --output=baposgmcp_exp_%A_%a.out
 #SBATCH --job-name="baposgmcp_exp"  # job name used by slurm
 #SBATCH --mail-type=all
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
 # ARRAY
-#SBATCH --array=0-40         # 4 num sims * 10 BAPOSGMCP policy dirs
+#SBATCH --array=0-39         # 4 num sims * 10 BAPOSGMCP policy dirs
 
 test_sims=(8 16 32 64)
 num_policy_dirs=10

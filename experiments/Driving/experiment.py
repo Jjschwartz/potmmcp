@@ -222,7 +222,6 @@ def _main(args):
         for i, p in enumerate(exp_params_list):
             print(f"\nExperiment={i}")
             pprint(p)
-
         return
 
     exp_lib.run_experiments(
