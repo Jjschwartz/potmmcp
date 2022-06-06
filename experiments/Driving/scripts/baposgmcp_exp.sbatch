@@ -11,7 +11,7 @@
 #      = 6 h
 #SBATCH --time=0-8:00:00    # 0 days, 8 hours, 00 minutes, 00 seconds
 # OTHER
-#SBATCH --output=baposgmcp_exp_%J.out
+#SBATCH --output=baposgmcp_exp_%A_%a.out
 #SBATCH --job-name="baposgmcp_exp"  # job name used by slurm
 #SBATCH --mail-type=all
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
@@ -54,6 +54,9 @@ sleep 3
 
 pwd; hostname; date
 echo "--- Running BAPOSGMCP Experiment ---"
+echo "Array Job ID = $SLURM_ARRAY_JOB_ID"
+echo "Job ID = $SLURM_JOB_ID"
+echo "Array task ID = $SLURM_ARRAY_TASK_ID"
 echo "Env name = $env_name"
 echo "BAPOSGMCP Policy dirs = ${baposgmcp_policy_dirs[*]}"
 echo "Other agent policy dirs = ${other_agent_policy_dirs[*]}"
