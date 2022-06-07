@@ -7,13 +7,17 @@ import tempfile
 from typing import Dict, Callable, Tuple, Sequence, Union, Any, Optional
 
 import ray
+from ray import rllib
 from ray.rllib.agents.trainer import Trainer
 
 from baposgmcp import pbt
 from baposgmcp.parts import AgentID, PolicyID, Policy
 from baposgmcp.rllib.utils import (
-    RllibTrainerMap, RllibPolicyMap, get_igraph_policy_mapping_fn,
-    default_asymmetric_policy_mapping_fn, default_symmetric_policy_mapping_fn
+    RllibTrainerMap,
+    RllibPolicyMap,
+    get_igraph_policy_mapping_fn,
+    default_asymmetric_policy_mapping_fn,
+    default_symmetric_policy_mapping_fn
 )
 
 TRAINER_CONFIG_FILE = "trainer_config.pkl"
@@ -223,18 +227,24 @@ def import_policy(policy_id: PolicyID,
                   trainer_make_fn: Callable[[Dict], Trainer],
                   policy_mapping_fn: Optional[Callable] = None,
                   trainers_remote: bool = False,
-                  extra_config: Optional[Dict] = None) -> Trainer:
+                  extra_config: Optional[Dict] = None
+                  ) -> rllib.policy.policy.Policy:
     """Import trainer for given policy."""
     trainer = import_policy_trainer(
-        policy_id,
-        igraph_dir,
-        env_is_symmetric,
-        agent_id,
-        trainer_make_fn,
+        policy_id=policy_id,
+        igraph_dir=igraph_dir,
+        env_is_symmetric=env_is_symmetric,
+        agent_id=agent_id,
+        trainer_make_fn=trainer_make_fn,
         policy_mapping_fn=policy_mapping_fn,
         trainers_remote=trainers_remote,
         extra_config=extra_config
     )
+
+    if trainer == {}:
+        # in case of non-trained policy, e.g. for random policy
+        return {}
+
     policy = trainer.get_policy(policy_id)
 
     # release trainer resources to avoid accumulation of background processes
@@ -319,20 +329,28 @@ def import_igraph_policies(igraph_dir: str,
 
     Assumes trainers are not Remote.
     """
-    igraph, trainer_map = import_igraph_trainers(
-        igraph_dir=igraph_dir,
-        env_is_symmetric=env_is_symmetric,
-        trainer_make_fn=trainer_make_fn,
-        trainers_remote=trainers_remote,
-        policy_mapping_fn=policy_mapping_fn,
-        extra_config=extra_config
-    )
-    policy_map = get_policy_from_trainer_map(trainer_map)
+    igraph = import_igraph(igraph_dir, env_is_symmetric)
 
-    # release trainer resources to avoid accumulation of background processes
-    for agent_trainer_map in trainer_map.values():
-        for trainer in agent_trainer_map.values():
-            trainer.stop()
+    if env_is_symmetric:
+        agent_ids = [igraph.SYMMETRIC_ID]
+    else:
+        agent_ids = igraph.get_agent_ids()
+
+    policy_map: RllibPolicyMap = {}
+    for agent_id in agent_ids:
+        policy_map[agent_id] = {}
+        for policy_id in igraph.get_agent_policy_ids(agent_id):
+            print(f"{agent_id=} {policy_id=}")
+            policy_map[agent_id][policy_id] = import_policy(
+                policy_id=policy_id,
+                igraph_dir=igraph_dir,
+                env_is_symmetric=env_is_symmetric,
+                agent_id=agent_id,
+                trainer_make_fn=trainer_make_fn,
+                policy_mapping_fn=policy_mapping_fn,
+                trainers_remote=trainers_remote,
+                extra_config=extra_config
+            )
 
     return igraph, policy_map
 

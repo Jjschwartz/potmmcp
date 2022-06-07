@@ -113,9 +113,9 @@ def import_rllib_policy(policy_dir,
         "num_gpus": num_gpus,
         "num_workers": num_workers,
         "log_level": log_level,
-        "num_envs_per_worker": 1,
         # disables logging of CPU and GPU usage
         "log_sys_usage": False,
+        "num_envs_per_worker": 1,
     }
 
     if env_name:

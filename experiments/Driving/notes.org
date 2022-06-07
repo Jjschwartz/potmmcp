@@ -157,11 +157,76 @@ Setting ="log_sys_usage=False"= in the trainer config solves this problem. It ca
 
 I added cleanup of trainers to the =baposgmcp.rllib.import_rllib_policy= and =baposgmcp.rllib.import_igraph_policies=, so hopefully this issue won't be a thing in the future
 
-* Solving issue with some pairwise comparisons not running when using slurm
+* Solving issue with some  experiments not running when using slurm
 
-*Problem* When running =pairwise_comparison.py= on the sococluster using slurm I am encountering the problem where some experiments fail to run for some reason, instead they just hang and are only terminated once the slurm time limit is reached.
+*Problem* When running =pairwise_comparison.py= and =experiment.py= on the sococluster using slurm, when running a Job Array using 16 cores and 62 GB per job. I am encountering the problem where some experiments fail to run for some reason, instead they just hang and are only terminated once the slurm time limit is reached.
 
-** Fix attempt 1 - include =ray.init(num_cpus=n_procs, include_dashboard=False)= in main function - failed
+*Update* I thing my problem may be related to this [[https://github.com/ray-project/ray/issues/21479][issue]]. Basically, the worker is taking to long to load which leads to a timeout and exiting of the program. It's interesting that this doesn't cause my entire program to crash, or raise an error within the program. Maybe this is because the whole process the experiment run is on crashes?
+
+A thing about this bug is that it is somewhat random, since load times can be different each run. That means some runs will have no issues while others do.
+
+*Update 2* After looking at the =exp_X.log= and slurm log files, the problem seems to happen for KLR policies. Based on the result dir creation times, it looks like the KLR policies take longer to generate than the SP policies (which makes sense). It could be due to the KLR policies requesting too many resources, for example if each policy loaded requires a single CPU.
+
+*Update 3* After looking at =htop= while running experiments, it's clear that there is a huge surge in CPU usage (both % and number) when loading an experiment. This makes sense since we are loading a group of policies, each of which is a Rllib trainer which consumes a CPU.
+
+** Summary of failed =experiment.py= run
+
+For =num_sims=8=
+
+=Failures= - determined by looking at number of =exp_X.log= files created. There should only be 16, given the experiment was run using 16 cores and only for a very brief time.
+
+=Errors= - determined by looking for number of =core_worker.cc:137: Failed to register worker 01000000ffffffffffffffffffffffffffffffffffffffffffffffff to Raylet. IOError: [RayletClient] Unable to register worker with raylet. No such file or directory= error messages in the slurm log file.
+
+*** SP - Seed 0
+- =experiment_numsims_8_2022-06-07_02-19-55dludpv6i=
+- Failures - none apparent
+- =2136_5=
+- Errors - 0
+*** SP - Seed 1
+- =experiment_numsims_8_2022-06-07_02-19-55lo8h3aw1=
+- Failures - none apparent
+- =2136_6=
+- Errors - 0
+*** SP - Seed 2
+- =experiment_numsims_8_2022-06-07_02-19-55ltvszu2o=
+- Failures - None apparent
+- =2136_7=
+- Errors - 0
+*** SP - Seed 3 (not run)
+*** SP - Seed 4 (not run)
+*** KLR - Seed 0
+- =experiment_numsims_8_2022-06-07_02-19-58uckm90ez=
+- Failures - 24
+- =2136_0=
+- Error - 26
+*** KLR - Seed 1
+- =experiment_numsims_8_2022-06-07_02-19-56a525frge=
+- Failures - 4
+- =2136_1=
+- Error - 4
+*** KLR - Seed 2
+- =experiment_numsims_8_2022-06-07_02-19-57oztt7ywn=
+- Failures - 2
+- =2136_2=
+- Errors - 2
+*** KLR - Seed 3
+- =experiment_numsims_8_2022-06-07_02-19-56s1l8xu8e=
+- Failures - 15
+- =2136_3=
+- Errors - 15
+*** KLR- Seed 4
+- =experiment_numsims_8_2022-06-07_02-19-55p0mk01dz=
+- Failures - 1
+- =2136_4=
+- Errors - 0
+
+  Failure (in file creation) probably due to process of terminating job.
+
+
+
+
+** DONE Fix attempt 1 - include =ray.init(num_cpus=n_procs, include_dashboard=False)= in main function - failed
+CLOSED: [2022-06-07 Tue 11:47]
 
 [[https://stackoverflow.com/questions/72464756/ray-on-slurm-problems-with-initialization][reference]]
 
@@ -169,6 +234,36 @@ The belief here is that ray is trying to assign more CPUs than it's allowed. Thi
 
 This fix failed to work as it lead the program hanging. I think the hanging is due to the interaction between =ray= and python multiprocessing. I saw a similar issue when trying to debug the slow down problem.
 
-** Fix - it weirdly started working when I set the "log_level" of rllib policies to be "DEBUG"
+** DONE Fake Fix  - it weirdly started working when I set the "log_level" of rllib policies to be "DEBUG"
+CLOSED: [2022-06-07 Tue 11:47]
 
 I have no idea why this seems to have fixed the issue :/
+
+*Update* I don't think this did fix the issue. I think I just had a lucky run.
+
+** DONE Fix attempt 2 - make it so no rollout workers are registered when loading policies
+CLOSED: [2022-06-07 Tue 11:48]
+
+Rollout workers are not needed for the experiments since we just want the policies, so I am going to play with the different trainer configuration to try load a policy without loading a rollout worker.
+
+*Update* I played around with different settings and they didn't seem to have an effect. I think (without diving deep into the source code) it is hard to stop a Trainer generating a rollout worker. Also I believe that by setting =num_workers=0= in the config, any rollout worker is also on the main trainer worker, so it shouldn't impact the num CPUS. I'm pretty sure the problem is =ray= using more CPUs that it should when creating the trainers. See next heading for follow-up.
+
+** Fix attempt 1 (redux) - include =ray.init(num_cpus=nprocs)= - [FIXED]
+
+When running on my local machine with =n_procs=1= this does have a significant impact on the number of CPUs deployed. Specifically, when I use =ray.init(num_cpus=1)= only a single =ray::IDLE= process is generated (as observed on =htop=) compared to around 8 processes when I didn't include it. This suggests to me that without specifying =ray.init= =ray= is requesting multiple CPUs rather than the single CPU that I want.
+
+The tricky part is how do I get it to work with python multiprocessing :/ Maybe the solution is to move experiments to running as =ray.actors=.
+
+Before that let's try a few things (using =n_procs=2=):
+
+*** Simplest naive solution - Adding =ray.init(num_cpus=nprocs)= in main function (before python multiprocessing is called)
+
+*Result* both processes hang while loading ray policies from file. When I interupt the program with =Ctrl-C= the error raised is within the python threading library, suggesting there is some funky interaction between ray and python multiprocessing, as expected.
+
+*** Adding =ray.init(num_cpus=1)= in =exp.run_single_experiment= function (the function called by python multiprocessing)
+
+*Result* both processes ran for the first experiment and also only generated a single =ray::IDLE= process each. However, they crashed upon beginning the second experiment (for each given process) due to calling =ray.init= twice.
+
+*Update* I fixed the issue re calling =ray.init= twice by calling =ray.init(num_cpus=1)= within the =initializer= function that can be passed to =mp.Pool=. This seemed to do the trick. The program runs and only a single =ray::IDLE= process is generated per experiment.
+
+*Bonus* calling =ray.init= also allows me to specify =include_dashboard=False= which gets rid of that annoying background process.

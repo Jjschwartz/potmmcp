@@ -194,7 +194,11 @@ def _main(args):
         register_env(env_name, registered_env_creator)
 
     print("== Running Experiments ==")
-    logging.basicConfig(level=args.log_level, format='%(message)s')
+    logging.basicConfig(
+        level=args.log_level,
+        # [Day-Month Hour-Minute-Second] Message
+        format='[%(asctime)s] %(message)s', datefmt='%d-%m %H:%M:%S'
+    )
     num_sim_str = "_".join([str(n) for n in args.num_sims])
     result_dir_name_prefix = f"experiment_numsims_{num_sim_str}"
     result_dir = get_result_dir(result_dir_name_prefix, args.root_save_dir)

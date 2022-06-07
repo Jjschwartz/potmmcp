@@ -11,6 +11,7 @@ from typing import (
     List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple
 )
 
+import ray
 import numpy as np
 
 import posggym
@@ -131,14 +132,18 @@ def get_exp_run_logger(exp_id: int,
     fname = f"exp_{exp_id}.log"
     log_file = os.path.join(result_dir, fname)
     file_formatter = logging.Formatter(
-        '%(asctime)s %(levelname)s %(message)s', '%H:%M:%S'
+        # [Day-Month Hour-Minute-Second] exp_x Message
+        '[%(asctime)s] %(levelname)s %(message)s', '%d-%m %H:%M:%S'
     )
 
     filehandler = logging.FileHandler(log_file)
     filehandler.setFormatter(file_formatter)
     filehandler.setLevel(file_log_level)
 
-    stream_formatter = logging.Formatter('%(name)s - %(message)s')
+    stream_formatter = logging.Formatter(
+        # [Day-Month Hour-Minute-Second] exp_x Message
+        '[%(asctime)s] %(levelname)s %(message)s', '%d-%m %H:%M:%S'
+    )
     streamhandler = logging.StreamHandler()
     streamhandler.setFormatter(stream_formatter)
     streamhandler.setLevel(stream_log_level)
@@ -284,7 +289,11 @@ def run_experiments(exp_params_list: List[ExpParams],
                     extra_output_dir: Optional[str] = None) -> str:
     """Run series of experiments."""
     exp_start_time = time.time()
-    logging.basicConfig(level=exp_log_level, format='%(message)s')
+    logging.basicConfig(
+        level=exp_log_level,
+        # [Day-Month Hour-Minute-Second] Message
+        format='[%(asctime)s] %(message)s', datefmt='%d-%m %H:%M:%S'
+    )
 
     num_exps = len(exp_params_list)
     logging.log(exp_log_level, "Running %d experiments", num_exps)
@@ -306,8 +315,16 @@ def run_experiments(exp_params_list: List[ExpParams],
             run_single_experiment((params, result_dir))
     else:
         args_list = [(params, result_dir) for params in exp_params_list]
+
+        def _initializer(init_args):
+            proc_lock = init_args
+            _init_lock(proc_lock)
+            # limit ray to using only a single CPU per experiment process
+            logging.log(exp_log_level, "Initializing ray")
+            ray.init(num_cpus=1, include_dashboard=False)
+
         with mp.Pool(
-                n_procs, initializer=_init_lock, initargs=(mp_lock,)
+                n_procs, initializer=_initializer, initargs=(mp_lock,)
         ) as p:
             p.map(run_single_experiment, args_list, 1)
 
