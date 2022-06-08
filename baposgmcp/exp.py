@@ -142,7 +142,7 @@ def get_exp_run_logger(exp_id: int,
 
     stream_formatter = logging.Formatter(
         # [Day-Month Hour-Minute-Second] exp_x Message
-        '[%(asctime)s] %(levelname)s %(message)s', '%d-%m %H:%M:%S'
+        '[%(asctime)s] %(name)s %(message)s', '%d-%m %H:%M:%S'
     )
     streamhandler = logging.StreamHandler()
     streamhandler.setFormatter(stream_formatter)
