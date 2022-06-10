@@ -6,9 +6,9 @@
 #SBATCH --cpus-per-task=16   # number of comparisons to be run in parallel
 #SBATCH --mem=62GB           # should be > 4GB*cpus-per-task
 # Time = (|other pis| * |seeds|) / cpus-per-task  * time_limit
-#      = (8*5)/16 * 2h
-#      = 6 h
-#SBATCH --time=08:00:00
+#      = (8*5)/16 * 6h
+#      = 15 h
+#SBATCH --time=24:00:00
 #SBATCH --partition=gpu      # use GPU partition since more nodes available
 # OTHER
 #SBATCH --output=baposgmcp_exp_%A_%a.out
@@ -16,9 +16,9 @@
 #SBATCH --mail-type=all
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
 # ARRAY
-#SBATCH --array=0-39         # 4 num sims * 10 BAPOSGMCP policy dirs
+#SBATCH --array=40-79         # |test sims| * 10 BAPOSGMCP policy dirs
 
-test_sims=(8 16 32 64)
+test_sims=(8 16 32 64, 128, 256, 512, 1024)
 num_policy_dirs=10
 policy_dir_names=( \
 train_klr_Driving7x7RoundAbout-v0_k4_seed0_2022-06-01 \
@@ -40,7 +40,7 @@ env_name=Driving7x7RoundAbout-v0
 baposgmcp_policy_dirs=$base_policy_dir${policy_dir_names[(($SLURM_ARRAY_TASK_ID % $num_policy_dirs))]}
 other_agent_policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-06-01/*
 num_episodes=100
-time_limit=7200     # 2 hours
+time_limit=28800     # 6 hours
 num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_policy_dirs))]}
 rollout_policy_ids=(pi_BR pi_SP)
 
