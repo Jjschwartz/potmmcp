@@ -19,6 +19,7 @@ import baposgmcp.policy as policy_lib
 from baposgmcp.config import BASE_RESULTS_DIR
 
 AgentStatisticsMap = Mapping[M.AgentID, Mapping[str, Any]]
+COMPILED_RESULTS_FNAME = "compiled_results.csv"
 
 
 def generate_episode_statistics(trackers: Iterable['Tracker']
@@ -408,27 +409,11 @@ def make_dir(exp_name: str) -> str:
     return result_dir
 
 
-def compile_results(result_dir: str,
-                    extra_output_dir: Optional[str] = None,
-                    handle_duplicate_exp_ids: bool = True) -> str:
-    """Compile all .tsv results files in a directory into a single file.
-
-    If extra_output_dir is provided then will additionally compile_result to
-    the extra_output_dir.
-
-    If handle_duplicate_exp_ids is True, then function will assign new unique
-    exp_ids to entries that have duplicate exp_ids.
-    """
-    result_filepaths = [
-        os.path.join(result_dir, f) for f in os.listdir(result_dir)
-        if (
-            os.path.isfile(os.path.join(result_dir, f))
-            and f.endswith(".csv")
-            and not f.startswith("compiled_results.csv")
-        )
-    ]
-
-    concat_results_filepath = os.path.join(result_dir, "compiled_results.csv")
+def compile_result_files(save_dir: str,
+                         result_filepaths: List[str],
+                         extra_output_dir: Optional[str] = None) -> str:
+    """Compile list of results files into a single file."""
+    concat_resultspath = os.path.join(save_dir, COMPILED_RESULTS_FNAME)
 
     dfs = list(map(pd.read_csv, result_filepaths))
 
@@ -443,15 +428,40 @@ def compile_results(result_dir: str,
     for df_i in dfs[1:]:
         concat_df = do_concat_df(concat_df, df_i)
 
-    concat_df.to_csv(concat_results_filepath)
+    concat_df.to_csv(concat_resultspath)
 
     if extra_output_dir:
         extra_results_filepath = os.path.join(
-            extra_output_dir, "compiled_results.csv"
+            extra_output_dir, COMPILED_RESULTS_FNAME
         )
         concat_df.to_csv(extra_results_filepath)
 
-    return concat_results_filepath
+    return concat_resultspath
+
+
+def compile_results(result_dir: str,
+                    extra_output_dir: Optional[str] = None) -> str:
+    """Compile all .csv results files in a directory into a single file.
+
+    If extra_output_dir is provided then will additionally compile_result to
+    the extra_output_dir.
+
+    If handle_duplicate_exp_ids is True, then function will assign new unique
+    exp_ids to entries that have duplicate exp_ids.
+    """
+    result_filepaths = [
+        os.path.join(result_dir, f) for f in os.listdir(result_dir)
+        if (
+            os.path.isfile(os.path.join(result_dir, f))
+            and f.endswith(".csv")
+            and not f.startswith(COMPILED_RESULTS_FNAME)
+        )
+    ]
+
+    concat_resultspath = compile_result_files(
+        result_dir, result_filepaths, extra_output_dir
+    )
+    return concat_resultspath
 
 
 def format_as_table(values: AgentStatisticsMap) -> str:
