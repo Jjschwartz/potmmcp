@@ -18,6 +18,11 @@
 # ARRAY
 #SBATCH --array=40-79         # |test sims| * 10 BAPOSGMCP policy dirs
 
+root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$(date -I)_$SLURM_ARRAY_JOB_ID
+if [ $SLURM_ARRAY_TASK_ID == $SLURM_ARRAY_TASK_MIN ]; then
+	mkdir -p $root_save_dir
+fi
+
 test_sims=(8 16 32 64 128 256 512 1024)
 num_policy_dirs=10
 policy_dir_names=( \
@@ -44,10 +49,7 @@ time_limit=28800     # 6 hours
 num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_policy_dirs))]}
 rollout_policy_ids=(pi_BR pi_SP)
 
-root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$(date -I)_$SLURM_ARRAY_JOB_ID
-if [ $SLURM_ARRAY_TASK_ID == 0 ]; then
-	mkdir -p $root_save_dir
-fi
+
 
 # give time for directory to be created
 sleep 3
