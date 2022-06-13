@@ -41,7 +41,7 @@ time_limit=600    # 10 min
 num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_policy_dirs))]}
 rollout_policy_ids=(pi_BR pi_SP)
 
-root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_test_$(date -I)_$SLURM_ARRAY_JOB_ID
+root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_test_$SLURM_ARRAY_JOB_ID
 if [ $SLURM_ARRAY_TASK_ID == 0 ]; then
 	mkdir -p $root_save_dir
 fi

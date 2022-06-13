@@ -16,9 +16,11 @@
 #SBATCH --mail-type=all
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
 # ARRAY
-#SBATCH --array=40-79         # |test sims| * 10 BAPOSGMCP policy dirs
+# TODO modify this
+# this is to run jobs that didn't run last time :( due to date bug
+#SBATCH --array=59-79         # |test sims| * 10 BAPOSGMCP policy dirs
 
-root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$(date -I)_$SLURM_ARRAY_JOB_ID
+root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$SLURM_ARRAY_JOB_ID
 if [ $SLURM_ARRAY_TASK_ID == $SLURM_ARRAY_TASK_MIN ]; then
 	mkdir -p $root_save_dir
 fi
