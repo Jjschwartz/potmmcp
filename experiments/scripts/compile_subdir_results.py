@@ -9,7 +9,7 @@ from baposgmcp.stats import (
 
 def _main(args):
     parent_dir = args.parent_dirpath
-    print("Compiling results from subdirectories of {parent_dir=}")
+    print(f"Compiling results from subdirectories of {parent_dir=}")
 
     child_dirpaths = [
         os.path.join(parent_dir, d) for d in os.listdir(parent_dir)
