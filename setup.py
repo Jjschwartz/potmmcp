@@ -24,7 +24,11 @@ except ImportError:
 
 # Environment and test specific dependencies.
 extras = {
-    "test": ["pytest>=7.0"],
+    "test": [
+        "pytest>=7.0",
+        "pettingzoo==1.18",    # pettingzoo envs used for tests, e.g. RPS
+        "pygame==2.1"          # dependency of pettingzoo envs used in tests
+    ],
     "render": ["matplotlib>=3.5"]
 }
 

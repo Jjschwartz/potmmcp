@@ -8,6 +8,12 @@ from baposgmcp.rllib.export_import import import_igraph_trainers
 from baposgmcp.rllib.export_import import import_igraph_policies
 from baposgmcp.rllib.export_import import get_policy_from_trainer_map
 from baposgmcp.rllib.export_import import export_trainers_to_file
+from baposgmcp.rllib.oap_policy import OAPLSTMTorchModel
+from baposgmcp.rllib.oap_policy import OAPPPOTrainer
+from baposgmcp.rllib.oap_policy import OAPPPOTorchPolicy
+from baposgmcp.rllib.oap_policy import OAPTorchModel
+from baposgmcp.rllib.oap_policy import register_oap_model
+from baposgmcp.rllib.oap_policy import register_lstm_oap_model
 from baposgmcp.rllib.policy import RllibPolicy
 from baposgmcp.rllib.policy import PPORllibPolicy
 from baposgmcp.rllib.train import get_remote_trainer
