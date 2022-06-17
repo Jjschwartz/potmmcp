@@ -21,7 +21,7 @@ period=-3
 
 # Remote result exlude file
 # = file containing files to exclude from download
-remote_exclude_file="excluded_result_files.txt"
+remote_exclude_file="excluded_result_files2.txt"
 
 echo "Getting latest results from server=$server"
 echo "Only looking for results modified within the last $period days"
