@@ -33,6 +33,7 @@ class RunConfig(NamedTuple):
     num_episodes: int = 100
     episode_step_limit: Optional[int] = None
     time_limit: Optional[int] = None
+    use_checkpointing: bool = False
 
 
 def get_run_args(parser: Optional[ArgumentParser] = None) -> ArgumentParser:
@@ -116,10 +117,12 @@ def run_sims(env: posggym.Env,
              trackers: Iterable[stats_lib.Tracker],
              renderers: Iterable[render_lib.Renderer],
              run_config: RunConfig,
-             logger: Optional[logging.Logger] = None
+             logger: Optional[logging.Logger] = None,
+             writer: Optional[stats_lib.Writer] = None
              ) -> stats_lib.AgentStatisticsMap:
     """Run Episode simulations for given env and policies."""
     logger = logging.getLogger() if logger is None else logger
+    writer = stats_lib.NullWriter() if writer is None else writer
 
     logger.info(
         "%s\nRunning %d episodes with Time Limit = %s s\n%s",
@@ -179,6 +182,12 @@ def run_sims(env: posggym.Env,
                 episode_num + 1,
                 run_config.num_episodes
             )
+
+        writer.write_episode(episode_statistics)
+
+        if run_config.use_checkpointing:
+            statistics = stats_lib.generate_statistics(trackers)
+            writer.write(statistics)
 
         episode_num += 1
 

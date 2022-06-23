@@ -33,12 +33,13 @@ def get_baposgmcp_args_parser(parser: Optional[ArgumentParser] = None
     return parser
 
 
-def get_belief_by_history(tree: tree_lib.BAPOSGMCP,
-                          history: Optional[H.AgentHistory] = None
-                          ) -> parts.StateDist:
+def get_state_belief(tree: tree_lib.BAPOSGMCP,
+                     history: Optional[H.AgentHistory] = None
+                     ) -> parts.StateDist:
     """Get agent's distribution over states for a given history.
 
-    May return distribution over only states with p(s) > 0
+    May return distribution over only states with p(s) > 0 as opposed to all
+    environment states.
     """
     if history is None:
         history = tree.history
@@ -81,3 +82,62 @@ def get_other_pis_belief(tree: tree_lib.BAPOSGMCP,
             pi_belief[i][pi_id] += prob
 
     return pi_belief
+
+
+def get_other_history_belief(tree: tree_lib.BAPOSGMCP,
+                             history: Optional[H.AgentHistory] = None
+                             ) -> Dict[M.AgentID, Dict[H.AgentHistory, float]]:
+    """Get agent's belief over history of other agents."""
+    if history is None:
+        history = tree.history
+    h_node = tree.traverse(history)
+
+    history_belief: Dict[M.AgentID, Dict[H.AgentHistory, float]] = {}
+    for i in range(tree.num_agents):
+        if i == tree.ego_agent:
+            continue
+        history_belief[i] = {}
+
+    for hp_state, prob in h_node.belief.get_dist().items():
+        h = hp_state.history    # type: ignore
+        for i in range(tree.num_agents):
+            if i == tree.ego_agent:
+                continue
+            h_i = h.get_agent_history(i)
+            if h_i not in history_belief[i]:
+                history_belief[i][h_i] = 0.0
+            history_belief[i][h_i] += prob
+    return history_belief
+
+
+def get_other_agent_action_dist(tree: tree_lib.BAPOSGMCP,
+                                history: Optional[H.AgentHistory] = None
+                                ) -> Dict[M.AgentID, parts.ActionDist]:
+    """Get agent's belief over the action distribution of the other agents."""
+    if history is None:
+        history = tree.history
+    h_node = tree.traverse(history)
+
+    action_belief: Dict[M.AgentID, Dict[M.Action, float]] = {}
+    for i in range(tree.num_agents):
+        if i == tree.ego_agent:
+            continue
+        action_space_i = list(range(tree.model.action_spaces[i].n))
+        action_belief[i] = {a: 0.0 for a in action_space_i}
+
+    for hp_state, prob in h_node.belief.get_dist().items():
+        other_pis = tree.get_other_agent_pis(hp_state)
+        for i in range(tree.num_agents):
+            if i == tree.ego_agent:
+                continue
+            pi_i = other_pis[i]
+            for a_i in action_belief[i]:
+                action_belief[i][a_i] += pi_i[a_i]
+
+    # normalize
+    for i in action_belief:
+        prob_sum = sum(p_a_i for p_a_i in action_belief[i].values())
+        for a_i in action_belief[i]:
+            action_belief[i][a_i] /= prob_sum
+
+    return action_belief

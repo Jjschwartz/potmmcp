@@ -218,7 +218,7 @@ def _get_exp_renderers(params: ExpParams) -> Sequence[render_lib.Renderer]:
     return renderers
 
 
-def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
+def run_single_experiment(args: Tuple[ExpParams, str]):
     """Run a single experiment and write results to a file."""
     params, result_dir = args
     exp_start_time = time.time()
@@ -250,6 +250,9 @@ def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
 
     trackers = _get_exp_trackers(params, policies)
     renderers = _get_exp_renderers(params)
+    writer = stats_lib.ExperimentWriter(
+        params.exp_id, result_dir, _get_param_statistics(params)
+    )
 
     try:
         statistics = runner.run_sims(
@@ -258,15 +261,10 @@ def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
             trackers,
             renderers,
             params.run_config,
-            logger=exp_logger
+            logger=exp_logger,
+            writer=writer
         )
-        param_stats = _get_param_statistics(params)
-        statistics = stats_lib.combine_statistics([statistics, param_stats])
-
-        fname = os.path.join(result_dir, f"exp_{params.exp_id}.csv")
-        csv_writer = stats_lib.CSVWriter(filepath=fname)
-        csv_writer.write(statistics)
-        csv_writer.close()
+        writer.write(statistics)
 
     except Exception as ex:
         exp_logger.exception("Exception occured: %s", str(ex))
@@ -278,8 +276,6 @@ def run_single_experiment(args: Tuple[ExpParams, str]) -> str:
         _log_exp_end(
             params, result_dir, exp_logger, time.time() - exp_start_time
         )
-
-    return fname
 
 
 def run_experiments(exp_params_list: List[ExpParams],

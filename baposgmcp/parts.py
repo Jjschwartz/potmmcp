@@ -1,5 +1,5 @@
 import random
-from typing import Dict, Union, Tuple, Any
+from typing import Dict, Union, Any
 
 import posggym.model as M
 

@@ -168,7 +168,8 @@ def _get_env_policies_exp_params(env_name: str,
                     seed=args.seed,
                     num_episodes=args.num_episodes,
                     episode_step_limit=args.episode_step_limit,
-                    time_limit=args.time_limit
+                    time_limit=args.time_limit,
+                    use_checkpointing=True
                 ),
                 tracker_fn=_tracker_fn,
                 tracker_kwargs={},

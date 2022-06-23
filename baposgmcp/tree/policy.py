@@ -543,6 +543,20 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                                  ) -> parts.ActionDist:
         raise NotADirectoryError()
 
+    def get_other_agent_pis(self,
+                            hp_state: H.HistoryPolicyState
+                            ) -> Dict[M.AgentID, parts.ActionDist]:
+        """Get other agent policies for given history policy state."""
+        other_policies = self._get_other_policies(hp_state.other_policies)
+        action_dists = {}
+        for i in range(self.num_agents):
+            if i == self.ego_agent:
+                continue
+            pi = other_policies[i]
+            dist = pi.get_pi_from_hidden_state(hp_state.hidden_states[i])
+            action_dists[i] = dist
+        return action_dists
+
     #######################################################
     # GENERAL METHODS
     #######################################################
