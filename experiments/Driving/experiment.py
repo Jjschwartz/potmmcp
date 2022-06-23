@@ -91,7 +91,19 @@ def _renderer_fn(**kwargs) -> Sequence[render_lib.Renderer]:
 def _tracker_fn(policies: List[policy_lib.BasePolicy],
                 **kwargs) -> Sequence[stats_lib.Tracker]:
     trackers = stats_lib.get_default_trackers(policies)
-    trackers.append(stats_lib.BayesAccuracyTracker(2))
+
+    tracker_kwargs = {
+        "num_agents": len(policies),
+        "track_per_step": True,
+        "step_limit": kwargs["step_limit"]
+    }
+
+    trackers.append(stats_lib.BayesAccuracyTracker(**tracker_kwargs))
+    trackers.append(
+        stats_lib.ActionDistributionDistanceTracker(**tracker_kwargs)
+    )
+    trackers.append(stats_lib.BeliefHistoryAccuracyTracker(**tracker_kwargs))
+    trackers.append(stats_lib.BeliefStateAccuracyTracker(**tracker_kwargs))
     return trackers
 
 
@@ -114,6 +126,12 @@ def _get_env_policies_exp_params(env_name: str,
     sample_env = get_base_env(env_name, args.seed)
     env_model = sample_env.model
 
+    episode_step_limit = sample_env.spec.max_episode_steps
+    if episode_step_limit is None:
+        episode_step_limit = args.episode_step_limit
+    elif args.episode_step_limit is not None:
+        episode_step_limit = min(episode_step_limit, args.episode_step_limit)
+
     # env is symmetric so only need to run BAPOSGMCP for a single agent
     baposgmcp_agent_id = 0
 
@@ -131,7 +149,7 @@ def _get_env_policies_exp_params(env_name: str,
                 "truncated": True,
                 "reinvigorator": tree_lib.BABeliefRejectionSampler(env_model),
                 "extra_particles_prop": 1.0 / 16,
-                "step_limit": sample_env.spec.max_episode_steps,
+                "step_limit": episode_step_limit,
                 "epsilon": 0.01,
                 "policy_id": "pi_baposgmcp",
                 # The following are needed for init fn and are removed by
@@ -167,12 +185,12 @@ def _get_env_policies_exp_params(env_name: str,
                 run_config=runner.RunConfig(
                     seed=args.seed,
                     num_episodes=args.num_episodes,
-                    episode_step_limit=args.episode_step_limit,
+                    episode_step_limit=episode_step_limit,
                     time_limit=args.time_limit,
                     use_checkpointing=True
                 ),
                 tracker_fn=_tracker_fn,
-                tracker_kwargs={},
+                tracker_kwargs={"step_limit": episode_step_limit},
                 renderer_fn=_renderer_fn,
                 renderer_kwargs={"render": args.render}
             )
