@@ -17,7 +17,9 @@ def _run_sims(env, policies, run_config):
     trackers = stats_lib.get_default_trackers(policies)
     trackers.append(
         stats_lib.BeliefHistoryAccuracyTracker(
-            env.n_agents, track_per_step=True
+            env.n_agents,
+            track_per_step=True,
+            step_limit=run_config.episode_step_limit
         )
     )
 
@@ -74,9 +76,9 @@ def test_history_accuracy_small():
 
     Here we'd expect the accuracy to decrease over time.
     """
-    env_name = "TwoPaths4x4-v1"
+    env_name = "TwoPaths4x4-v0"
     env = posggym.make(env_name)
-    rps_step_limit = 10
+    rps_step_limit = 20
 
     agent_0_policy = tree_lib.BAPOSGMCP(
         env.model,
@@ -111,5 +113,5 @@ def test_history_accuracy_small():
 
 if __name__ == "__main__":
     RENDER = True
-    test_history_accuracy_fully_obs()
-    # test_history_accuracy_small()
+    # test_history_accuracy_fully_obs()
+    test_history_accuracy_small()

@@ -17,7 +17,9 @@ def _run_sims(env, policies, run_config):
     trackers = stats_lib.get_default_trackers(policies)
     trackers.append(
         stats_lib.ActionDistributionDistanceTracker(
-            env.n_agents, track_per_step=True
+            env.n_agents,
+            track_per_step=True,
+            step_limit=run_config.episode_step_limit
         )
     )
 

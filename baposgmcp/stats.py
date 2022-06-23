@@ -343,9 +343,13 @@ class BayesAccuracyTracker(Tracker):
 
     """
 
-    def __init__(self, num_agents: int, track_per_step: bool):
+    def __init__(self,
+                 num_agents: int,
+                 track_per_step: bool,
+                 step_limit: Optional[int] = None):
         self._num_agents = num_agents
         self._track_per_step = track_per_step
+        self._step_limit = step_limit
 
         self._num_episodes = 0
         self._episode_steps = 0
@@ -412,10 +416,13 @@ class BayesAccuracyTracker(Tracker):
             }
 
     def get_episode(self) -> AgentStatisticsMap:
-        num_steps = 0
-        for i in range(self._num_agents):
-            for acc in self._episode_acc[i].values():
-                num_steps = max(num_steps, len(acc))
+        if self._step_limit is not None:
+            num_steps = self._step_limit
+        else:
+            num_steps = 0
+            for i in range(self._num_agents):
+                for acc in self._episode_acc[i].values():
+                    num_steps = max(num_steps, len(acc))
 
         stats = {}
         for i in range(self._num_agents):
@@ -435,8 +442,10 @@ class BayesAccuracyTracker(Tracker):
         return stats
 
     def get(self) -> AgentStatisticsMap:
-        num_steps = 0
-        if self._track_per_step:
+        if self._step_limit is not None:
+            num_steps = self._step_limit
+        else:
+            num_steps = 0
             for i in range(self._num_agents):
                 for ep_accs in self._step_acc[i].values():
                     max_ep_len = max(len(ep) for ep in ep_accs)
@@ -476,9 +485,13 @@ class BeliefStateAccuracyTracker(Tracker):
 
     """
 
-    def __init__(self, num_agents: int, track_per_step: bool):
+    def __init__(self,
+                 num_agents: int,
+                 track_per_step: bool,
+                 step_limit: Optional[int] = None):
         self._num_agents = num_agents
         self._track_per_step = track_per_step
+        self._step_limit = step_limit
 
         self._num_episodes = 0
         self._episode_steps = 0
@@ -540,9 +553,12 @@ class BeliefStateAccuracyTracker(Tracker):
             self._episode_acc[i] = []
 
     def get_episode(self) -> AgentStatisticsMap:
-        num_steps = 0
-        for i in range(self._num_agents):
-            num_steps = max(num_steps, len(self._episode_acc[i]))
+        if self._step_limit is not None:
+            num_steps = self._step_limit
+        else:
+            num_steps = 0
+            for i in range(self._num_agents):
+                num_steps = max(num_steps, len(self._episode_acc[i]))
 
         stats = {}
         for i in range(self._num_agents):
@@ -557,8 +573,10 @@ class BeliefStateAccuracyTracker(Tracker):
         return stats
 
     def get(self) -> AgentStatisticsMap:
-        num_steps = 0
-        if self._track_per_step:
+        if self._step_limit is not None:
+            num_steps = self._step_limit
+        else:
+            num_steps = 0
             for i in range(self._num_agents):
                 max_ep_len = max(len(ep) for ep in self._step_acc[i])
                 num_steps = max(max_ep_len, num_steps)
@@ -592,9 +610,13 @@ class BeliefHistoryAccuracyTracker(Tracker):
 
     """
 
-    def __init__(self, num_agents: int, track_per_step: bool):
+    def __init__(self,
+                 num_agents: int,
+                 track_per_step: bool,
+                 step_limit: Optional[int] = None):
         self._num_agents = num_agents
         self._track_per_step = track_per_step
+        self._step_limit = step_limit
 
         self._num_episodes = 0
         self._episode_steps = 0
@@ -661,10 +683,13 @@ class BeliefHistoryAccuracyTracker(Tracker):
             }
 
     def get_episode(self) -> AgentStatisticsMap:
-        num_steps = 0
-        for i in range(self._num_agents):
-            for acc in self._episode_acc[i].values():
-                num_steps = max(num_steps, len(acc))
+        if self._step_limit is not None:
+            num_steps = self._step_limit
+        else:
+            num_steps = 0
+            for i in range(self._num_agents):
+                for acc in self._episode_acc[i].values():
+                    num_steps = max(num_steps, len(acc))
 
         stats = {}
         for i in range(self._num_agents):
@@ -684,8 +709,10 @@ class BeliefHistoryAccuracyTracker(Tracker):
         return stats
 
     def get(self) -> AgentStatisticsMap:
-        num_steps = 0
-        if self._track_per_step:
+        if self._step_limit is not None:
+            num_steps = self._step_limit
+        else:
+            num_steps = 0
             for i in range(self._num_agents):
                 for ep_accs in self._step_acc[i].values():
                     max_ep_len = max(len(ep) for ep in ep_accs)
@@ -733,9 +760,13 @@ class ActionDistributionDistanceTracker(Tracker):
 
     """
 
-    def __init__(self, num_agents: int, track_per_step: bool):
+    def __init__(self,
+                 num_agents: int,
+                 track_per_step: bool,
+                 step_limit: Optional[int] = None):
         self._num_agents = num_agents
         self._track_per_step = track_per_step
+        self._step_limit = step_limit
 
         self._num_episodes = 0
         self._episode_steps = 0
@@ -805,10 +836,13 @@ class ActionDistributionDistanceTracker(Tracker):
             }
 
     def get_episode(self) -> AgentStatisticsMap:
-        num_steps = 0
-        for i in range(self._num_agents):
-            for acc in self._episode_acc[i].values():
-                num_steps = max(num_steps, len(acc))
+        if self._step_limit is not None:
+            num_steps = self._step_limit
+        else:
+            num_steps = 0
+            for i in range(self._num_agents):
+                for acc in self._episode_acc[i].values():
+                    num_steps = max(num_steps, len(acc))
 
         stats = {}
         for i in range(self._num_agents):
@@ -828,8 +862,10 @@ class ActionDistributionDistanceTracker(Tracker):
         return stats
 
     def get(self) -> AgentStatisticsMap:
-        num_steps = 0
-        if self._track_per_step:
+        if self._step_limit is not None:
+            num_steps = self._step_limit
+        else:
+            num_steps = 0
             for i in range(self._num_agents):
                 for ep_accs in self._step_acc[i].values():
                     max_ep_len = max(len(ep) for ep in ep_accs)
