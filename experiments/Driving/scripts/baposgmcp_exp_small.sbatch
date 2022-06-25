@@ -48,7 +48,7 @@ num_seeds=10              # 10 seeds x 100 episodes = 1000 episodes
 num_episodes=100
 time_limit=28800     # 8 hours
 num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_policy_dirs))]}
-rollout_policy_ids=(pi_BR pi_SP)
+rollout_policy_ids=pi_BR
 include_other_policy_ids=pi_2
 
 pwd; hostname; date
@@ -81,5 +81,7 @@ singularity exec \
 			--num_sims $num_sims \
 			--rollout_policy_ids ${rollout_policy_ids[*]} \
 			--n_procs $SLURM_CPUS_PER_TASK \
-			--root_save_dir $root_save_dir
+			--root_save_dir $root_save_dir \
+			--include_other_policy_ids $include_other_policy_ids
+
 echo "Job complete"

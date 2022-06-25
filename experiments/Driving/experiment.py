@@ -215,6 +215,8 @@ def _main(args):
         register_env(env_name, registered_env_creator)
 
     print("== Running Experiments ==")
+    print("Experiment arguments:")
+    pprint(vars(args))
     logging.basicConfig(
         level=args.log_level,
         # [Day-Month Hour-Minute-Second] Message
