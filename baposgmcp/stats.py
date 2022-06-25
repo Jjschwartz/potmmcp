@@ -380,6 +380,9 @@ class BayesAccuracyTracker(Tracker):
                 continue
 
             pi_beliefs = tree_lib.get_other_pis_belief(policies[i])
+            if pi_beliefs is None:
+                continue
+
             for j in range(self._num_agents):
                 if i == j:
                     continue
@@ -522,6 +525,9 @@ class BeliefStateAccuracyTracker(Tracker):
                 continue
 
             state_belief = tree_lib.get_state_belief(policies[i])
+            if state_belief is None:
+                continue
+
             acc = state_belief.get(self._prev_state, 0.0)
             self._episode_acc[i].append(acc)
 
@@ -647,6 +653,9 @@ class BeliefHistoryAccuracyTracker(Tracker):
                 continue
 
             h_beliefs = tree_lib.get_other_history_belief(policies[i])
+            if h_beliefs is None:
+                continue
+
             for j in range(self._num_agents):
                 if i == j:
                     continue
@@ -799,6 +808,9 @@ class ActionDistributionDistanceTracker(Tracker):
             other_action_dists = tree_lib.get_other_agent_action_dist(
                 policies[i]
             )
+            if other_action_dists is None:
+                continue
+
             for j in range(self._num_agents):
                 if i == j:
                     continue

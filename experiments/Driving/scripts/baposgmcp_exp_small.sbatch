@@ -3,31 +3,38 @@
 # RESOURCES
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16   # number of comparisons to be run in parallel
+#SBATCH --cpus-per-task=10   # number of comparisons to be run in parallel
 #SBATCH --mem=62GB           # should be > 4GB*cpus-per-task
-# Time = (|other pis| * |seeds|) / cpus-per-task * time_limit
-#      = (8*2)/16 * 10 min
-#      = 10 min
-#SBATCH --time=0-00:20:00
-#SBATCH --partition=gpu
+# Time = (|other pis| * |pi_seeds| * |exp_seeds|) / cpus-per-task  * time_limit
+#      = (1*5*10)/10 * 8h
+#      = 40 h
+#SBATCH --time=48:00:00
+#SBATCH --partition=gpu      # use GPU partition since more nodes available
 # OTHER
-#SBATCH --output=baposgmcp_exp_test_%A_%a.out
-#SBATCH --job-name="baposgmcp_exp_test"  # job name used by slurm
+#SBATCH --output=baposgmcp_exp_%A_%a.out
+#SBATCH --job-name="baposgmcp_exp"  # job name used by slurm
 #SBATCH --mail-type=all
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
 # ARRAY
-#SBATCH --array=0-7         # |num sims| * |BAPOSGMCP policy dirs|
+# |test sims| * |policy_dirs| = 8 * 5 = 40
+#SBATCH --array=0-39
 
-# TEST SCRIPT
-# runs with debug flag
+root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$SLURM_ARRAY_JOB_ID
+if [ $SLURM_ARRAY_TASK_ID == $SLURM_ARRAY_TASK_MIN ]; then
+	mkdir -p $root_save_dir
+fi
 
-test_sims=(8 16)
-num_policy_dirs=4
+# give each task time for the shared results directory to be created
+sleep 2
+
+test_sims=(8 16 32 64 128 256 512 1024)
+num_policy_dirs=5
 policy_dir_names=( \
 train_klr_Driving7x7RoundAbout-v0_k4_seed0_2022-06-01 \
 train_klr_Driving7x7RoundAbout-v0_k4_seed1_2022-06-01 \
-train_sp_Driving7x7RoundAbout-v0_seed0_2022-06-01 \
-train_sp_Driving7x7RoundAbout-v0_seed1_2022-06-01 \
+train_klr_Driving7x7RoundAbout-v0_k4_seed2_2022-06-01 \
+train_klr_Driving7x7RoundAbout-v0_k4_seed3_2022-06-01 \
+train_klr_Driving7x7RoundAbout-v0_k4_seed4_2022-06-01 \
 )
 base_policy_dir=~/baposgmcp_results/Driving/rl_policies/2022-06-01/
 
@@ -36,18 +43,13 @@ python_file=~/code/ba-posgmcp/experiments/Driving/experiment.py
 env_name=Driving7x7RoundAbout-v0
 baposgmcp_policy_dirs=$base_policy_dir${policy_dir_names[(($SLURM_ARRAY_TASK_ID % $num_policy_dirs))]}
 other_agent_policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-06-01/*
-num_episodes=2
-time_limit=600    # 10 min
+init_seed=0
+num_seeds=10              # 10 seeds x 100 episodes = 1000 episodes
+num_episodes=100
+time_limit=28800     # 8 hours
 num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_policy_dirs))]}
 rollout_policy_ids=(pi_BR pi_SP)
-
-root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_test_$SLURM_ARRAY_JOB_ID
-if [ $SLURM_ARRAY_TASK_ID == 0 ]; then
-	mkdir -p $root_save_dir
-fi
-
-# give time for directory to be created
-sleep 3
+include_other_policy_ids=pi_2
 
 pwd; hostname; date
 echo "--- Running BAPOSGMCP Experiment ---"
@@ -60,6 +62,8 @@ echo "Other agent policy dirs = ${other_agent_policy_dirs[*]}"
 echo "Num episodes = $num_episodes"
 echo "Time limit = $time_limit"
 echo "Num sims = $num_sims"
+echo "Init seed = $init_seed"
+echo "Num seeds = $num_seeds"
 echo "Rollout policy ids = ${rollout_policy_ids[*]}"
 echo "Root save_dir = $root_save_dir"
 singularity exec \
@@ -72,11 +76,10 @@ singularity exec \
 			--gamma 0.99 \
 			--num_episodes $num_episodes \
 			--time_limit $time_limit \
-			--init_seed 0 \
-			--num_seeds 1 \
+			--init_seed $init_seed \
+			--num_seeds $num_seeds \
 			--num_sims $num_sims \
 			--rollout_policy_ids ${rollout_policy_ids[*]} \
 			--n_procs $SLURM_CPUS_PER_TASK \
-			--root_save_dir $root_save_dir \
-			# --debug
+			--root_save_dir $root_save_dir
 echo "Job complete"

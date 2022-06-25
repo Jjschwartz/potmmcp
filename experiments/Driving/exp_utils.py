@@ -214,7 +214,8 @@ def rllib_policy_init_fn(model, ego_agent, gamma, **kwargs):
 def load_agent_policy_params(policy_dir: str,
                              gamma: float,
                              env_name: Optional[str] = None,
-                             include_random_policy: bool = True
+                             include_random_policy: bool = True,
+                             include_policy_ids: Optional[List[str]] = None
                              ) -> List[exp_lib.PolicyParams]:
     """Load agent rllib policy params from file.
 
@@ -222,6 +223,10 @@ def load_agent_policy_params(policy_dir: str,
     loaded from file only when the policy is to be used in an experiment. This
     saves on memory usage and also ensures a different policy object is used
     for each experiment run.
+
+    include_policy_ids is an optional list of policy IDs specifying which
+    policies to import. If it is None then all policies in the policy dir are
+    imported.
     """
     igraph = ba_rllib.import_igraph(policy_dir, True)
 
@@ -234,6 +239,12 @@ def load_agent_policy_params(policy_dir: str,
     policy_params_list = []
     random_policy_added = False
     for policy_id in igraph.policies[pbt.InteractionGraph.SYMMETRIC_ID]:
+        if (
+            include_policy_ids is not None
+            and policy_id not in include_policy_ids
+        ):
+            continue
+
         if "-1" in policy_id:
             policy_params = exp_lib.PolicyParams(
                 name="RandomPolicy",
@@ -275,7 +286,8 @@ def load_agent_policies(agent_id: int,
                         policy_dir: str,
                         gamma: float,
                         include_random_policy: bool = False,
-                        env_seed: Optional[int] = None
+                        env_seed: Optional[int] = None,
+                        include_policy_ids: Optional[List[str]] = None
                         ) -> Dict[str, ba_policy_lib.BasePolicy]:
     """Load agent rllib policies from file."""
     sample_env = get_base_env(env_name, env_seed)
@@ -303,6 +315,12 @@ def load_agent_policies(agent_id: int,
     random_policy_added = False
     symmetric_agent_id = pbt.InteractionGraph.SYMMETRIC_ID
     for policy_id, policy in policy_map[symmetric_agent_id].items():
+        if (
+            include_policy_ids is not None
+            and policy_id not in include_policy_ids
+        ):
+            continue
+
         if "-1" in policy_id:
             new_policy = ba_policy_lib.RandomPolicy(
                 env_model, agent_id, gamma

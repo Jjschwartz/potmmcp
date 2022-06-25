@@ -31,8 +31,8 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
     This is needed to ensure independent policies are used for each experiment
     when running experiments in parallel.
     """
-    args = kwargs.pop("args")
     env_name = kwargs.pop("env_name")
+    seed = kwargs.pop("seed")
     other_agent_policy_dir = kwargs.pop("other_agent_policy_dir")
 
     if "rollout_policy_ids" in kwargs:
@@ -50,7 +50,7 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
             other_agent_policy_dir,
             gamma,
             include_random_policy=False,
-            env_seed=args.seed
+            env_seed=seed
         )
     }
 
@@ -67,7 +67,7 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
                     ego_agent,
                     env_name,
                     gamma,
-                    args.seed
+                    seed
                 )
 
     return tree_lib.BAPOSGMCP(
@@ -123,7 +123,7 @@ def _get_env_policies_exp_params(env_name: str,
     other_agent_policy_dir specifiec the directory to load policies from that
     are used as the other agent policies during testing.
     """
-    sample_env = get_base_env(env_name, args.seed)
+    sample_env = get_base_env(env_name, args.init_seed)
     env_model = sample_env.model
 
     episode_step_limit = sample_env.spec.max_episode_steps
@@ -137,7 +137,7 @@ def _get_env_policies_exp_params(env_name: str,
 
     exp_params_list = []
     exp_id = exp_id_init
-    for num_sims in args.num_sims:
+    for exp_seed, num_sims in product(range(args.num_seeds), args.num_sims):
         baposgmcp_params = exp_lib.PolicyParams(
             name=f"BAPOSGMCP_{baposgmcp_agent_id}",
             gamma=args.gamma,
@@ -154,8 +154,8 @@ def _get_env_policies_exp_params(env_name: str,
                 "policy_id": "pi_baposgmcp",
                 # The following are needed for init fn and are removed by
                 # custom init fn
-                "args": args,
                 "env_name": env_name,
+                "seed": args.init_seed + exp_seed,
                 "other_agent_policy_dir": baposgmcp_policy_dir,
                 "rollout_policy_ids": args.rollout_policy_ids,
                 "rollout_policy_dir": baposgmcp_policy_dir
@@ -164,7 +164,8 @@ def _get_env_policies_exp_params(env_name: str,
             info={
                 "other_agent_policy_dir": baposgmcp_policy_dir,
                 "rollout_policy_ids": args.rollout_policy_ids,
-                "rollout_policy_dir": baposgmcp_policy_dir
+                "rollout_policy_dir": baposgmcp_policy_dir,
+                "seed": args.init_seed + exp_seed
             }
         )
 
@@ -172,7 +173,8 @@ def _get_env_policies_exp_params(env_name: str,
             other_agent_policy_dir,
             args.gamma,
             env_name,
-            include_random_policy=False
+            include_random_policy=False,
+            include_policy_ids=args.include_other_policy_ids
         )
 
         for policy_params in other_agent_policy_params:
@@ -183,7 +185,7 @@ def _get_env_policies_exp_params(env_name: str,
                 env_name=env_name,
                 policy_params_list=policies,
                 run_config=runner.RunConfig(
-                    seed=args.seed,
+                    seed=args.init_seed + exp_seed,
                     num_episodes=args.num_episodes,
                     episode_step_limit=episode_step_limit,
                     time_limit=args.time_limit,
@@ -209,7 +211,7 @@ def _get_env_policies_exp_params(env_name: str,
 def _main(args):
     # check env name is valid
     for env_name in args.env_names:
-        get_base_env(env_name, args.seed)
+        get_base_env(env_name, args.init_seed)
         register_env(env_name, registered_env_creator)
 
     print("== Running Experiments ==")
@@ -218,8 +220,9 @@ def _main(args):
         # [Day-Month Hour-Minute-Second] Message
         format='[%(asctime)s] %(message)s', datefmt='%d-%m %H:%M:%S'
     )
-    num_sim_str = "_".join([str(n) for n in args.num_sims])
-    result_dir_name_prefix = f"experiment_numsims_{num_sim_str}"
+    num_sim_str = "nsims" + "_".join([str(n) for n in args.num_sims])
+    seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
+    result_dir_name_prefix = f"experiment_{num_sim_str}_{seed_str}"
     result_dir = get_result_dir(result_dir_name_prefix, args.root_save_dir)
     exp_lib.write_experiment_arguments(vars(args), result_dir)
 
@@ -274,8 +277,12 @@ if __name__ == "__main__":
         help="Paths to dirs containing trained RL policies to test against"
     )
     parser.add_argument(
-        "--seed", type=int, default=0,
-        help="Experiment seed."
+        "--init_seed", type=int, default=0,
+        help="Experiment start seed."
+    )
+    parser.add_argument(
+        "--num_seeds", type=int, default=1,
+        help="Number of seeds to use."
     )
     parser.add_argument(
         "--gamma", type=float, default=0.99,
@@ -319,6 +326,13 @@ if __name__ == "__main__":
             "This will use the policy within the BAPOSGMCP policies that "
             "matches the given ID. Multiple IDs can be provided and the first "
             "matching ID will be used."
+        )
+    )
+    parser.add_argument(
+        "--include_other_policy_ids", type=str, default="None", nargs="*",
+        help=(
+            "ID/s of policy to use as opponent, if None then uses all the "
+            "policies 'other_agent_policy_dirs'."
         )
     )
     parser.add_argument(
