@@ -7,10 +7,10 @@ policy in each of the policy directories for each environment.
 """
 import logging
 import argparse
+from pprint import pprint
 from typing import Sequence, List
 from itertools import combinations_with_replacement, product
 
-import ray
 from ray.tune.registry import register_env
 
 from baposgmcp import runner
@@ -65,23 +65,26 @@ def _get_env_policies_exp_params(env_name: str,
         renderers.append(render_lib.EpisodeRenderer())
 
     exp_params_list = []
-    for i, policies in enumerate(
+    for i, (exp_seed, policies) in enumerate(product(
+            range(args.num_seeds),
             product(agent_0_policy_params, agent_1_policy_params)
-    ):
+    )):
         exp_params = exp_lib.ExpParams(
             exp_id=exp_id_init+i,
             env_name=env_name,
             policy_params_list=policies,
             run_config=runner.RunConfig(
-                seed=args.seed,
+                seed=args.init_seed+exp_seed,
                 num_episodes=args.num_episodes,
                 episode_step_limit=None,
-                time_limit=args.time_limit
+                time_limit=args.time_limit,
+                use_checkpointing=False
             ),
             tracker_fn=_tracker_fn,
             tracker_kwargs={},
             renderer_fn=_renderer_fn,
             renderer_kwargs={"render": args.render},
+            record_env=args.record_env
         )
         exp_params_list.append(exp_params)
     return exp_params_list
@@ -90,14 +93,22 @@ def _get_env_policies_exp_params(env_name: str,
 def _main(args):
     # check env name is valid
     for env_name in args.env_names:
-        get_base_env(env_name, args.seed)
+        get_base_env(env_name, args.init_seed)
         register_env(env_name, registered_env_creator)
 
     print("\n== Running Experiments ==")
-    logging.basicConfig(level=args.log_level, format='%(message)s')
-    result_dir = get_result_dir("pairwise_comparison", args.root_save_dir)
+    pprint(vars(args))
+    logging.basicConfig(
+        level=args.log_level,
+        # [Day-Month Hour-Minute-Second] Message
+        format='[%(asctime)s] %(message)s', datefmt='%d-%m %H:%M:%S'
+    )
+    seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
+    result_dir_name_prefix = f"pairwise_comparison_{seed_str}"
+    result_dir = get_result_dir(result_dir_name_prefix, args.root_save_dir)
     exp_lib.write_experiment_arguments(vars(args), result_dir)
 
+    print("== Creating Experiments ==")
     exp_params_list = []
     # since env is symmetric we only need every combination of policies
     # rather than the full product of the policy spaces
@@ -116,12 +127,15 @@ def _main(args):
             )
 
     print(f"== Running {len(exp_params_list)} Experiments ==")
+    print(f"== Using {args.n_procs} CPUs ==")
     exp_lib.run_experiments(
         exp_params_list=exp_params_list,
         exp_log_level=args.log_level,
         n_procs=args.n_procs,
         result_dir=result_dir
     )
+
+    print("== All done ==")
 
 
 if __name__ == "__main__":
@@ -137,8 +151,12 @@ if __name__ == "__main__":
         help="Paths to dirs containing trained RL policies"
     )
     parser.add_argument(
-        "--seed", type=int, default=0,
-        help="Experiment seed."
+        "--init_seed", type=int, default=0,
+        help="Experiment start seed."
+    )
+    parser.add_argument(
+        "--num_seeds", type=int, default=1,
+        help="Number of seeds to use."
     )
     parser.add_argument(
         "--gamma", type=float, default=0.99,
@@ -163,6 +181,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--render", action="store_true",
         help="Render experiment episodes."
+    )
+    parser.add_argument(
+        "--record_env", action="store_true",
+        help="Record renderings of experiment episodes."
     )
     parser.add_argument(
         "--root_save_dir", type=str, default=None,

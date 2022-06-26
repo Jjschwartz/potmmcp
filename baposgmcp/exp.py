@@ -15,6 +15,7 @@ import ray
 import numpy as np
 
 import posggym
+from posggym import wrappers
 
 from baposgmcp import runner
 import baposgmcp.stats as stats_lib
@@ -67,6 +68,7 @@ class ExpParams(NamedTuple):
     file_log_level: int = logging.DEBUG
     setup_fn: Optional[Callable] = None
     cleanup_fn: Optional[Callable] = None
+    record_env: bool = False
 
 
 # A global lock used for controlling when processes print to stdout
@@ -240,6 +242,9 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         np.random.seed(seed)
 
     env = posggym.make(params.env_name)
+    if params.record_env:
+        video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
+        env = wrappers.RecordVideo(env, video_folder)
 
     policies: List[policy_lib.BasePolicy] = []
     for i, pi_params in enumerate(params.policy_params_list):

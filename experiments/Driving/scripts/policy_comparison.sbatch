@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16    # number of comparisons to be run in parallel
 #SBATCH --mem=80GB           # should be > 4GB*cpus-per-task
-#SBATCH --time=0-10:00:00    # 0 days, 10 hours, 00 minutes, 00 seconds
+#SBATCH --time=0-16:00:00    # 0 days, 10 hours, 00 minutes, 00 seconds
 # OTHER
 #SBATCH --output=pairwise_comparison.%J.out
 #SBATCH --job-name="pairwise_comparison_driving"  # job name used by slurm
@@ -28,6 +28,8 @@ singularity exec \
 			--env_names $env_name \
 			--policy_dirs $policy_dirs \
 			--num_episodes $num_episodes \
-			--seed 0 \
-			--n_procs $SLURM_CPUS_PER_TASK
+			--init_seed 0 \
+			--num_seeds 1 \
+			--n_procs $SLURM_CPUS_PER_TASK \
+			--record_env
 echo "Job complete"
