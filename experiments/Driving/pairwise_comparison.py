@@ -13,11 +13,8 @@ from itertools import combinations_with_replacement, product
 
 from ray.tune.registry import register_env
 
-from baposgmcp import runner
-import baposgmcp.exp as exp_lib
-import baposgmcp.stats as stats_lib
+import baposgmcp.run as run_lib
 import baposgmcp.policy as policy_lib
-import baposgmcp.render as render_lib
 
 from exp_utils import (
     registered_env_creator,
@@ -27,16 +24,16 @@ from exp_utils import (
 )
 
 
-def _renderer_fn(**kwargs) -> Sequence[render_lib.Renderer]:
+def _renderer_fn(**kwargs) -> Sequence[run_lib.Renderer]:
     renderers = []
     if kwargs["render"]:
-        renderers.append(render_lib.EpisodeRenderer())
+        renderers.append(run_lib.EpisodeRenderer())
     return renderers
 
 
 def _tracker_fn(policies: List[policy_lib.BasePolicy],
-                **kwargs) -> Sequence[stats_lib.Tracker]:
-    trackers = stats_lib.get_default_trackers(policies)
+                **kwargs) -> Sequence[run_lib.Tracker]:
+    trackers = run_lib.get_default_trackers(policies)
     return trackers
 
 
@@ -45,7 +42,7 @@ def _get_env_policies_exp_params(env_name: str,
                                  agent_1_policy_dir: str,
                                  result_dir: str,
                                  args,
-                                 exp_id_init: int) -> List[exp_lib.ExpParams]:
+                                 exp_id_init: int) -> List[run_lib.ExpParams]:
     agent_0_policy_params = load_agent_policy_params(
         agent_0_policy_dir,
         args.gamma,
@@ -62,18 +59,18 @@ def _get_env_policies_exp_params(env_name: str,
 
     renderers = []
     if args.render:
-        renderers.append(render_lib.EpisodeRenderer())
+        renderers.append(run_lib.EpisodeRenderer())
 
     exp_params_list = []
     for i, (exp_seed, policies) in enumerate(product(
             range(args.num_seeds),
             product(agent_0_policy_params, agent_1_policy_params)
     )):
-        exp_params = exp_lib.ExpParams(
+        exp_params = run_lib.ExpParams(
             exp_id=exp_id_init+i,
             env_name=env_name,
             policy_params_list=policies,
-            run_config=runner.RunConfig(
+            run_config=run_lib.RunConfig(
                 seed=args.init_seed+exp_seed,
                 num_episodes=args.num_episodes,
                 episode_step_limit=None,
@@ -106,7 +103,7 @@ def _main(args):
     seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
     result_dir_name_prefix = f"pairwise_comparison_{seed_str}"
     result_dir = get_result_dir(result_dir_name_prefix, args.root_save_dir)
-    exp_lib.write_experiment_arguments(vars(args), result_dir)
+    run_lib.write_experiment_arguments(vars(args), result_dir)
 
     print("== Creating Experiments ==")
     exp_params_list = []
@@ -128,7 +125,7 @@ def _main(args):
 
     print(f"== Running {len(exp_params_list)} Experiments ==")
     print(f"== Using {args.n_procs} CPUs ==")
-    exp_lib.run_experiments(
+    run_lib.run_experiments(
         exp_params_list=exp_params_list,
         exp_log_level=args.log_level,
         n_procs=args.n_procs,

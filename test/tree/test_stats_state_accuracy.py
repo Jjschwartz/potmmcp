@@ -2,11 +2,9 @@ import logging
 
 import posggym
 
-from baposgmcp import runner
+import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
-import baposgmcp.stats as stats_lib
 import baposgmcp.policy as policy_lib
-import baposgmcp.render as render_lib
 
 RENDER = False
 
@@ -14,16 +12,16 @@ RENDER = False
 def _run_sims(env, policies, run_config):
     logging.basicConfig(level=logging.INFO-1, format='%(message)s')
 
-    trackers = stats_lib.get_default_trackers(policies)
+    trackers = run_lib.get_default_trackers(policies)
     trackers.append(
-        stats_lib.BeliefStateAccuracyTracker(env.n_agents, track_per_step=True)
+        run_lib.BeliefStateAccuracyTracker(env.n_agents, track_per_step=True)
     )
 
     renderers = []
     if RENDER:
-        renderers.append(render_lib.EpisodeRenderer())
+        renderers.append(run_lib.EpisodeRenderer())
 
-    runner.run_sims(env, policies, trackers, renderers, run_config)
+    run_lib.run_sims(env, policies, trackers, renderers, run_config)
 
 
 def test_state_accuracy_single_state():
@@ -60,7 +58,7 @@ def test_state_accuracy_single_state():
 
     policies = [agent_0_policy, agent_1_policy]
 
-    run_config = runner.RunConfig(
+    run_config = run_lib.RunConfig(
         seed=0, num_episodes=5, episode_step_limit=rps_step_limit
     )
 
@@ -98,7 +96,7 @@ def test_state_accuracy_small():
 
     policies = [agent_0_policy, agent_1_policy]
 
-    run_config = runner.RunConfig(
+    run_config = run_lib.RunConfig(
         seed=0, num_episodes=5, episode_step_limit=rps_step_limit
     )
 

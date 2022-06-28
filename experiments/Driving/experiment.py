@@ -6,13 +6,9 @@ from typing import Sequence, List
 
 from ray.tune.registry import register_env
 
-from baposgmcp import runner
-import baposgmcp.exp as exp_lib
+import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
-import baposgmcp.stats as stats_lib
 import baposgmcp.policy as policy_lib
-import baposgmcp.render as render_lib
-import baposgmcp.policy as ba_policy_lib
 
 from exp_utils import (
     registered_env_creator,
@@ -55,9 +51,7 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
     }
 
     if rollout_policy_ids is None:
-        rollout_policy = ba_policy_lib.RandomPolicy(
-            model, ego_agent, gamma
-        )
+        rollout_policy = policy_lib.RandomPolicy(model, ego_agent, gamma)
     else:
         for pi_id in rollout_policy_ids:
             if pi_id in other_policies[other_agent_id]:
@@ -80,17 +74,17 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
     )
 
 
-def _renderer_fn(**kwargs) -> Sequence[render_lib.Renderer]:
+def _renderer_fn(**kwargs) -> Sequence[run_lib.Renderer]:
     renderers = []
     if kwargs["render"]:
-        renderers.append(render_lib.EpisodeRenderer())
-        renderers.append(render_lib.PolicyBeliefRenderer())
+        renderers.append(run_lib.EpisodeRenderer())
+        renderers.append(run_lib.PolicyBeliefRenderer())
     return renderers
 
 
 def _tracker_fn(policies: List[policy_lib.BasePolicy],
-                **kwargs) -> Sequence[stats_lib.Tracker]:
-    trackers = stats_lib.get_default_trackers(policies)
+                **kwargs) -> Sequence[run_lib.Tracker]:
+    trackers = run_lib.get_default_trackers(policies)
 
     tracker_kwargs = {
         "num_agents": len(policies),
@@ -98,12 +92,12 @@ def _tracker_fn(policies: List[policy_lib.BasePolicy],
         "step_limit": kwargs["step_limit"]
     }
 
-    trackers.append(stats_lib.BayesAccuracyTracker(**tracker_kwargs))
+    trackers.append(run_lib.BayesAccuracyTracker(**tracker_kwargs))
     trackers.append(
-        stats_lib.ActionDistributionDistanceTracker(**tracker_kwargs)
+        run_lib.ActionDistributionDistanceTracker(**tracker_kwargs)
     )
-    trackers.append(stats_lib.BeliefHistoryAccuracyTracker(**tracker_kwargs))
-    trackers.append(stats_lib.BeliefStateAccuracyTracker(**tracker_kwargs))
+    trackers.append(run_lib.BeliefHistoryAccuracyTracker(**tracker_kwargs))
+    trackers.append(run_lib.BeliefStateAccuracyTracker(**tracker_kwargs))
     return trackers
 
 
@@ -112,7 +106,7 @@ def _get_env_policies_exp_params(env_name: str,
                                  other_agent_policy_dir: str,
                                  result_dir: str,
                                  args,
-                                 exp_id_init: int) -> List[exp_lib.ExpParams]:
+                                 exp_id_init: int) -> List[run_lib.ExpParams]:
     """Get exp params for given env and policy groups.
 
     Assumes rollout policy for baposgmcp is in baposgmcp_policy_dir.
@@ -138,7 +132,7 @@ def _get_env_policies_exp_params(env_name: str,
     exp_params_list = []
     exp_id = exp_id_init
     for exp_seed, num_sims in product(range(args.num_seeds), args.num_sims):
-        baposgmcp_params = exp_lib.PolicyParams(
+        baposgmcp_params = run_lib.PolicyParams(
             name=f"BAPOSGMCP_{baposgmcp_agent_id}",
             gamma=args.gamma,
             kwargs={
@@ -180,11 +174,11 @@ def _get_env_policies_exp_params(env_name: str,
         for policy_params in other_agent_policy_params:
             policies = [baposgmcp_params, policy_params]
 
-            exp_params = exp_lib.ExpParams(
+            exp_params = run_lib.ExpParams(
                 exp_id=exp_id,
                 env_name=env_name,
                 policy_params_list=policies,
-                run_config=runner.RunConfig(
+                run_config=run_lib.RunConfig(
                     seed=args.init_seed + exp_seed,
                     num_episodes=args.num_episodes,
                     episode_step_limit=episode_step_limit,
@@ -228,7 +222,7 @@ def _main(args):
     seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
     result_dir_name_prefix = f"experiment_{num_sim_str}_{seed_str}"
     result_dir = get_result_dir(result_dir_name_prefix, args.root_save_dir)
-    exp_lib.write_experiment_arguments(vars(args), result_dir)
+    run_lib.write_experiment_arguments(vars(args), result_dir)
 
     print("== Creating Experiments ==")
     exp_params_list = []
@@ -254,7 +248,7 @@ def _main(args):
             pprint(p)
         return
 
-    exp_lib.run_experiments(
+    run_lib.run_experiments(
         exp_params_list=exp_params_list,
         exp_log_level=args.log_level,
         n_procs=args.n_procs,

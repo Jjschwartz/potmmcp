@@ -2,11 +2,9 @@ import logging
 
 import posggym
 
-from baposgmcp import runner
+import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
-import baposgmcp.stats as stats_lib
 import baposgmcp.policy as policy_lib
-import baposgmcp.render as render_lib
 
 RENDER = False
 
@@ -14,9 +12,9 @@ RENDER = False
 def _run_sims(env, policies, run_config):
     logging.basicConfig(level=logging.INFO-1, format='%(message)s')
 
-    trackers = stats_lib.get_default_trackers(policies)
+    trackers = run_lib.get_default_trackers(policies)
     trackers.append(
-        stats_lib.ActionDistributionDistanceTracker(
+        run_lib.ActionDistributionDistanceTracker(
             env.n_agents,
             track_per_step=True,
             step_limit=run_config.episode_step_limit
@@ -25,9 +23,9 @@ def _run_sims(env, policies, run_config):
 
     renderers = []
     if RENDER:
-        renderers.append(render_lib.EpisodeRenderer())
+        renderers.append(run_lib.EpisodeRenderer())
 
-    runner.run_sims(env, policies, trackers, renderers, run_config)
+    run_lib.run_sims(env, policies, trackers, renderers, run_config)
 
 
 def _get_rps_deterministic_policies(env, agent_id):
@@ -97,7 +95,7 @@ def test_action_dist_distance_single_policy():
 
     policies = [agent_0_policy, agent_1_policy]
 
-    run_config = runner.RunConfig(
+    run_config = run_lib.RunConfig(
         seed=0, num_episodes=5, episode_step_limit=rps_step_limit
     )
 
@@ -138,7 +136,7 @@ def test_action_dist_distance_rps_deterministic():
 
     policies = [agent_0_policy, agent_1_policy]
 
-    run_config = runner.RunConfig(
+    run_config = run_lib.RunConfig(
         seed=0, num_episodes=5, episode_step_limit=rps_step_limit
     )
 
@@ -182,7 +180,7 @@ def test_action_dist_distance_rps_stochastic_biased():
 
     policies = [agent_0_policy, agent_1_policy]
 
-    run_config = runner.RunConfig(
+    run_config = run_lib.RunConfig(
         seed=0, num_episodes=5, episode_step_limit=rps_step_limit
     )
 
@@ -228,7 +226,7 @@ def test_action_dist_distance_rps_stochastic_biased2():
 
     policies = [agent_0_policy, agent_1_policy]
 
-    run_config = runner.RunConfig(
+    run_config = run_lib.RunConfig(
         seed=0, num_episodes=5, episode_step_limit=rps_step_limit
     )
 

@@ -20,12 +20,10 @@ import posggym
 from posggym.wrappers import FlattenObservation
 from posggym.wrappers.rllib_multi_agent_env import RllibMultiAgentEnv
 
-from baposgmcp import runner
+import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
 import baposgmcp.rllib as ba_rllib
-import baposgmcp.stats as stats_lib
 import baposgmcp.policy as policy_lib
-import baposgmcp.render as render_lib
 
 
 RENDER = False
@@ -123,18 +121,18 @@ def _get_baposgmcp(model, agent_id, other_policies, rollout_policy, truncated):
 
 def _run_sims(env, policies):
     logging.basicConfig(level=logging.INFO-10, format='%(message)s')
-    trackers = stats_lib.get_default_trackers(policies)
+    trackers = run_lib.get_default_trackers(policies)
 
     renderers = []
     if RENDER:
-        renderers.append(render_lib.EpisodeRenderer())
+        renderers.append(run_lib.EpisodeRenderer())
 
-    runner.run_sims(
+    run_lib.run_sims(
         env,
         policies,
         trackers,
         renderers,
-        run_config=runner.RunConfig(seed=0, num_episodes=3)
+        run_config=run_lib.RunConfig(seed=0, num_episodes=3)
     )
 
 

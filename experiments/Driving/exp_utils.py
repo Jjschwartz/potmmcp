@@ -13,7 +13,7 @@ from posggym.wrappers import FlattenObservation
 from posggym.wrappers.rllib_multi_agent_env import RllibMultiAgentEnv
 
 from baposgmcp import pbt
-import baposgmcp.exp as exp_lib
+import baposgmcp.run as run_lib
 import baposgmcp.rllib as ba_rllib
 import baposgmcp.policy as ba_policy_lib
 from baposgmcp.config import BASE_RESULTS_DIR
@@ -216,7 +216,7 @@ def load_agent_policy_params(policy_dir: str,
                              env_name: Optional[str] = None,
                              include_random_policy: bool = True,
                              include_policy_ids: Optional[List[str]] = None
-                             ) -> List[exp_lib.PolicyParams]:
+                             ) -> List[run_lib.PolicyParams]:
     """Load agent rllib policy params from file.
 
     Note, this function imports policy params such that policies will only be
@@ -246,7 +246,7 @@ def load_agent_policy_params(policy_dir: str,
             continue
 
         if "-1" in policy_id:
-            policy_params = exp_lib.PolicyParams(
+            policy_params = run_lib.PolicyParams(
                 name="RandomPolicy",
                 gamma=gamma,
                 kwargs={"policy_id": policy_id},
@@ -255,7 +255,7 @@ def load_agent_policy_params(policy_dir: str,
             )
             random_policy_added = True
         else:
-            policy_params = exp_lib.PolicyParams(
+            policy_params = run_lib.PolicyParams(
                 name=f"PPOPolicy_{policy_id}",
                 gamma=gamma,
                 kwargs={
@@ -269,7 +269,7 @@ def load_agent_policy_params(policy_dir: str,
         policy_params_list.append(policy_params)
 
     if include_random_policy and not random_policy_added:
-        policy_params = exp_lib.PolicyParams(
+        policy_params = run_lib.PolicyParams(
             name="RandomPolicy",
             gamma=gamma,
             kwargs={"policy_id": "pi_-1"},

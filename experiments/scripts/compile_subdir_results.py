@@ -2,7 +2,7 @@
 import os
 import argparse
 
-from baposgmcp.stats import (
+from baposgmcp.run import (
     compile_results, compile_result_files, COMPILED_RESULTS_FNAME
 )
 

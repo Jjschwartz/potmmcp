@@ -5,7 +5,6 @@ from unittest import TestCase
 
 import pytest
 
-
 from baposgmcp import pbt
 
 # pylint: disable=[missing-function-docstring]

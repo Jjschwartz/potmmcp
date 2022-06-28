@@ -1,7 +1,7 @@
 """Compiles all .csv files in a directory into a single file."""
 import argparse
 
-from baposgmcp.stats import compile_results
+from baposgmcp.run import compile_results
 
 
 if __name__ == "__main__":

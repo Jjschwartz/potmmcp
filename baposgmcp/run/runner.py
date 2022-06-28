@@ -9,9 +9,10 @@ import numpy as np
 import posggym
 import posggym.model as M
 
-import baposgmcp.stats as stats_lib
-import baposgmcp.render as render_lib
 from baposgmcp.policy import BasePolicy
+import baposgmcp.run.stats as stats_lib
+import baposgmcp.run.render as render_lib
+import baposgmcp.run.writer as writer_lib
 
 
 LINE_BREAK = "-"*60
@@ -118,11 +119,11 @@ def run_sims(env: posggym.Env,
              renderers: Iterable[render_lib.Renderer],
              run_config: RunConfig,
              logger: Optional[logging.Logger] = None,
-             writer: Optional[stats_lib.Writer] = None
+             writer: Optional[writer_lib.Writer] = None
              ) -> stats_lib.AgentStatisticsMap:
     """Run Episode simulations for given env and policies."""
     logger = logging.getLogger() if logger is None else logger
-    writer = stats_lib.NullWriter() if writer is None else writer
+    writer = writer_lib.NullWriter() if writer is None else writer
 
     logger.info(
         "%s\nRunning %d episodes with Time Limit = %s s\n%s",
@@ -173,7 +174,7 @@ def run_sims(env: posggym.Env,
             "%s\nEpisode %d Complete\n%s",
             LINE_BREAK,
             episode_num,
-            stats_lib.format_as_table(episode_statistics)
+            writer_lib.format_as_table(episode_statistics)
         )
 
         if (episode_num + 1) % progress_display_freq == 0:
@@ -208,7 +209,7 @@ def run_sims(env: posggym.Env,
     logger.info(
         "%s\nSimulations Complete\n%s\n%s",
         MAJOR_LINE_BREAK,
-        stats_lib.format_as_table(statistics),
+        writer_lib.format_as_table(statistics),
         MAJOR_LINE_BREAK
     )
 

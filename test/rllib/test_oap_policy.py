@@ -9,8 +9,6 @@ from ray.tune.registry import register_env
 
 from ray.rllib.env import PettingZooEnv
 from ray.rllib.policy.policy import PolicySpec
-from ray.rllib.agents.ppo.ppo import PPOTrainer
-from ray.rllib.agents.ppo.ppo_torch_policy import PPOTorchPolicy
 from ray.rllib.examples.policy.rock_paper_scissors_dummies import (
     AlwaysSameHeuristic
 )

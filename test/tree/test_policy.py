@@ -2,29 +2,27 @@ import logging
 
 import posggym
 
-from baposgmcp import runner
+import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
-import baposgmcp.stats as stats_lib
 import baposgmcp.policy as policy_lib
-import baposgmcp.render as render_lib
 
 RENDER = False
 
 
 def _run_sims(env, policies):
     logging.basicConfig(level=logging.INFO, format='%(message)s')
-    trackers = stats_lib.get_default_trackers(policies)
+    trackers = run_lib.get_default_trackers(policies)
 
     renderers = []
     if RENDER:
-        renderers.append(render_lib.EpisodeRenderer())
+        renderers.append(run_lib.EpisodeRenderer())
 
-    runner.run_sims(
+    run_lib.run_sims(
         env,
         policies,
         trackers,
         renderers,
-        run_config=runner.RunConfig(seed=0, num_episodes=10)
+        run_config=run_lib.RunConfig(seed=0, num_episodes=10)
     )
 
 

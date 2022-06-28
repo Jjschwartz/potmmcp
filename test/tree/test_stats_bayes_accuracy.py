@@ -2,11 +2,9 @@ import logging
 
 import posggym
 
-from baposgmcp import runner
+import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
-import baposgmcp.stats as stats_lib
 import baposgmcp.policy as policy_lib
-import baposgmcp.render as render_lib
 
 RENDER = False
 
@@ -16,9 +14,9 @@ def _run_sims(env, policies, trackers, run_config):
 
     renderers = []
     if RENDER:
-        renderers.append(render_lib.EpisodeRenderer())
+        renderers.append(run_lib.EpisodeRenderer())
 
-    runner.run_sims(env, policies, trackers, renderers, run_config)
+    run_lib.run_sims(env, policies, trackers, renderers, run_config)
 
 
 def _get_rps_deterministic_policies(env, agent_id):
@@ -88,10 +86,10 @@ def test_bayes_accuracy_deterministic():
 
     policies = [agent_0_policy, agent_1_policy]
 
-    trackers = stats_lib.get_default_trackers(policies)
-    trackers.append(stats_lib.BayesAccuracyTracker(2, track_per_step=True))
+    trackers = run_lib.get_default_trackers(policies)
+    trackers.append(run_lib.BayesAccuracyTracker(2, track_per_step=True))
 
-    run_config = runner.RunConfig(
+    run_config = run_lib.RunConfig(
         seed=0, num_episodes=1, episode_step_limit=rps_step_limit
     )
 
@@ -139,10 +137,10 @@ def test_bayes_accuracy_stochastic_uniform():
 
     policies = [agent_0_policy, agent_1_policy]
 
-    trackers = stats_lib.get_default_trackers(policies)
-    trackers.append(stats_lib.BayesAccuracyTracker(2, track_per_step=True))
+    trackers = run_lib.get_default_trackers(policies)
+    trackers.append(run_lib.BayesAccuracyTracker(2, track_per_step=True))
 
-    run_config = runner.RunConfig(
+    run_config = run_lib.RunConfig(
         seed=0, num_episodes=1, episode_step_limit=rps_step_limit
     )
 
@@ -182,10 +180,10 @@ def test_bayes_accuracy_stochastic_biased():
 
     policies = [agent_0_policy, agent_1_policy]
 
-    trackers = stats_lib.get_default_trackers(policies)
-    trackers.append(stats_lib.BayesAccuracyTracker(2, track_per_step=True))
+    trackers = run_lib.get_default_trackers(policies)
+    trackers.append(run_lib.BayesAccuracyTracker(2, track_per_step=True))
 
-    run_config = runner.RunConfig(
+    run_config = run_lib.RunConfig(
         seed=0, num_episodes=10, episode_step_limit=rps_step_limit
     )
 

@@ -17,10 +17,11 @@ import numpy as np
 import posggym
 from posggym import wrappers
 
-from baposgmcp import runner
-import baposgmcp.stats as stats_lib
-import baposgmcp.render as render_lib
+from baposgmcp.run import runner
 import baposgmcp.policy as policy_lib
+import baposgmcp.run.stats as stats_lib
+import baposgmcp.run.render as render_lib
+import baposgmcp.run.writer as writer_lib
 
 
 LINE_BREAK = "-"*60
@@ -267,7 +268,7 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
 
     trackers = _get_exp_trackers(params, policies)
     renderers = _get_exp_renderers(params)
-    writer = stats_lib.ExperimentWriter(
+    writer = writer_lib.ExperimentWriter(
         params.exp_id, result_dir, _get_param_statistics(params)
     )
 
@@ -312,7 +313,7 @@ def run_experiments(exp_params_list: List[ExpParams],
     logging.log(exp_log_level, "Running %d experiments", num_exps)
 
     if result_dir is None:
-        result_dir = stats_lib.make_dir(exp_params_list[0].env_name)
+        result_dir = writer_lib.make_dir(exp_params_list[0].env_name)
 
     logging.log(exp_log_level, "Saving results to dir=%s", result_dir)
 
@@ -342,7 +343,7 @@ def run_experiments(exp_params_list: List[ExpParams],
             p.map(run_single_experiment, args_list, 1)
 
     logging.log(exp_log_level, "Compiling results")
-    stats_lib.compile_results(result_dir, extra_output_dir)
+    writer_lib.compile_results(result_dir, extra_output_dir)
 
     logging.log(
         exp_log_level,
