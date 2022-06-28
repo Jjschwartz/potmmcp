@@ -194,7 +194,9 @@ def _get_env_policies_exp_params(env_name: str,
                 tracker_fn=_tracker_fn,
                 tracker_kwargs={"step_limit": episode_step_limit},
                 renderer_fn=_renderer_fn,
-                renderer_kwargs={"render": args.render}
+                renderer_kwargs={"render": args.render},
+                record_env=args.record_env,
+                record_env_freq=max(1, args.num_episodes // 10)
             )
 
             exp_params_list.append(exp_params)
@@ -322,6 +324,10 @@ if __name__ == "__main__":
         help="Render experiment episodes."
     )
     parser.add_argument(
+        "--record_env", action="store_true",
+        help="Record renderings of experiment episodes."
+    )
+    parser.add_argument(
         "--rollout_policy_ids", type=str, default="None", nargs="*",
         help=(
             "ID/s of policy to use for BAPOSGMCP rollouts, if None use random."
@@ -331,7 +337,7 @@ if __name__ == "__main__":
         )
     )
     parser.add_argument(
-        "--include_other_policy_ids", type=str, default="None", nargs="*",
+        "--include_other_policy_ids", type=str, default=None, nargs="*",
         help=(
             "ID/s of policy to use as opponent, if None then uses all the "
             "policies 'other_agent_policy_dirs'."

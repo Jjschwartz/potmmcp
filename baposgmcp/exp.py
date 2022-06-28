@@ -69,6 +69,8 @@ class ExpParams(NamedTuple):
     setup_fn: Optional[Callable] = None
     cleanup_fn: Optional[Callable] = None
     record_env: bool = False
+    # If None then uses the default cubic frequency
+    record_env_freq: Optional[int] = None
 
 
 # A global lock used for controlling when processes print to stdout
@@ -220,6 +222,10 @@ def _get_exp_renderers(params: ExpParams) -> Sequence[render_lib.Renderer]:
     return renderers
 
 
+def _get_linear_episode_trigger(freq: int) -> Callable[[int], bool]:
+    return lambda t: t % freq == 0
+
+
 def run_single_experiment(args: Tuple[ExpParams, str]):
     """Run a single experiment and write results to a file."""
     params, result_dir = args
@@ -244,7 +250,13 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
     env = posggym.make(params.env_name)
     if params.record_env:
         video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
-        env = wrappers.RecordVideo(env, video_folder)
+        if params.record_env_freq:
+            episode_trigger = _get_linear_episode_trigger(
+                params.record_env_freq
+            )
+        else:
+            episode_trigger = None
+        env = wrappers.RecordVideo(env, video_folder, episode_trigger)
 
     policies: List[policy_lib.BasePolicy] = []
     for i, pi_params in enumerate(params.policy_params_list):

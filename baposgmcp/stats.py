@@ -957,7 +957,7 @@ def compile_results(result_dir: str,
         os.path.join(result_dir, f) for f in os.listdir(result_dir)
         if (
             os.path.isfile(os.path.join(result_dir, f))
-            and f.endswith(".csv")
+            and ExperimentWriter.is_results_file(f)
             and not f.startswith(COMPILED_RESULTS_FNAME)
         )
     ]
@@ -1162,3 +1162,33 @@ class ExperimentWriter(Writer):
 
     def close(self):
         """Close the `ExperimentWriter`."""
+
+    @staticmethod
+    def is_results_file(filename: str) -> bool:
+        """Check if filename is for an experiment summary results file."""
+        if not filename.endswith(".csv"):
+            return False
+        filename = filename.replace(".csv", "")
+        tokens = filename.split("_")
+        if len(tokens) != 2 or tokens[0] != "exp":
+            return False
+        try:
+            int(tokens[1])
+            return True
+        except ValueError:
+            return False
+
+    @staticmethod
+    def is_episodes_results_file(filename: str) -> bool:
+        """Check if filename is for an experiment episode results file."""
+        if not filename.endswith(".csv"):
+            return False
+        filename = filename.replace(".csv", "")
+        tokens = filename.split("_")
+        if len(tokens) != 3 or tokens[0] != "exp" or tokens[2] != "episodes":
+            return False
+        try:
+            int(tokens[1])
+            return True
+        except ValueError:
+            return False
