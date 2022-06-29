@@ -61,7 +61,7 @@ def get_training_logger_creator(parent_dir: str,
 
     custom_str = f"PPOTrainer_{env_name}"
     if seed is not None:
-        custom_str += f"_seed={seed}"
+        custom_str += f"_seed{seed}"
     if suffix is not None:
         custom_str += f"_{suffix}"
 

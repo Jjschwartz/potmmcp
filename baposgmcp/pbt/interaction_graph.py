@@ -193,7 +193,10 @@ class InteractionGraph:
                       agent_id: AgentID,
                       policy_id: PolicyID,
                       other_agent_id: AgentID) -> Tuple[PolicyID, Policy]:
-        """Sample an other agent policy from the graph for given policy_id."""
+        """Sample an other agent policy from the graph for given policy_id.
+
+        Returns the sampled policy id and the sampled policy.
+        """
         if self._symmetric:
             agent_id = self.SYMMETRIC_ID
             other_agent_id = self.SYMMETRIC_ID
@@ -219,11 +222,11 @@ class InteractionGraph:
         other_policy_ids = list(other_policy_dist)
         other_policy_weights = list(other_policy_dist.values())
 
-        sampled_id = self._rng.choices(
+        sampled_policy_id = self._rng.choices(
             other_policy_ids, weights=other_policy_weights, k=1
         )[0]
-
-        return policy_id, self._policies[other_agent_id][sampled_id]
+        sampled_policy = self._policies[other_agent_id][sampled_policy_id]
+        return sampled_policy_id, sampled_policy
 
     def sample_policies(self,
                         agent_id: AgentID,

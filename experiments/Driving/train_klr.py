@@ -56,7 +56,7 @@ def _get_trainer_config(args):
     num_gpus_per_trainer = args.num_gpus / num_trainers
 
     logger_creator = get_training_logger_creator(
-        "train_klr", args.env_name, args.seed, f"k={args.k}"
+        "train_klr", args.env_name, args.seed, f"k{args.k}"
     )
 
     return {
