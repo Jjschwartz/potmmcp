@@ -258,6 +258,7 @@ def validate_and_display(df: pd.DataFrame, is_baposgmcp_result: bool):
     num_exps = len(df["exp_id"].unique())
     assert num_entries == 2*num_exps
 
+    _sort_and_display(df, "seed", "Seeds")
     _sort_and_display(df, "K", "Policy K")
     _sort_and_display(df, "policy_name", "Policy Names")
 
