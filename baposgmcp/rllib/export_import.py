@@ -2,8 +2,8 @@ import os
 import os.path as osp
 import copy
 import pickle
-import datetime
 import tempfile
+from datetime import datetime
 from typing import Dict, Callable, Tuple, Sequence, Union, Any, Optional
 
 import ray

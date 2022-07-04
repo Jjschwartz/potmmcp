@@ -19,7 +19,7 @@
 # EXPERIMENT PARAMETERS
 python_file=~/code/ba-posgmcp/experiments/Driving/train_sp.py
 env_name=Driving7x7RoundAbout-v0
-num_iterations=1000
+num_iterations=2500
 
 pwd; hostname; date
 echo "--- Running Self-Play training for Driving7x7RoundAbout-v0 ---"
