@@ -47,14 +47,16 @@ def _get_env_policies_exp_params(env_name: str,
         agent_0_policy_dir,
         args.gamma,
         env_name,
-        include_random_policy=False
+        include_random_policy=False,
+        eval_mode=True
     )
 
     agent_1_policy_params = load_agent_policy_params(
         agent_1_policy_dir,
         args.gamma,
         env_name,
-        include_random_policy=False
+        include_random_policy=False,
+        eval_mode=True
     )
 
     renderers = []

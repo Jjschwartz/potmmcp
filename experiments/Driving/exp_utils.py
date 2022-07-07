@@ -1,3 +1,4 @@
+import copy
 import pathlib
 import tempfile
 import os.path as osp
@@ -95,6 +96,7 @@ def import_rllib_policy(policy_dir,
                         num_gpus: float = 0.0,
                         num_workers: int = 0,
                         env_name: Optional[str] = None,
+                        eval_mode: bool = True,
                         log_level: str = "DEBUG"):
     """Import rllib policy from file.
 
@@ -123,6 +125,13 @@ def import_rllib_policy(policy_dir,
             "env_name": env_name
         }
 
+    if eval_mode:
+        extra_config["explore"] = False
+        extra_config["exploration_config"] = {
+            "type": "StochasticSampling",
+            "random_timesteps": 0
+        }
+
     return ba_rllib.import_policy(
         policy_id=policy_id,
         igraph_dir=policy_dir,
@@ -140,7 +149,8 @@ def load_agent_policy(policy_dir: str,
                       agent_id: M.AgentID,
                       env_name: str,
                       gamma: float,
-                      seed: Optional[int] = None
+                      seed: Optional[int] = None,
+                      eval_mode: bool = True
                       ) -> ba_rllib.PPORllibPolicy:
     """Load BAPOSGMCP rllib agent policy from file.
 
@@ -155,7 +165,8 @@ def load_agent_policy(policy_dir: str,
         agent_id,
         num_gpus=0.0,
         num_workers=0,
-        env_name=env_name
+        env_name=env_name,
+        eval_mode=eval_mode
     )
 
     sample_env = get_base_env(env_name, seed)
@@ -188,6 +199,10 @@ def rllib_policy_init_fn(model, ego_agent, gamma, **kwargs):
     if "env_name" in kwargs:
         env_name = kwargs.pop("env_name")
 
+    eval_mode = True
+    if "eval_mode" in kwargs:
+        eval_mode = kwargs.pop("eval_mode")
+
     preprocessor = ba_rllib.get_flatten_preprocessor(
         model.obs_spaces[ego_agent]
     )
@@ -198,7 +213,8 @@ def rllib_policy_init_fn(model, ego_agent, gamma, **kwargs):
         ego_agent,
         num_gpus=0.0,
         num_workers=0,
-        env_name=env_name
+        env_name=env_name,
+        eval_mode=eval_mode
     )
 
     return ba_rllib.PPORllibPolicy(
@@ -215,7 +231,8 @@ def load_agent_policy_params(policy_dir: str,
                              gamma: float,
                              env_name: Optional[str] = None,
                              include_random_policy: bool = True,
-                             include_policy_ids: Optional[List[str]] = None
+                             include_policy_ids: Optional[List[str]] = None,
+                             eval_mode: bool = True
                              ) -> List[run_lib.PolicyParams]:
     """Load agent rllib policy params from file.
 
@@ -261,7 +278,8 @@ def load_agent_policy_params(policy_dir: str,
                 kwargs={
                     "policy_dir": policy_dir,
                     "policy_id": policy_id,
-                    "env_name": env_name
+                    "env_name": env_name,
+                    "eval_mode": eval_mode
                 },
                 init=rllib_policy_init_fn,
                 info=info
@@ -308,6 +326,8 @@ def load_agent_policies(agent_id: int,
             "env_config": {"env_name": env_name},
             # disables logging of CPU and GPU usage
             "log_sys_usage": False,
+            # disable policy exploration
+            "explore": False
         }
     )
 
@@ -349,6 +369,38 @@ def load_agent_policies(agent_id: int,
         policies_map["pi_-1"] = new_policy
 
     return policies_map
+
+
+def get_rl_training_config(env_name: str, seed: int, log_level: str):
+    """Get the Rllib agent config for an agent being trained."""
+    config = copy.deepcopy(RL_TRAINER_CONFIG)
+    config["log_level"] = log_level
+    config["seed"] = seed
+    config["env_config"] = {
+        "env_name": env_name,
+        "seed": seed
+    }
+    config["explore"] = True
+    config["exploration_config"] = {
+        "type": "StochasticSampling",
+        # add some random timesteps to get agents away from initial "safe"
+        # starting positions
+        "random_timesteps": 5
+    }
+    return config
+
+
+def get_rl_eval_config():
+    """Get the Rllib agent config for an agent being evaluated."""
+    config = copy.deepcopy(RL_TRAINER_CONFIG)
+    config["explore"] = False
+    config["exploration_config"] = {
+        "type": "StochasticSampling",
+        # add some random timesteps to get agents away from initial "safe"
+        # starting positions
+        "random_timesteps": 0
+    }
+    return config
 
 
 # Ref: https://docs.ray.io/en/latest/rllib/rllib-training.html#configuration
@@ -434,7 +486,8 @@ RL_TRAINER_CONFIG = {
     "entropy_coeff": 0.01,
     "entropy_coeff_schedule": None,
     "clip_param": 0.3,
-    "vf_clip_param": 30.0,
+    # max return is 1.0 so clip as such
+    "vf_clip_param": 1.0,
     "grad_clip": None,
     "kl_target": 0.01,
     # "trancate_episodes" or "complete_episodes"

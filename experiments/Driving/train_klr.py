@@ -14,7 +14,7 @@ import baposgmcp.rllib as ba_rllib
 from exp_utils import (
     registered_env_creator,
     EXP_RL_POLICY_DIR,
-    RL_TRAINER_CONFIG,
+    get_rl_training_config,
     get_rllib_env,
     get_training_logger_creator
 )
@@ -41,13 +41,9 @@ def _get_igraph(args) -> pbt.InteractionGraph:
 
 
 def _get_trainer_config(args):
-    default_trainer_config = dict(RL_TRAINER_CONFIG)
-    default_trainer_config["log_level"] = args.log_level
-    default_trainer_config["seed"] = args.seed
-    default_trainer_config["env_config"] = {
-        "env_name": args.env_name,
-        "seed": args.seed
-    }
+    default_trainer_config = get_rl_training_config(
+        args.env_name, args.seed, args.log_level
+    )
 
     num_trainers = (args.k+1)
     if args.train_best_response:
