@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1           # number if tasks to run
 #SBATCH --cpus-per-task=2    # TODO change this, may need more
 #SBATCH --mem=16GB           # Total amount of memory required
-#SBATCH --time=0-10:00:00    # 0 days, 10 hours, 00 minutes, 00 seconds
+#SBATCH --time=0-14:00:00    # 0 days, 10 hours, 00 minutes, 00 seconds
 #SBATCH --partition=gpu      # slurm partition to use
 #SBATCH --gres=gpu:1         # request a single GPU, use gpu:2 for 2 gpus
 # OTHER
@@ -19,7 +19,7 @@
 # EXPERIMENT PARAMETERS
 python_file=~/code/ba-posgmcp/experiments/Driving/train_sp.py
 env_name=Driving7x7RoundAbout-v0
-num_iterations=2500
+num_iterations=5000    # 10 million steps
 
 pwd; hostname; date
 echo "--- Running Self-Play training for Driving7x7RoundAbout-v0 ---"
