@@ -5,7 +5,7 @@ import ray
 from ray.tune.registry import register_env
 
 from ray.rllib.policy.policy import PolicySpec
-from ray.rllib.agents.ppo import PPOTrainer, PPOTorchPolicy
+from ray.rllib.agents.ppo import PPOTorchPolicy
 
 from baposgmcp import pbt
 import baposgmcp.rllib as ba_rllib
@@ -66,7 +66,7 @@ def _get_trainers(args, igraph, trainer_config):
 
     trainer = ba_rllib.get_remote_trainer(
         args.env_name,
-        trainer_class=PPOTrainer,
+        trainer_class=ba_rllib.BAPOSGMCPPPOTrainer,
         policies=policy_spec_map,
         policy_mapping_fn=policy_mapping_fn,
         policies_to_train=[train_policy_id],

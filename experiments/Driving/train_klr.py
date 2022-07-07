@@ -5,7 +5,7 @@ import ray
 from ray.tune.registry import register_env
 
 from ray.rllib.policy.policy import PolicySpec
-from ray.rllib.agents.ppo import PPOTrainer, PPOTorchPolicy
+from ray.rllib.agents.ppo import PPOTorchPolicy
 from ray.rllib.examples.policy.random_policy import RandomPolicy
 
 from baposgmcp import pbt
@@ -59,6 +59,12 @@ def _get_trainer_config(args):
         "train_klr", args.env_name, args.seed, f"k{args.k}"
     )
 
+    if args.run_serially:
+        return {
+            "default_trainer_config": default_trainer_config,
+            "logger_creator": logger_creator
+        }
+
     return {
         "default_trainer_config": default_trainer_config,
         "num_workers": args.num_workers,
@@ -94,21 +100,30 @@ def _get_trainers(args, igraph, trainer_config):
             policy_spec_j = random_policy_spec if k == -1 else ppo_policy_spec
             policy_spec_map[policy_j_id] = policy_spec_j
 
-        trainer_k = ba_rllib.get_remote_trainer(
-            args.env_name,
-            trainer_class=PPOTrainer,
-            policies=policy_spec_map,
-            policy_mapping_fn=policy_mapping_fn,
-            policies_to_train=[train_policy_id],
-            **trainer_config
-        )
+        if args.run_serially:
+            print("Running serially")
+            trainer_k = ba_rllib.get_trainer(
+                args.env_name,
+                trainer_class=ba_rllib.BAPOSGMCPPPOTrainer,
+                policies=policy_spec_map,
+                policy_mapping_fn=policy_mapping_fn,
+                policies_to_train=[train_policy_id],
+                **trainer_config
+            )
+            trainer_k_weights = trainer_k.get_weights([train_policy_id])
+        else:
+            trainer_k = ba_rllib.get_remote_trainer(
+                args.env_name,
+                trainer_class=ba_rllib.BAPOSGMCPPPOTrainer,
+                policies=policy_spec_map,
+                policy_mapping_fn=policy_mapping_fn,
+                policies_to_train=[train_policy_id],
+                **trainer_config
+            )
+            trainer_k_weights = trainer_k.get_weights.remote([train_policy_id])
 
         trainers[train_policy_id] = trainer_k
-        igraph.update_policy(
-            None,
-            train_policy_id,
-            trainer_k.get_weights.remote(train_policy_id)
-        )
+        igraph.update_policy(None, train_policy_id, trainer_k_weights)
 
     # need to map from agent_id to trainers
     trainer_map = {pbt.InteractionGraph.SYMMETRIC_ID: trainers}
@@ -154,6 +169,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_policies", action="store_true",
         help="Save policies to file."
+    )
+    parser.add_argument(
+        "--run_serially", action="store_true",
+        help="Run training serially."
     )
 
     args = parser.parse_args()

@@ -16,7 +16,9 @@ from baposgmcp.rllib.oap_policy import register_oap_model
 from baposgmcp.rllib.oap_policy import register_lstm_oap_model
 from baposgmcp.rllib.policy import RllibPolicy
 from baposgmcp.rllib.policy import PPORllibPolicy
+from baposgmcp.rllib.train import BAPOSGMCPPPOTrainer
 from baposgmcp.rllib.train import get_remote_trainer
+from baposgmcp.rllib.train import get_trainer
 from baposgmcp.rllib.train import run_training
 from baposgmcp.rllib.train import run_evaluation
 from baposgmcp.rllib.utils import get_igraph_policy_mapping_fn
