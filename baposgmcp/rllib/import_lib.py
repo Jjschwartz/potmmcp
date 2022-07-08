@@ -298,9 +298,6 @@ def import_igraph_trainers(igraph_dir: str,
             trainer_args, num_trainers, num_gpus
         )
 
-    print(trainer_args)
-    input()
-
     import_fn, trainer_map = get_trainer_weights_import_fn(
         trainer_args=trainer_args,
         extra_config=extra_config
