@@ -40,7 +40,7 @@ def _get_igraph(args) -> pbt.InteractionGraph:
     return igraph
 
 
-def _get_trainer_config(args):
+def _get_trainer_config(args, policy_id: str):
     default_trainer_config = get_rl_training_config(
         args.env_name, args.seed, args.log_level
     )
@@ -52,7 +52,7 @@ def _get_trainer_config(args):
     num_gpus_per_trainer = args.num_gpus / num_trainers
 
     logger_creator = get_training_logger_creator(
-        "train_klr", args.env_name, args.seed, f"k{args.k}"
+        "train_klr", args.env_name, args.seed, f"k{args.k}_{policy_id}"
     )
 
     if args.run_serially:
@@ -69,7 +69,7 @@ def _get_trainer_config(args):
     }
 
 
-def _get_trainers(args, igraph, trainer_config):
+def _get_trainers(args, igraph):
     sample_env = get_rllib_env(args)
     # obs and action spaces are the same for both agent in TwoPaths env
     obs_space = sample_env.observation_space["0"]
@@ -96,6 +96,7 @@ def _get_trainers(args, igraph, trainer_config):
             policy_spec_j = random_policy_spec if k == -1 else ppo_policy_spec
             policy_spec_map[policy_j_id] = policy_spec_j
 
+        trainer_config = _get_trainer_config(args, train_policy_id)
         if args.run_serially:
             print("Running serially")
             trainer_k = ba_rllib.get_trainer(
@@ -164,13 +165,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--save_policies", action="store_true",
-        help="Save policies to file."
+        help="Save policies to file at end of training."
     )
     parser.add_argument(
         "--run_serially", action="store_true",
         help="Run training serially."
     )
-
     args = parser.parse_args()
 
     # check env name is valid
@@ -182,8 +182,7 @@ if __name__ == "__main__":
     igraph = _get_igraph(args)
     igraph.display()
 
-    trainer_config = _get_trainer_config(args)
-    trainers = _get_trainers(args, igraph, trainer_config)
+    trainers = _get_trainers(args, igraph)
 
     ba_rllib.run_training(trainers, igraph, args.num_iterations, verbose=True)
 
@@ -194,7 +193,7 @@ if __name__ == "__main__":
             EXP_RL_POLICY_DIR,
             igraph,
             trainers,
-            trainers_remote=True,
+            trainers_remote=not args.run_serially,
             save_dir_name=save_dir
         )
         print(f"{export_dir=}")

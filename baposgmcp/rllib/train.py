@@ -1,94 +1,9 @@
-from typing import Optional, Callable
-
 import ray
 from ray.tune.logger import pretty_print
-
-from ray.rllib.agents.ppo.ppo import PPOTrainer
-from ray.rllib.utils.annotations import override
 
 from baposgmcp import pbt
 
 from baposgmcp.rllib.utils import RllibTrainerMap
-
-
-class BAPOSGMCPPPOTrainer(PPOTrainer):
-    """Custom Rllib trainer class for the Rllib PPOPolicy.
-
-    Adds functions needed by BAPOSGMCP for experiments, etc.
-    """
-
-    def sync_weights(self):
-        """Sync weights between all workers.
-
-        This is only implemented so that it's easier to sync weights when
-        running with Trainers as ray remote Actors (i.e. when training in
-        parallel).
-        """
-        self.workers.sync_weights()
-
-
-def get_remote_trainer(env_name: str,
-                       trainer_class,
-                       policies,
-                       policy_mapping_fn,
-                       policies_to_train,
-                       num_workers: int,
-                       num_gpus_per_trainer: float,
-                       default_trainer_config,
-                       logger_creator: Optional[Callable] = None):
-    """Get remote trainer."""
-    trainer_remote = ray.remote(
-        num_cpus=num_workers,
-        num_gpus=num_gpus_per_trainer,
-        memory=None,
-        object_store_memory=None,
-        resources=None
-    )(trainer_class)
-
-    trainer_config = dict(default_trainer_config)
-    trainer_config["multiagent"] = {
-        "policies": policies,
-        "policy_mapping_fn": policy_mapping_fn,
-        "policies_to_train": policies_to_train,
-    }
-
-    if num_gpus_per_trainer == 0.0:
-        # needed to avoid error
-        trainer_config["num_gpus"] = 0.0
-    else:
-        trainer_config["num_gpus"] = 1.0
-
-    trainer = trainer_remote.remote(
-        env=env_name,
-        config=trainer_config,
-        logger_creator=logger_creator
-    )
-
-    return trainer
-
-
-def get_trainer(env_name: str,
-                trainer_class,
-                policies,
-                policy_mapping_fn,
-                policies_to_train,
-                default_trainer_config,
-                logger_creator: Optional[Callable] = None):
-    """Get trainer."""
-    trainer_config = dict(default_trainer_config)
-    trainer_config["multiagent"] = {
-        "policies": policies,
-        "policy_mapping_fn": policy_mapping_fn,
-        "policies_to_train": policies_to_train,
-    }
-
-    trainer = trainer_class(
-        env=env_name,
-        config=trainer_config,
-        logger_creator=logger_creator
-    )
-
-    return trainer
 
 
 def _check_train_policy_weights(trainer):

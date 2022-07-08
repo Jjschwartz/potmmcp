@@ -5,9 +5,6 @@ import os.path as osp
 from datetime import datetime
 from typing import Optional, List, Dict, Callable
 
-from ray.tune.logger import NoopLogger
-from ray.rllib.agents.ppo import PPOTrainer
-
 import posggym
 import posggym.model as M
 from posggym.wrappers import FlattenObservation
@@ -82,14 +79,6 @@ def get_result_dir(prefix, root_dir: Optional[str] = None) -> str:
     return result_dir
 
 
-def _trainer_make_fn(config):
-    return PPOTrainer(
-        env=config["env_config"]["env_name"],
-        config=config,
-        logger_creator=lambda c: NoopLogger(c, "")
-    )
-
-
 def import_rllib_policy(policy_dir,
                         policy_id,
                         agent_id,
@@ -132,14 +121,19 @@ def import_rllib_policy(policy_dir,
             "random_timesteps": 0
         }
 
+    trainer_args = ba_rllib.TrainerImportArgs(
+        trainer_class=ba_rllib.BAPOSGMCPPPOTrainer,
+        trainer_remote=False,
+        logger_creator=ba_rllib.noop_logger_creator
+    )
+
     return ba_rllib.import_policy(
         policy_id=policy_id,
         igraph_dir=policy_dir,
         env_is_symmetric=True,
         agent_id=agent_id,
-        trainer_make_fn=_trainer_make_fn,
+        trainer_args=trainer_args,
         policy_mapping_fn=None,
-        trainers_remote=False,
         extra_config=extra_config
     )
 
@@ -311,11 +305,16 @@ def load_agent_policies(agent_id: int,
     sample_env = get_base_env(env_name, env_seed)
     env_model = sample_env.unwrapped.model
 
+    trainer_args = ba_rllib.TrainerImportArgs(
+        trainer_class=ba_rllib.BAPOSGMCPPPOTrainer,
+        trainer_remote=False,
+        logger_creator=ba_rllib.noop_logger_creator
+    )
+
     _, policy_map = ba_rllib.import_igraph_policies(
         igraph_dir=policy_dir,
         env_is_symmetric=True,
-        trainer_make_fn=_trainer_make_fn,
-        trainers_remote=False,
+        trainer_args=trainer_args,
         policy_mapping_fn=None,
         extra_config={
             # only using policies for rollouts so no GPU

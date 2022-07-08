@@ -30,13 +30,13 @@ def _get_igraph(args) -> pbt.InteractionGraph:
     return igraph
 
 
-def _get_trainer_config(args):
+def _get_trainer_config(args, policy_id: str):
     default_trainer_config = get_rl_training_config(
         args.env_name, args.seed, args.log_level
     )
 
     logger_creator = get_training_logger_creator(
-        "train_sp", args.env_name, args.seed, None
+        "train_sp", args.env_name, args.seed, policy_id
     )
 
     return {
@@ -47,7 +47,7 @@ def _get_trainer_config(args):
     }
 
 
-def _get_trainers(args, igraph, trainer_config):
+def _get_trainers(args, igraph):
     sample_env = get_rllib_env(args)
     # obs and action spaces are the same for both agent in TwoPaths env
     obs_space = sample_env.observation_space["0"]
@@ -60,6 +60,7 @@ def _get_trainers(args, igraph, trainer_config):
     train_policy_spec = PolicySpec(PPOTorchPolicy, obs_space, act_space, {})
     policy_spec_map = {train_policy_id: train_policy_spec}
 
+    trainer_config = _get_trainer_config(args, train_policy_id)
     trainer = ba_rllib.get_remote_trainer(
         args.env_name,
         trainer_class=ba_rllib.BAPOSGMCPPPOTrainer,
@@ -125,8 +126,7 @@ if __name__ == "__main__":
     igraph = _get_igraph(args)
     igraph.display()
 
-    trainer_config = _get_trainer_config(args)
-    trainers = _get_trainers(args, igraph, trainer_config)
+    trainers = _get_trainers(args, igraph)
 
     ba_rllib.run_training(trainers, igraph, args.num_iterations, verbose=True)
 

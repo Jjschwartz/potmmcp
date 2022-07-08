@@ -171,6 +171,43 @@ class InteractionGraph:
                         1
                     )
 
+    def get_agent_outgoing_policies(self, agent_id: AgentID) -> List[PolicyID]:
+        """Get list of IDs of outgoing policies for an agent.
+
+        Outgoing policies have at least one edge going to another policy,
+        including themselves. These are the policies whose behaviour/evolution
+        is dependent will change as policies interact.
+
+        Policies with no outgoing edges are assumed to be fixed.
+        """
+        if self._symmetric:
+            agent_id = self.SYMMETRIC_ID
+
+        outgoing_policy_ids = []
+        for policy_id in self._graph[agent_id]:
+            if len(self._graph[agent_id][policy_id]) > 0:
+                outgoing_policy_ids.append(policy_id)
+
+        return outgoing_policy_ids
+
+    def get_outgoing_policies(self) -> Dict[AgentID, List[PolicyID]]:
+        """Get list of IDs of outgoing policies for each agent.
+
+        Outgoing policies have at least one edge going to another policy,
+        including themselves. These are the policies whose behaviour/evolution
+        is dependent will change as policies interact.
+
+        Policies with no outgoing edges are assumed to be fixed.
+        """
+        if self._symmetric:
+            policies = self.get_agent_outgoing_policies(self.SYMMETRIC_ID)
+            return {self.SYMMETRIC_ID: policies}
+
+        return {
+            i: self.get_agent_outgoing_policies(i)
+            for i in self.get_agent_ids()
+        }
+
     def update_policy(self,
                       agent_id: AgentID,
                       policy_id: PolicyID,
