@@ -56,13 +56,13 @@ python_file=~/code/ba-posgmcp/experiments/Driving/train_continue.py
 env_name=Driving7x7RoundAbout-v0
 num_iterations=5000    # 10 million steps
 
-base_policy_dir=~/baposgmcp_results/Driving/rl_policies/2022-07-08_1/
+base_policy_dir=~/baposgmcp_results/Driving/rl_policies/2022-07-08_2/
 policy_dir_names=( \
-train_klr_Driving7x7RoundAbout-v0_k4_seed0_2022-07-08_10-25-51bmmuw9w4 \
-train_klr_Driving7x7RoundAbout-v0_k4_seed1_2022-07-08_10-25-29clxa4wi4 \
-train_klr_Driving7x7RoundAbout-v0_k4_seed2_2022-07-08_10-28-123v2pl7ms \
-train_klr_Driving7x7RoundAbout-v0_k4_seed3_2022-07-08_07-10-27ax2bv56n \
-train_klr_Driving7x7RoundAbout-v0_k4_seed4_2022-07-08_07-03-09cahxgscg \
+train_klr_Driving7x7RoundAbout-v0_k4_seed0_2022-07-09_18-50-31b3m5fpy2 \
+train_klr_Driving7x7RoundAbout-v0_k4_seed1_2022-07-09_18-54-10i5wvzayi \
+train_klr_Driving7x7RoundAbout-v0_k4_seed2_2022-07-09_18-41-32jrhdzewd \
+train_klr_Driving7x7RoundAbout-v0_k4_seed3_2022-07-09_18-43-24zewlvxse \
+train_klr_Driving7x7RoundAbout-v0_k4_seed4_2022-07-09_17-58-594zb873fc
 )
 policy_dir=$base_policy_dir${policy_dir_names[($SLURM_ARRAY_TASK_ID)]}
 
