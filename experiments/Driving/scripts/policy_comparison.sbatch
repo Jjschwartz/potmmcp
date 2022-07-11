@@ -15,7 +15,7 @@
 # EXPERIMENT PARAMETERS
 python_file=~/code/ba-posgmcp/experiments/Driving/pairwise_comparison.py
 env_name=Driving7x7RoundAbout-v0
-policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-06-01/*
+policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-07-08_3/*
 num_episodes=1000
 
 pwd; hostname; date
