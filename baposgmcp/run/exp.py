@@ -323,20 +323,19 @@ def run_experiments(exp_params_list: List[ExpParams],
 
     mp_lock = mp.Lock()
 
+    def _initializer(init_args):
+        proc_lock = init_args
+        _init_lock(proc_lock)
+        # limit ray to using only a single CPU per experiment process
+        logging.log(exp_log_level, "Initializing ray")
+        ray.init(num_cpus=1, include_dashboard=False)
+
     if n_procs == 1:
-        _init_lock(mp_lock)
+        _initializer(mp_lock)
         for params in exp_params_list:
             run_single_experiment((params, result_dir))
     else:
         args_list = [(params, result_dir) for params in exp_params_list]
-
-        def _initializer(init_args):
-            proc_lock = init_args
-            _init_lock(proc_lock)
-            # limit ray to using only a single CPU per experiment process
-            logging.log(exp_log_level, "Initializing ray")
-            ray.init(num_cpus=1, include_dashboard=False)
-
         with mp.Pool(
                 n_procs, initializer=_initializer, initargs=(mp_lock,)
         ) as p:

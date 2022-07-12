@@ -267,3 +267,9 @@ Before that let's try a few things (using =n_procs=2=):
 *Update* I fixed the issue re calling =ray.init= twice by calling =ray.init(num_cpus=1)= within the =initializer= function that can be passed to =mp.Pool=. This seemed to do the trick. The program runs and only a single =ray::IDLE= process is generated per experiment.
 
 *Bonus* calling =ray.init= also allows me to specify =include_dashboard=False= which gets rid of that annoying background process.
+
+* BAPOSGMCP memory usage
+
+Trying to determine the memory usage for each BAPOSGMCP KLR experiment.
+
+Based on slurm messages, usage was around 19GB for BAPOSGMCP using 10 cores and 1024 sims. Memory usage decreased with num sims, down to less than 8 GB for 10 cores using 8 sims.
