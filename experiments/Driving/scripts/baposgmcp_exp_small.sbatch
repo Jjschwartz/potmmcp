@@ -49,6 +49,8 @@ fi
 sleep 2
 
 test_sims=(8 16 32 64 128 256 512 1024)
+# number of training seeds
+num_policy_dirs=5
 base_policy_dir=~/baposgmcp_results/Driving/rl_policies/2022-07-08_3/
 baposgmcp_policy_dir_name=train_klr_Driving7x7RoundAbout-v0_k4_seed0_2022-07-10_13-12-42d6htlanm
 
