@@ -206,6 +206,16 @@ def _get_other_agent_seed(row):
     return get_other_policies_properties(row)[2]
 
 
+def get_coplayer_property(row, plot_df, key):
+    """Get properties of coplayer."""
+    co_player_df = plot_df[
+        (plot_df["exp_id"] == row["exp_id"])
+        & (plot_df["agent_id"] != row["agent_id"])
+    ]
+    return co_player_df[key].unique()[0]
+
+
+
 def import_results(result_dir: str,
                    columns_to_drop: List[str],
                    is_baposgmcp_result: bool) -> pd.DataFrame:
@@ -224,6 +234,12 @@ def import_results(result_dir: str,
     df["train_env_name"] = df.apply(_get_train_env, axis=1)
     df["train_seed"] = df.apply(_get_train_seed, axis=1)
     df["train_alg"] = df.apply(_get_train_alg, axis=1)
+    df["coplayer_K"] = df.apply(
+        lambda row: get_coplayer_property(row, df, "K"), axis=1
+    )
+    df["coplayer_train_seed"] = df.apply(
+        lambda row: get_coplayer_property(row, df, "train_seed"), axis=1
+    )
 
     if is_baposgmcp_result:
         df["rollout_id"] = df.apply(_get_rollout_policy_id, axis=1)
@@ -232,13 +248,22 @@ def import_results(result_dir: str,
         df["rollout_alg"] = df.apply(_get_rollout_policy_alg, axis=1)
         df["other_alg"] = df.apply(_get_other_agent_alg, axis=1)
         df["other_seed"] = df.apply(_get_other_agent_seed, axis=1)
+        df["coplayer_num_sims"] = df.apply(
+            lambda row: get_coplayer_property(row, df, "num_sims"), axis=1
+        )
+        df["coplayer_other_seed"] = df.apply(
+            lambda row: get_coplayer_property(row, df, "other_seed"), axis=1
+        )
 
     return df
 
 
 def _sort_and_display(df: pd.DataFrame, key: str, display_name: str):
     values = df[key].unique()
-    values.sort()
+    try:
+        values.sort()
+    except TypeError:
+        pass
     print(f"{display_name}: {values}")
 
 
@@ -267,6 +292,9 @@ def validate_and_display(df: pd.DataFrame, is_baposgmcp_result: bool):
         _sort_and_display(df, "train_seed", "Train Seeds")
         _sort_and_display(df, "train_alg", "Train Algorithms")
 
+    _sort_and_display(df, "coplayer_K", "Coplayer Policy K")
+    _sort_and_display(df, "coplayer_train_seed", "Coplayer Train Seed")
+
     print("Num rows/entries:", num_entries)
     print("Num experiments:", num_exps)
 
@@ -280,6 +308,7 @@ def validate_and_display(df: pd.DataFrame, is_baposgmcp_result: bool):
         _sort_and_display(ba_only_df, "rollout_alg", "Rollout Policy Algs")
         _sort_and_display(ba_only_df, "other_alg", "Other Agent Policy Algs")
         _sort_and_display(ba_only_df, "other_seed", "Other Agent Policy Seeds")
+
 
         for c in BAPOSGMCP_HYPERPARAMETERS:
             values = ba_only_df[c].unique()
