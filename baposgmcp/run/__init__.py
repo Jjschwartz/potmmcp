@@ -10,6 +10,7 @@ from baposgmcp.run.render import Renderer
 from baposgmcp.run.render import EpisodeRenderer
 from baposgmcp.run.render import PauseRenderer
 from baposgmcp.run.render import PolicyBeliefRenderer
+from baposgmcp.run.render import SearchTreeRenderer
 from baposgmcp.run.render import generate_renders
 from baposgmcp.run.runner import EpisodeLoopStep
 from baposgmcp.run.runner import RunConfig

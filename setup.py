@@ -29,7 +29,11 @@ extras = {
         "pettingzoo==1.18",    # pettingzoo envs used for tests, e.g. RPS
         "pygame==2.1"          # dependency of pettingzoo envs used in tests
     ],
-    "render": ["matplotlib>=3.5"]
+    "render": [
+        "matplotlib>=3.5",
+        "networkx>=2.8.2",
+        "pygraphviz>=1.9"
+    ]
 }
 
 extras['all'] = [item for group in extras.values() for item in group]

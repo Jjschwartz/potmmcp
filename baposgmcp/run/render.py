@@ -4,6 +4,8 @@ from typing import Sequence, Dict, Any, Iterable
 import matplotlib
 from matplotlib import cm
 import matplotlib.pyplot as plt
+import networkx as nx
+from networkx.drawing.nx_agraph import graphviz_layout
 
 import posggym
 import posggym.model as M
@@ -144,6 +146,73 @@ class PolicyBeliefRenderer(Renderer):
             f"t={baposgmcp.history.t} ego_agent={baposgmcp.ego_agent}"
         )
         self._fig.tight_layout()
+
+
+class SearchTreeRenderer(Renderer):
+    """Renders a policies search tree."""
+
+    def __init__(self, tree_depth: int):
+        self._tree_depth = tree_depth
+
+    def render_step(self,
+                    episode_t: int,
+                    env: posggym.Env,
+                    timestep: M.JointTimestep,
+                    action: M.JointAction,
+                    policies: Sequence[policy_lib.BasePolicy],
+                    episode_end: bool) -> None:
+        if episode_t == 0:
+            return
+
+        for policy in policies:
+            if isinstance(policy, tree_lib.BAPOSGMCP):
+                self._render_tree(policy)
+
+    def _render_tree(self, baposgmcp: tree_lib.BAPOSGMCP) -> None:
+        root_node = baposgmcp.root
+
+        graph = nx.DiGraph()
+        graph.add_node(
+            root_node,
+            v=f"{root_node.value:.2f}",
+            n=root_node.visits,
+            o=root_node.obs
+        )
+        self._recursively_build_tree(graph, root_node, 0)
+
+        pos = graphviz_layout(graph, prog='dot')
+        node_colors = []
+        for node in graph.nodes():
+            node_colors.append("#A0CBE2")
+
+        fig, ax = plt.subplots(nrows=1, ncols=1, squeeze=True)
+        nx.draw(graph, pos, ax, node_color=node_colors, with_labels=True)
+
+        fig.suptitle(f"Agent {baposgmcp.ego_agent} t={baposgmcp.history.t}")
+        fig.tight_layout()
+
+    def _recursively_build_tree(self,
+                                graph: nx.DiGraph,
+                                parent: tree_lib.Node,
+                                depth: int):
+        if len(parent.children) == 0 or depth == self._tree_depth:
+            return
+
+        for child in parent.children:
+            if isinstance(child, tree_lib.ActionNode):
+                graph.add_node(
+                    child, v=f"{child.value:.2f}",
+                    n=child.visits,
+                    a=child.action
+                )
+            else:
+                graph.add_node(
+                    child, v=f"{child.value:.2f}",
+                    n=child.visits,
+                    o=child.obs
+                )
+            graph.add_edge(parent, child)
+            self._recursively_build_tree(graph, child, depth+1)
 
 
 def generate_renders(renderers: Iterable[Renderer],

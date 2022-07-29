@@ -245,7 +245,8 @@ class SearchTimeTracker(Tracker):
         "update_time",
         "reinvigoration_time",
         "policy_calls",
-        "inference_time"
+        "inference_time",
+        "search_depth"
     ]
 
     def __init__(self, num_agents: int):
