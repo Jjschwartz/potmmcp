@@ -1,5 +1,5 @@
 """A node in the search tree."""
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 import posggym.model as M
 
@@ -35,7 +35,9 @@ class ObsNode(Node):
                  obs: M.Observation,
                  belief: B.HPSParticleBelief,
                  policy: parts.ActionDist,
-                 rollout_policy_hidden_state: H.PolicyHiddenState,
+                 rollout_policy_hidden_states: Optional[
+                     Dict[parts.PolicyID, H.PolicyHiddenStates]
+                 ] = None,
                  init_value: float = 0.0,
                  init_visits: int = 0):
         super().__init__()
@@ -43,7 +45,9 @@ class ObsNode(Node):
         self.obs = obs
         self.belief = belief
         self.policy = policy
-        self.rollout_policy_hidden_state = rollout_policy_hidden_state
+        self.rollout_policy_hidden_states = {}
+        if rollout_policy_hidden_states is not None:
+            self.rollout_policy_hidden_states = rollout_policy_hidden_states
         self.value = init_value
         self.visits = init_visits
         self.children: List['ActionNode'] = []

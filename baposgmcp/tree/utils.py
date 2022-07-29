@@ -33,10 +33,8 @@ def get_baposgmcp_args_parser(parser: Optional[ArgumentParser] = None
     return parser
 
 
-def get_state_belief(tree: tree_lib.BAPOSGMCP,
-                     history: Optional[H.AgentHistory] = None
-                     ) -> Optional[parts.StateDist]:
-    """Get agent's distribution over states for a given history.
+def get_state_belief(tree: tree_lib.BAPOSGMCP) -> Optional[parts.StateDist]:
+    """Get tree's root node distribution over states.
 
     May return distribution over only states with p(s) > 0 as opposed to all
     environment states.
@@ -45,15 +43,11 @@ def get_state_belief(tree: tree_lib.BAPOSGMCP,
     agent (represented by the tree policy) has reached an absorbing/terminal
     state, yet the environment episode has not terminated.
     """
-    if history is None:
-        history = tree.history
-    h_node = tree.traverse(history)
-
-    if h_node.belief.size() == 0:
+    if tree.root.belief.size() == 0:
         return None
 
     state_belief = {}
-    for hp_state, prob in h_node.belief.get_dist().items():
+    for hp_state, prob in tree.root.belief.get_dist().items():
         state = hp_state.state   # type: ignore
         if state not in state_belief:
             state_belief[state] = 0.0
@@ -61,12 +55,11 @@ def get_state_belief(tree: tree_lib.BAPOSGMCP,
     return state_belief
 
 
-def get_other_pis_belief(tree: tree_lib.BAPOSGMCP,
-                         history: Optional[H.AgentHistory] = None
+def get_other_pis_belief(tree: tree_lib.BAPOSGMCP
                          ) -> Optional[
                              Dict[M.AgentID, Dict[parts.PolicyID, float]]
                          ]:
-    """Get agent's belief over other agent policies given history.
+    """Get tree's root node belief over other agent policies.
 
     This returns a distribution over policies for each opponent/other agent
     in the environment.
@@ -75,11 +68,7 @@ def get_other_pis_belief(tree: tree_lib.BAPOSGMCP,
     agent (represented by the tree policy) has reached an absorbing/terminal
     state, yet the environment episode has not terminated.
     """
-    if history is None:
-        history = tree.history
-    h_node = tree.traverse(history)
-
-    if h_node.belief.size() == 0:
+    if tree.root.belief.size() == 0:
         return None
 
     pi_belief: Dict[M.AgentID, Dict[parts.PolicyID, float]] = {}
@@ -89,7 +78,7 @@ def get_other_pis_belief(tree: tree_lib.BAPOSGMCP,
         # pylint: disable=[protected-access]
         pi_belief[i] = {pi_id: 0.0 for pi_id in tree._other_prior[i][0]}
 
-    for hp_state, prob in h_node.belief.get_dist().items():
+    for hp_state, prob in tree.root.belief.get_dist().items():
         pi_state = hp_state.other_policies   # type: ignore
         for i in range(tree.num_agents):
             if i == tree.ego_agent:
@@ -100,22 +89,17 @@ def get_other_pis_belief(tree: tree_lib.BAPOSGMCP,
     return pi_belief
 
 
-def get_other_history_belief(tree: tree_lib.BAPOSGMCP,
-                             history: Optional[H.AgentHistory] = None
+def get_other_history_belief(tree: tree_lib.BAPOSGMCP
                              ) -> Optional[
                                  Dict[M.AgentID, Dict[H.AgentHistory, float]]
                              ]:
-    """Get agent's belief over history of other agents.
+    """Get tree's root node belief over history of other agents.
 
     Returns None if belief is empty for given history. This can occur if the
     agent (represented by the tree policy) has reached an absorbing/terminal
     state, yet the environment episode has not terminated.
     """
-    if history is None:
-        history = tree.history
-    h_node = tree.traverse(history)
-
-    if h_node.belief.size() == 0:
+    if tree.root.belief.size() == 0:
         return None
 
     history_belief: Dict[M.AgentID, Dict[H.AgentHistory, float]] = {}
@@ -124,7 +108,7 @@ def get_other_history_belief(tree: tree_lib.BAPOSGMCP,
             continue
         history_belief[i] = {}
 
-    for hp_state, prob in h_node.belief.get_dist().items():
+    for hp_state, prob in tree.root.belief.get_dist().items():
         h = hp_state.history    # type: ignore
         for i in range(tree.num_agents):
             if i == tree.ego_agent:
@@ -136,22 +120,17 @@ def get_other_history_belief(tree: tree_lib.BAPOSGMCP,
     return history_belief
 
 
-def get_other_agent_action_dist(tree: tree_lib.BAPOSGMCP,
-                                history: Optional[H.AgentHistory] = None
+def get_other_agent_action_dist(tree: tree_lib.BAPOSGMCP
                                 ) -> Optional[
                                     Dict[M.AgentID, parts.ActionDist]
                                 ]:
-    """Get agent's belief over the action distribution of the other agents.
+    """Get tree's root node belief over action dists of other agents.
 
     Returns None if belief is empty for given history. This can occur if the
     agent (represented by the tree policy) has reached an absorbing/terminal
     state, yet the environment episode has not terminated.
     """
-    if history is None:
-        history = tree.history
-    h_node = tree.traverse(history)
-
-    if h_node.belief.size() == 0:
+    if tree.root.belief.size() == 0:
         return None
 
     action_belief: Dict[M.AgentID, Dict[M.Action, float]] = {}
@@ -161,7 +140,7 @@ def get_other_agent_action_dist(tree: tree_lib.BAPOSGMCP,
         action_space_i = list(range(tree.model.action_spaces[i].n))
         action_belief[i] = {a: 0.0 for a in action_space_i}
 
-    for hp_state, prob in h_node.belief.get_dist().items():
+    for hp_state, prob in tree.root.belief.get_dist().items():
         other_pis = tree.get_other_agent_pis(hp_state)
         for i in range(tree.num_agents):
             if i == tree.ego_agent:
