@@ -1,29 +1,28 @@
 #!/bin/bash
 
 # Notes on resources for KLR Training
-# For nesting_level=k with BR
-# need (k+2)*2 cpus
+# For nesting_level=k
+# need (k+1)*2 cpus
 # Each level k >= 0 requires 2 CPUS: 1 learner and 1 rollout worker
-# Samer for BR
 # Each level requires ~1350 MB GPU RAM, 4000 MB CPU RAM
 # So
-# --mem=4GB*(k+2)
-# --cpus-per-task=2*(k+2)
-# --mem-per-gpu=1350*((k+2) / NUM_GPUS)
+# --mem=4GB*(k+1)
+# --cpus-per-task=2*(k+1)
+# --mem-per-gpu=1350*((k+1) / NUM_GPUS)
 # --mem-per-cpu=4GB
 
 # Examples
-# For k=1, with br and 1 GPU
+# For k=2, with 1 GPU
 #  --mem=12GB
 #  --cpus-per-task=6
 #  --mem-per-gpu=4050MB
 #
-# For k=2, with br and 1 GPU
+# For k=3 and 1 GPU
 #  --mem=16GB
 #  --cpus-per-task=8
 #  --mem-per-gpu=5400MB
 #
-# For k=3, with br and 1 GPU
+# For k=4 and 1 GPU
 #  --mem=20GB
 #  --cpus-per-task=10
 #  --mem-per-gpu=6750MB
@@ -38,9 +37,9 @@
 # RESOURCES
 #SBATCH --nodes=1            # number of nodes to request for job
 #SBATCH --ntasks=1           # number if tasks to run
-#SBATCH --cpus-per-task=14   # TODO change this, with K
+#SBATCH --cpus-per-task=10   # TODO change this, with K
 #SBATCH --mem=40GB           # TODO change this with K
-#SBATCH --time=0-14:00:00    # 0 days, 10 hours, 00 minutes, 00 seconds
+#SBATCH --time=0-24:00:00    # 0 days, 24 hours, 00 minutes, 00 seconds
 #SBATCH --partition=gpu      # slurm partition to use
 #SBATCH --gres=gpu:2         # request a single GPU, use gpu:2 for 2 gpus
 # OTHER
@@ -55,7 +54,7 @@
 python_file=~/code/ba-posgmcp/experiments/Driving/train_klr.py
 env_name=Driving7x7RoundAbout-v0
 nesting_level=4
-num_iterations=5000    # 10 million steps
+num_iterations=10000    # 20,480,000 steps
 
 pwd; hostname; date
 echo "--- Running SyKLRBR training for Driving7x7RoundAbout-v0 ---"
