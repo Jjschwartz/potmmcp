@@ -1,4 +1,5 @@
 import abc
+import time
 from typing import Sequence, Dict, Any, Iterable
 
 import matplotlib
@@ -232,3 +233,5 @@ def generate_renders(renderers: Iterable[Renderer],
 
     if num_renderers > 0:
         plt.show()
+        # give it time to render
+        time.sleep(0.1)

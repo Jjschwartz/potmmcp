@@ -219,7 +219,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             self._initial_update(obs)
         else:
             self.history = self.history.extend(action, obs)
-            self._update(self.history)
+            self._update(action, obs)
 
         update_time = time.time() - start_time
         self._statistics["update_time"] = update_time
@@ -255,30 +255,29 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         self.root = obs_node
         self.root.parent = None
 
-    def _update(self, history: H.AgentHistory) -> None:
+    def _update(self, action: M.Action, obs: M.Observation) -> None:
         self._log_debug("Pruning histories")
         # Get new root node
-        last_action, last_obs = history.get_last_step()
-        a_node = self.root.get_child(last_action)
+        a_node = self.root.get_child(action)
         try:
-            obs_node = a_node.get_child(last_obs)
+            obs_node = a_node.get_child(obs)
         except AssertionError:
-            obs_node = self._add_obs_node(a_node, last_obs)
+            obs_node = self._add_obs_node(a_node, obs)
 
-        if self.model.is_absorbing(last_obs, self.ego_agent):
+        if self.model.is_absorbing(obs, self.ego_agent):
             self._log_debug("Absorbing state reached.")
         else:
             self._log_debug(
                 f"Belief size before reinvigoration = {obs_node.belief.size()}"
             )
             self._log_debug(f"Parent belief size = {self.root.belief.size()}")
-            self._reinvigorate(obs_node, last_action, last_obs)
+            self._reinvigorate(obs_node, action, obs)
             self._log_debug(
                 f"Belief size after reinvigoration = {obs_node.belief.size()}"
             )
 
         rollout_hidden_states = self._get_next_rollout_hidden_states(
-            last_action, last_obs, self.root.rollout_policy_hidden_states
+            action, obs, self.root.rollout_policy_hidden_states
         )
         obs_node.rollout_policy_hidden_states = rollout_hidden_states
 
@@ -312,8 +311,9 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                                         ) -> RolloutHiddenStateMap:
         next_hidden_states = {}
         for pi_id, pi in self._rollout_policies.items():
-            h = pi.get_next_hidden_state(hidden_states[pi_id], action, obs)
-            next_hidden_states[pi_id] = h
+            next_hidden_states[pi_id] = self._update_rollout_policy(
+                action, obs, pi, hidden_states[pi_id]
+            )
         return next_hidden_states
 
     #######################################################
@@ -332,7 +332,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             self._log_debug("Agent in absorbing state. Not running search.")
         else:
             root_b = self.root.belief
-            for _ in range(self.num_sims):
+            for t in range(self.num_sims):
                 hp_state: H.HistoryPolicyState = root_b.sample()
 
                 rollout_pi_id = self._select_rollout_policy(hp_state)
@@ -368,16 +368,17 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             # lead node reached
             agent_history = hp_state.history.get_agent_history(self.ego_agent)
             self._expand(obs_node, agent_history)
-            return (
-                self._evaluate(hp_state, depth, rollout_policy, rollout_state),
-                depth
+            leaf_node_value = self._evaluate(
+                hp_state, depth, rollout_policy, rollout_state
             )
+            return leaf_node_value, depth
 
-        joint_action = self._get_joint_sim_action(hp_state, obs_node)
+        ego_action = self._get_action_from_node(obs_node, False)
+        joint_action = self._get_joint_action(hp_state, ego_action)
+
         joint_step = self.model.step(hp_state.state, joint_action)
         joint_obs = joint_step.observations
 
-        ego_action = joint_action[self.ego_agent]
         ego_obs = joint_obs[self.ego_agent]
         ego_return = joint_step.rewards[self.ego_agent]
 
@@ -407,10 +408,9 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             not joint_step.done
             and not self.model.is_absorbing(ego_obs, self.ego_agent)
         ):
-            next_rollout_state = rollout_policy.get_next_hidden_state(
-                rollout_state, joint_action[self.ego_agent], ego_obs
+            next_rollout_state = self._update_rollout_policy(
+                ego_action, ego_obs, rollout_policy, rollout_state
             )
-
             future_return, max_depth = self._simulate(
                 next_hp_state,
                 child_obs_node,
@@ -442,7 +442,9 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         if self._search_depth_limit_reached(depth):
             return 0
 
-        joint_action = self._get_joint_rollout_action(hp_state, rollout_policy)
+        ego_action = rollout_policy.get_action_by_hidden_state(rollout_state)
+        joint_action = self._get_joint_action(hp_state, ego_action)
+
         joint_step = self.model.step(hp_state.state, joint_action)
         joint_obs = joint_step.observations
         reward = joint_step.rewards[self.ego_agent]
@@ -459,13 +461,15 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             joint_action,
             joint_obs,
         )
-        next_rollout_state = rollout_policy.get_next_hidden_state(
-            rollout_state, joint_action[self.ego_agent], ego_obs
-        )
-
         next_hp_state = H.HistoryPolicyState(
             joint_step.state, new_history, next_pi_state, next_pi_hidden_states
         )
+
+        ego_action = joint_action[self.ego_agent]
+        next_rollout_state = self._update_rollout_policy(
+            ego_action, ego_obs, rollout_policy, rollout_state
+        )
+
         future_return = self._rollout(
             next_hp_state, depth+1, rollout_policy, next_rollout_state
         )
@@ -488,12 +492,29 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         pi_j_id = hp_state.other_policies[j_id]
         return self._rollout_selection[pi_j_id]
 
+    def _update_rollout_policy(self,
+                               action: M.Action,
+                               obs: M.Observation,
+                               rollout_policy: policy_lib.BasePolicy,
+                               rollout_state: H.PolicyHiddenState
+                               ) -> H.PolicyHiddenState:
+        start_time = time.time()
+        next_rollout_state = rollout_policy.get_next_hidden_state(
+            rollout_state, action, obs
+        )
+        self._statistics["inference_time"] += time.time() - start_time
+
+        if isinstance(rollout_policy, RllibPolicy):
+            self._statistics["policy_calls"] += 1
+
+        return next_rollout_state
+
     def _update_policies(self,
                          pi_state: H.PolicyState,
                          hidden_pi_states: H.PolicyHiddenStates,
                          joint_action: M.JointAction,
                          joint_obs: M.JointObservation
-                         ) -> Tuple[H.PolicyHiddenStates, H.PolicyHiddenState]:
+                         ) -> H.PolicyHiddenStates:
         other_policies = self._get_other_policies(pi_state)
         next_hidden_policy_states = []
         for i in range(self.num_agents):
@@ -542,6 +563,8 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         for action_node in obs_node.children:
             action_v = action_node.value
             if not greedy:
+                if action_node.visits == 0:
+                    return action_node.action
                 # add exploration bonus based on visit count and policy prior
                 action_v += (
                     action_node.prob
@@ -552,22 +575,6 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                 max_v = action_v
                 max_action = action_node.action
         return max_action
-
-    def _get_joint_sim_action(self,
-                              hp_state: H.HistoryPolicyState,
-                              obs_node: ObsNode) -> M.JointAction:
-        # Assumes state of other agent policies are primed
-        ego_action = self._get_action_from_node(obs_node, False)
-        return self._get_joint_action(hp_state, ego_action)
-
-    def _get_joint_rollout_action(self,
-                                  hp_state: H.HistoryPolicyState,
-                                  rollout_policy: policy_lib.BasePolicy
-                                  ) -> M.JointAction:
-        ego_action = rollout_policy.get_action_by_hidden_state(
-            hp_state.hidden_states[self.ego_agent]
-        )
-        return self._get_joint_action(hp_state, ego_action)
 
     def _get_joint_action(self,
                           hp_state: H.HistoryPolicyState,
