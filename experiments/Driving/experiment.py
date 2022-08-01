@@ -15,7 +15,6 @@ from exp_utils import (
     get_base_env,
     load_agent_policy_params,
     load_agent_policies,
-    load_agent_policy,
     get_result_dir
 )
 
@@ -23,13 +22,14 @@ from exp_utils import (
 def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
     """Get BAPOSGMCP init function.
 
-    This function which handles dynamic loading of other agent policies.
-    This is needed to ensure independent policies are used for each experiment
-    when running experiments in parallel.
+    This function which handles dynamic loading of other agent and
+    rollout policies. This is required to ensure independent policies are used
+    for each experiment when running experiments in parallel.
     """
     env_name = kwargs.pop("env_name")
     seed = kwargs.pop("seed")
     other_agent_policy_dir = kwargs.pop("other_agent_policy_dir")
+    other_agent_policy_ids = kwargs.pop("other_agent_policy_ids")
 
     if "rollout_policy_ids" in kwargs:
         rollout_policy_ids = kwargs.pop("rollout_policy_ids")
@@ -46,30 +46,43 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
             other_agent_policy_dir,
             gamma,
             include_random_policy=False,
-            env_seed=seed
+            env_seed=seed,
+            include_policy_ids=other_agent_policy_ids
         )
     }
 
     if rollout_policy_ids is None:
-        rollout_policy = policy_lib.RandomPolicy(model, ego_agent, gamma)
+        rollout_policies = {
+            "pi_-1": policy_lib.RandomPolicy(model, ego_agent, gamma)
+        }
+        rollout_selection = {
+            pi_id: "pi_-1" for pi_id in other_policies[other_agent_id]
+        }
     else:
-        for pi_id in rollout_policy_ids:
-            if pi_id in other_policies[other_agent_id]:
-                rollout_policy = load_agent_policy(
-                    rollout_policy_dir,
-                    pi_id,
-                    ego_agent,
-                    env_name,
-                    gamma,
-                    seed
-                )
+        rollout_policies = load_agent_policies(
+            ego_agent,
+            env_name,
+            rollout_policy_dir,
+            gamma,
+            include_random_policy=False,
+            env_seed=seed,
+            include_policy_ids=rollout_policy_ids
+        )
+        rollout_selection = {}
+        for pi_id in other_policies[other_agent_id]:
+            # Assumed policies of the form 'pi_k'
+            other_k = int(pi_id.split("_")[-1])
+            ro_pi_id = f"pi_{other_k+1}"
+            assert ro_pi_id in rollout_policies, f"{ro_pi_id} invalid"
+            rollout_selection[pi_id] = ro_pi_id
 
     return tree_lib.BAPOSGMCP(
         model,
         ego_agent,
         gamma,
         other_policies=other_policies,
-        rollout_policy=rollout_policy,
+        rollout_policies=rollout_policies,
+        rollout_selection=rollout_selection,
         **kwargs
     )
 
@@ -78,7 +91,7 @@ def _renderer_fn(**kwargs) -> Sequence[run_lib.Renderer]:
     renderers = []
     if kwargs["render"]:
         renderers.append(run_lib.EpisodeRenderer())
-        renderers.append(run_lib.PolicyBeliefRenderer())
+        # renderers.append(run_lib.PolicyBeliefRenderer())
     return renderers
 
 
@@ -138,8 +151,8 @@ def _get_env_policies_exp_params(env_name: str,
             kwargs={
                 "other_policy_prior": None,     # uniform
                 "num_sims": num_sims,
-                "c_init": 1.0,
-                "c_base": 100.0,
+                "c_init": 1.25,
+                "c_base": 20000.0,
                 "truncated": True,
                 "reinvigorator": tree_lib.BABeliefRejectionSampler(env_model),
                 "extra_particles_prop": 1.0 / 16,
@@ -151,12 +164,14 @@ def _get_env_policies_exp_params(env_name: str,
                 "env_name": env_name,
                 "seed": args.init_seed + exp_seed,
                 "other_agent_policy_dir": baposgmcp_policy_dir,
+                "other_agent_policy_ids": args.baposgmcp_other_policy_ids,
                 "rollout_policy_ids": args.rollout_policy_ids,
                 "rollout_policy_dir": baposgmcp_policy_dir
             },
             init=_baposgmcp_init_fn,
             info={
                 "other_agent_policy_dir": baposgmcp_policy_dir,
+                "other_agent_policy_ids": args.baposgmcp_other_policy_ids,
                 "rollout_policy_ids": args.rollout_policy_ids,
                 "rollout_policy_dir": baposgmcp_policy_dir,
                 "seed": args.init_seed + exp_seed
@@ -168,7 +183,7 @@ def _get_env_policies_exp_params(env_name: str,
             args.gamma,
             env_name,
             include_random_policy=False,
-            include_policy_ids=args.include_other_policy_ids
+            include_policy_ids=args.exp_other_policy_ids
         )
 
         for policy_params in other_agent_policy_params:
@@ -331,10 +346,17 @@ if __name__ == "__main__":
         )
     )
     parser.add_argument(
-        "--include_other_policy_ids", type=str, default=None, nargs="*",
+        "--baposgmcp_other_policy_ids", type=str, default=None, nargs="*",
         help=(
-            "ID/s of policy to use as opponent, if None then uses all the "
-            "policies 'other_agent_policy_dirs'."
+            "ID/s of policy to use in other agent prior for BAPOSGMCP, if None"
+            " then uses all the policies 'baposgmcp_agent_policy_dirs'."
+        )
+    )
+    parser.add_argument(
+        "--exp_other_policy_ids", type=str, default=None, nargs="*",
+        help=(
+            "ID/s of policy to use for other agent in experiments, if None "
+            "then uses all the policies 'other_agent_policy_dirs'."
         )
     )
     parser.add_argument(
