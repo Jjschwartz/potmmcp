@@ -94,7 +94,7 @@ singularity exec \
             --n_procs $SLURM_CPUS_PER_TASK \
 		    --record_env \
 			--rollout_policy_ids ${rollout_policy_ids[*]} \
-			--baposgmcp_other_policy_ids ${baposmcp_other_policy_ids[*]} \
+			--baposgmcp_other_policy_ids ${baposgmcp_other_policy_ids[*]} \
 			--exp_other_policy_ids ${exp_other_policy_ids[*]} \
 			--root_save_dir $root_save_dir
 echo "Job complete"
