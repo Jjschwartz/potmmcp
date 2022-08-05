@@ -126,13 +126,14 @@ class RllibPolicy(policy_lib.BasePolicy):
     def get_next_hidden_state(self,
                               hidden_state: H.PolicyHiddenState,
                               action: M.Action,
-                              obs: M.Observation
+                              obs: M.Observation,
+                              explore: Optional[bool] = None
                               ) -> H.PolicyHiddenState:
         next_hidden_state = super().get_next_hidden_state(
             hidden_state, action, obs
         )
         h_tm1 = hidden_state["last_hidden_state"]
-        output = self._compute_action(obs, h_tm1, action, explore=False)
+        output = self._compute_action(obs, h_tm1, action, explore=explore)
         next_hidden_state["last_obs"] = obs
         next_hidden_state["last_action"] = output[0]
         next_hidden_state["last_hidden_state"] = output[1]
@@ -167,7 +168,7 @@ class RllibPolicy(policy_lib.BasePolicy):
                         obs: M.Observation,
                         h_tm1: RllibHiddenState,
                         last_action: M.Action,
-                        explore: bool = False
+                        explore: Optional[bool] = None
                         ) -> Tuple[M.Action, RllibHiddenState, Dict[str, Any]]:
         obs = self._preprocessor(obs)
         output = self._policy.compute_single_action(

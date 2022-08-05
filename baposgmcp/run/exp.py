@@ -248,7 +248,7 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         random.seed(seed)
         np.random.seed(seed)
 
-    env = posggym.make(params.env_name)
+    env = posggym.make(params.env_name, **{"seed": params.run_config.seed})
     if params.record_env:
         video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
         if params.record_env_freq:

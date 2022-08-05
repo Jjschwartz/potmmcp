@@ -154,6 +154,8 @@ class SearchTreeRenderer(Renderer):
 
     def __init__(self, tree_depth: int):
         self._tree_depth = tree_depth
+        self._fig = None
+        self._ax = None
 
     def render_step(self,
                     episode_t: int,
@@ -165,11 +167,25 @@ class SearchTreeRenderer(Renderer):
         if episode_t == 0:
             return
 
-        for policy in policies:
-            if isinstance(policy, tree_lib.BAPOSGMCP):
-                self._render_tree(policy)
+        if self._fig is None:
+            num_baposgmcp = sum(
+                isinstance(pi, tree_lib.BAPOSGMCP) for pi in policies
+            )
+            assert num_baposgmcp <= 1
 
-    def _render_tree(self, baposgmcp: tree_lib.BAPOSGMCP) -> None:
+        for i, policy in enumerate(policies):
+            if isinstance(policy, tree_lib.BAPOSGMCP):
+                self._render_tree(policy, action[i], timestep[1][i])
+
+    def _render_tree(self,
+                     baposgmcp: tree_lib.BAPOSGMCP,
+                     action: M.Action,
+                     reward: float) -> None:
+        if self._fig is None:
+            self._fig, self._ax = plt.subplots(
+                nrows=1, ncols=1, squeeze=True, figsize=(9, 9)
+            )
+
         root_node = baposgmcp.root
 
         graph = nx.DiGraph()
@@ -177,7 +193,7 @@ class SearchTreeRenderer(Renderer):
             root_node,
             v=f"{root_node.value:.2f}",
             n=root_node.visits,
-            o=root_node.obs
+            # o=root_node.obs
         )
         self._recursively_build_tree(graph, root_node, 0)
 
@@ -186,11 +202,15 @@ class SearchTreeRenderer(Renderer):
         for node in graph.nodes():
             node_colors.append("#A0CBE2")
 
-        fig, ax = plt.subplots(nrows=1, ncols=1, squeeze=True)
-        nx.draw(graph, pos, ax, node_color=node_colors, with_labels=True)
+        self._ax.clear()
+        nx.draw(graph, pos, self._ax, node_color=node_colors, with_labels=True)
 
-        fig.suptitle(f"Agent {baposgmcp.ego_agent} t={baposgmcp.history.t}")
-        fig.tight_layout()
+        self._fig.suptitle(
+            f"Agent {baposgmcp.ego_agent} t={baposgmcp.history.t}\n"
+            f"{action=}\n"
+            f"{reward=:}"
+        )
+        self._fig.tight_layout()
 
     def _recursively_build_tree(self,
                                 graph: nx.DiGraph,
@@ -202,15 +222,17 @@ class SearchTreeRenderer(Renderer):
         for child in parent.children:
             if isinstance(child, tree_lib.ActionNode):
                 graph.add_node(
-                    child, v=f"{child.value:.2f}",
+                    child,
+                    v=f"{child.value:.2f}",
                     n=child.visits,
                     a=child.action
                 )
             else:
                 graph.add_node(
-                    child, v=f"{child.value:.2f}",
+                    child,
+                    v=f"{child.value:.2f}",
                     n=child.visits,
-                    o=child.obs
+                    # o=child.obs
                 )
             graph.add_edge(parent, child)
             self._recursively_build_tree(graph, child, depth+1)
