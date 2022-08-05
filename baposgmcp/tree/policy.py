@@ -51,6 +51,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                  epsilon: float = 0.01,
                  **kwargs):
         super().__init__(model, ego_agent, gamma, **kwargs)
+        assert model.n_agents == 2, "Currently only supporting 2 agents"
         assert len(other_policies) == model.n_agents-1
         assert all(
             i in other_policies
@@ -227,7 +228,14 @@ class BAPOSGMCP(policy_lib.BasePolicy):
 
     def _initial_update(self, init_obs: M.Observation):
         action_node = self._add_action_node(self.root, None)
-        obs_node = self._add_obs_node(action_node, init_obs)
+
+        init_rollout_prior = {pi_id: 0.0 for pi_id in self._rollout_policies}
+        for (pi_j_id, prob) in zip(*self._other_prior[(self.ego_agent+1) % 2]):
+            init_rollout_prior[self._rollout_selection[pi_j_id]] += prob
+
+        obs_node = self._add_obs_node(
+            action_node, init_obs, init_rollout_prior, 0
+        )
 
         s_b_0 = self.model.get_agent_initial_belief(self.ego_agent, init_obs)
         hps_b_0 = B.HPSParticleBelief(self._other_policies_id_map)
@@ -246,11 +254,6 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             )
             hps_b_0.add_particle(hp_state)
 
-        rollout_hidden_states = self._get_next_rollout_hidden_states(
-            None, init_obs, self.root.rollout_policy_hidden_states
-        )
-        obs_node.rollout_policy_hidden_states = rollout_hidden_states
-
         obs_node.belief = hps_b_0
         self.root = obs_node
         self.root.parent = None
@@ -262,7 +265,9 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         try:
             obs_node = a_node.get_child(obs)
         except AssertionError:
-            obs_node = self._add_obs_node(a_node, obs)
+            # Add obs node with uniform policy prior
+            # This will be updated in the course of doing simulations
+            obs_node = self._add_obs_node(a_node, obs, None, 0)
 
         if self.model.is_absorbing(obs, self.ego_agent):
             self._log_debug("Absorbing state reached.")
@@ -275,11 +280,6 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             self._log_debug(
                 f"Belief size after reinvigoration = {obs_node.belief.size()}"
             )
-
-        rollout_hidden_states = self._get_next_rollout_hidden_states(
-            action, obs, self.root.rollout_policy_hidden_states
-        )
-        obs_node.rollout_policy_hidden_states = rollout_hidden_states
 
         self.root = obs_node
         # remove reference to parent, effectively pruning dead branches
@@ -330,19 +330,17 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         max_search_depth = 0
         if self.model.is_absorbing(self.root.obs, self.ego_agent):
             self._log_debug("Agent in absorbing state. Not running search.")
+
         else:
             root_b = self.root.belief
             for t in range(self.num_sims):
                 hp_state: H.HistoryPolicyState = root_b.sample()
 
                 rollout_pi_id = self._select_rollout_policy(hp_state)
-                rollout_state = self.root.rollout_policy_hidden_states[
-                    rollout_pi_id
-                ]
                 rollout_pi = self._rollout_policies[rollout_pi_id]
 
                 _, search_depth = self._simulate(
-                    hp_state, self.root, 0, rollout_pi, rollout_state
+                    hp_state, self.root, 0, rollout_pi
                 )
                 self.root.visits += 1
                 max_search_depth = max(max_search_depth, search_depth)
@@ -351,16 +349,28 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         search_time_per_sim = search_time / self.num_sims
         self._statistics["search_time"] = search_time
         self._statistics["search_depth"] = max_search_depth
-        self._log_info1(f"{search_time=:.2f} s, {search_time_per_sim=:.5f}")
+        self._log_info1(
+            f"{search_time=:.2f} {search_time_per_sim=:.5f} "
+            f"{max_search_depth=}"
+        )
 
-        return self._get_action_from_node(self.root, True)
+        # select action with most visits
+        max_actions = []
+        max_visits = 0
+        for a_node in self.root.children:
+            if a_node.visits == max_visits:
+                max_actions.append(a_node.action)
+            elif a_node.visits > max_visits:
+                max_visits = a_node.visits
+                max_actions = [a_node.action]
+
+        return random.choice(max_actions)
 
     def _simulate(self,
                   hp_state: H.HistoryPolicyState,
                   obs_node: ObsNode,
                   depth: int,
-                  rollout_policy: policy_lib.BasePolicy,
-                  rollout_state: H.PolicyHiddenState) -> Tuple[float, int]:
+                  rollout_policy: policy_lib.BasePolicy) -> Tuple[float, int]:
         if self._search_depth_limit_reached(depth):
             return 0, depth
 
@@ -369,7 +379,10 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             agent_history = hp_state.history.get_agent_history(self.ego_agent)
             self._expand(obs_node, agent_history)
             leaf_node_value = self._evaluate(
-                hp_state, depth, rollout_policy, rollout_state
+                hp_state,
+                depth,
+                rollout_policy,
+                obs_node.rollout_policy_hidden_states[rollout_policy.policy_id]
             )
             return leaf_node_value, depth
 
@@ -397,10 +410,14 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         action_node = obs_node.get_child(ego_action)
         if action_node.has_child(ego_obs):
             child_obs_node = action_node.get_child(ego_obs)
+            self._update_obs_node(child_obs_node, rollout_policy)
         else:
-            child_obs_node = self._add_obs_node(action_node, ego_obs)
-
-        child_obs_node.visits += 1
+            child_obs_node = self._add_obs_node(
+                action_node,
+                ego_obs,
+                {rollout_policy.policy_id: 1.0},
+                init_visits=1
+            )
         child_obs_node.belief.add_particle(next_hp_state)
 
         max_depth = depth
@@ -408,21 +425,15 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             not joint_step.done
             and not self.model.is_absorbing(ego_obs, self.ego_agent)
         ):
-            next_rollout_state = self._update_rollout_policy(
-                ego_action, ego_obs, rollout_policy, rollout_state
-            )
             future_return, max_depth = self._simulate(
                 next_hp_state,
                 child_obs_node,
                 depth+1,
-                rollout_policy,
-                next_rollout_state
+                rollout_policy
             )
             ego_return += self.gamma * future_return
 
-        action_node.visits += 1
-        action_node.total_value += ego_return
-        action_node.value = (action_node.total_value / action_node.visits)
+        action_node.update(ego_return)
         return ego_return, max_depth
 
     def _evaluate(self,
@@ -487,7 +498,6 @@ class BAPOSGMCP(policy_lib.BasePolicy):
     def _select_rollout_policy(self,
                                hp_state: H.HistoryPolicyState
                                ) -> parts.PolicyID:
-        assert self.num_agents == 2, "Currently only supporting 2 agents"
         j_id = (self.ego_agent + 1) % 2
         pi_j_id = hp_state.other_policies[j_id]
         return self._rollout_selection[pi_j_id]
@@ -567,7 +577,9 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                     return action_node.action
                 # add exploration bonus based on visit count and policy prior
                 action_v += (
-                    action_node.prob
+                    # set min prob > 0 so all actions have a chance to be
+                    # visited during search
+                    max(obs_node.policy[action_node.action], 0.01)
                     * (sqrt_n / (1 + action_node.visits))
                     * exploration_rate
                 )
@@ -665,20 +677,79 @@ class BAPOSGMCP(policy_lib.BasePolicy):
 
     def _add_obs_node(self,
                       parent: ActionNode,
-                      obs: M.Observation
+                      obs: M.Observation,
+                      rollout_prior: Optional[Dict[parts.PolicyID, float]],
+                      init_visits: int = 0
                       ) -> ObsNode:
-        policy = {a: 1.0 / len(self.action_space) for a in self.action_space}
+        use_uniform_prior = rollout_prior is None
+        if rollout_prior is None:
+            rollout_prior = {
+                pi_id: 1.0 / len(self._rollout_policies)
+                for pi_id in self._rollout_policies
+            }
+
+        next_rollout_states = {}
+        for pi_id in rollout_prior:
+            next_rollout_states[pi_id] = self._update_rollout_policy(
+                parent.action,
+                obs,
+                self._rollout_policies[pi_id],
+                parent.parent.rollout_policy_hidden_states[pi_id]
+            )
+
+        if use_uniform_prior:
+            policy = {
+                a: 1.0 / len(self.action_space) for a in self.action_space
+            }
+        else:
+            policy = {a: 0.0 for a in self.action_space}
+            for pi_id, pi_prob in rollout_prior.items():
+                pi = self._rollout_policies[pi_id]
+                pi_dist = pi.get_pi_from_hidden_state(
+                    next_rollout_states[pi_id]
+                )
+                for a, a_prob in pi_dist.items():
+                    policy[a] += pi_prob * a_prob
+
+            # normalize
+            prob_sum = sum(policy.values())
+            for a in policy:
+                policy[a] /= prob_sum
+
         obs_node = ObsNode(
             parent,
             obs,
             B.HPSParticleBelief(self._other_policies_id_map),
             policy=policy,
-            rollout_policy_hidden_states=None,
+            rollout_policy_hidden_states=next_rollout_states,
             init_value=0.0,
             init_visits=0
         )
         parent.children.append(obs_node)
         return obs_node
+
+    def _update_obs_node(self,
+                         obs_node: ObsNode,
+                         rollout_policy: policy_lib.BasePolicy):
+        obs_node.visits += 1
+
+        pi_id = rollout_policy.policy_id
+        if pi_id not in obs_node.rollout_policy_hidden_states:
+            next_rollout_state = self._update_rollout_policy(
+                obs_node.parent.action,
+                obs_node.obs,
+                rollout_policy,
+                obs_node.parent.parent.rollout_policy_hidden_states[pi_id]
+            )
+            obs_node.rollout_policy_hidden_states[pi_id] = next_rollout_state
+
+        # Add rollout policy distribution to moving average policy of node
+        pi_dist = rollout_policy.get_pi_from_hidden_state(
+            obs_node.rollout_policy_hidden_states[pi_id]
+        )
+        for a, a_prob in pi_dist.items():
+            old_a_prob = obs_node.policy[a]
+            obs_node.policy[a] += (a_prob - old_a_prob) / obs_node.visits
 
     def _add_action_node(self,
                          parent: ObsNode,

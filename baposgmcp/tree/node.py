@@ -88,6 +88,7 @@ class ObsNode(Node):
             f"\nv={self.value:.2f}"
             f"\nn={self.visits}"
             f"\n|B|={self.belief.size()}"
+            f"\npi={self.policy_str()}"
         )
 
     def __repr__(self):
@@ -114,6 +115,9 @@ class ActionNode(Node):
         self.value = init_value
         self.visits = init_visits
         self.total_value = init_total_value
+        # for calculating rolling variance
+        self.agg = 0
+        self.var = 0
         self.children: List[ObsNode] = []
 
     def get_child(self, obs: M.Observation) -> ObsNode:
@@ -132,13 +136,33 @@ class ActionNode(Node):
                 return True
         return False
 
+    def update(self, new_value: float):
+        """Update action node statistics.
+
+        Uses Welford's online algorithm for efficiently tracking the rolling
+        variance.
+        https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm
+        """
+        self.visits += 1
+        self.total_value += new_value
+        delta = new_value - self.value
+        self.value += delta / self.visits
+        delta2 = new_value - self.value
+        self.agg += delta * delta2
+
+    @property
+    def variance(self) -> float:
+        """Get the variance of the value estimate for this node."""
+        return self.agg / self.visits
+
     def __str__(self):
         return (
             f"N{self.nid}"
             f"\na={self.action}"
-            f"\nv={self.value:.2f}"
             f"\nn={self.visits}"
+            f"\nv={self.value:.2f}"
             f"\nw={self.total_value:.2f}"
+            f"\ns2={self.variance:.2f}"
             f"\np={self.prob:.2f}"
         )
 
@@ -147,9 +171,10 @@ class ActionNode(Node):
             f"<{self.__class__.__name__}: "
             f"N{self.nid} "
             f"a={self.action} "
-            f"v={self.value:.2f} "
             f"n={self.visits} "
+            f"v={self.value:.2f} "
             f"w={self.total_value:.2f} "
+            f"s2={self.variance:.2f} "
             f"p={self.prob:.2f}>"
         )
 

@@ -88,11 +88,12 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
 
 
 def _renderer_fn(**kwargs) -> Sequence[run_lib.Renderer]:
-    renderers = []
     if kwargs["render"]:
-        renderers.append(run_lib.EpisodeRenderer())
-        # renderers.append(run_lib.PolicyBeliefRenderer())
-    return renderers
+        return [
+            run_lib.EpisodeRenderer(),
+            # run_lib.SearchTreeRenderer(2)
+        ]
+    return []
 
 
 def _tracker_fn(policies: List[policy_lib.BasePolicy],
