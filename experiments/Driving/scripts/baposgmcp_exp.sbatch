@@ -48,13 +48,13 @@ train_klr_Driving7x7RoundAbout-v0_k4_seed1_2022-08-03_01-33-22b8e8_rdc \
 train_klr_Driving7x7RoundAbout-v0_k4_seed3_2022-08-02_18-34-07xnsud2q7 \
 # train_klr_Driving7x7RoundAbout-v0_k4_seed4_2022-08-02_17-47-19smqri248
 )
-base_policy_dir=~/baposgmcp_results/Driving/rl_policies/2022-08-02/
+base_policy_dir=~/baposgmcp_results/Driving/rl_policies/2022-08-02_banrmcp/
 
 # EXPERIMENT PARAMETERS
 python_file=~/code/ba-posgmcp/experiments/Driving/experiment.py
 env_name=Driving7x7RoundAbout-v0
 baposgmcp_policy_dirs=$base_policy_dir${policy_dir_names[(($SLURM_ARRAY_TASK_ID % $num_policy_dirs))]}
-other_agent_policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-08-02/*
+other_agent_policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-08-02_banrmcp/*
 time_limit=25200     # 7 hours
 num_sims=${test_sims[(($SLURM_ARRAY_TASK_ID/$num_policy_dirs))]}
 
