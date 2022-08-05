@@ -153,6 +153,8 @@ class ActionNode(Node):
     @property
     def variance(self) -> float:
         """Get the variance of the value estimate for this node."""
+        if self.visits == 0:
+            return 0
         return self.agg / self.visits
 
     def __str__(self):
