@@ -99,7 +99,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             None,
             b_0,
             policy={None: 1.0},
-            rollout_policy_hidden_states={
+            rollout_hidden_states={
                 pi_id: pi.get_initial_hidden_state()
                 for pi_id, pi in self._rollout_policies.items()
             }
@@ -178,7 +178,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         self._reset_step_statistics()
         self.history = H.AgentHistory.get_init_history()
 
-        rollout_policy_hidden_states = {
+        rollout_hidden_states = {
             pi_id: pi.get_initial_hidden_state()
             for pi_id, pi in self._rollout_policies.items()
         }
@@ -187,7 +187,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             None,
             self._initial_belief,
             policy={None: 1.0},
-            rollout_policy_hidden_states=rollout_policy_hidden_states
+            rollout_hidden_states=rollout_hidden_states
         )
         self._last_action = None
 
@@ -264,6 +264,16 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         a_node = self.root.get_child(action)
         try:
             obs_node = a_node.get_child(obs)
+
+            # ensure all rollout hidden states are up-to-date in root node
+            for pi_id, pi in self._rollout_policies.items():
+                if pi_id in obs_node.rollout_hidden_states:
+                    continue
+                next_rollout_state = self._update_rollout_policy(
+                    action, obs, pi, self.root.rollout_hidden_states[pi_id]
+                )
+                obs_node.rollout_hidden_states[pi_id] = next_rollout_state
+
         except AssertionError:
             # Add obs node with uniform policy prior
             # This will be updated in the course of doing simulations
@@ -382,7 +392,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                 hp_state,
                 depth,
                 rollout_policy,
-                obs_node.rollout_policy_hidden_states[rollout_policy.policy_id]
+                obs_node.rollout_hidden_states[rollout_policy.policy_id]
             )
             return leaf_node_value, depth
 
@@ -694,7 +704,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                 parent.action,
                 obs,
                 self._rollout_policies[pi_id],
-                parent.parent.rollout_policy_hidden_states[pi_id]
+                parent.parent.rollout_hidden_states[pi_id]
             )
 
         if use_uniform_prior:
@@ -721,7 +731,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             obs,
             B.HPSParticleBelief(self._other_policies_id_map),
             policy=policy,
-            rollout_policy_hidden_states=next_rollout_states,
+            rollout_hidden_states=next_rollout_states,
             init_value=0.0,
             init_visits=0
         )
@@ -734,18 +744,18 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         obs_node.visits += 1
 
         pi_id = rollout_policy.policy_id
-        if pi_id not in obs_node.rollout_policy_hidden_states:
+        if pi_id not in obs_node.rollout_hidden_states:
             next_rollout_state = self._update_rollout_policy(
                 obs_node.parent.action,
                 obs_node.obs,
                 rollout_policy,
-                obs_node.parent.parent.rollout_policy_hidden_states[pi_id]
+                obs_node.parent.parent.rollout_hidden_states[pi_id]
             )
-            obs_node.rollout_policy_hidden_states[pi_id] = next_rollout_state
+            obs_node.rollout_hidden_states[pi_id] = next_rollout_state
 
         # Add rollout policy distribution to moving average policy of node
         pi_dist = rollout_policy.get_pi_from_hidden_state(
-            obs_node.rollout_policy_hidden_states[pi_id]
+            obs_node.rollout_hidden_states[pi_id]
         )
         for a, a_prob in pi_dist.items():
             old_a_prob = obs_node.policy[a]
