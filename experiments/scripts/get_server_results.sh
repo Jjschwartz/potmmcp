@@ -35,7 +35,7 @@ do
 	# refs:
 	# https://unix.stackexchange.com/questions/10041/how-to-get-only-files-created-after-a-date-with-ls
 	# https://serverfault.com/questions/354403/remove-path-from-find-command-output
-    remote_files=($(ssh $server "find $remote_env_dir -mindepth 1 -maxdepth 1 -mtime $period -printf '%f '"))
+    remote_files=($(ssh $server "find $remote_env_dir -mindepth 1 -maxdepth 1 -mtime $period -printf '%f\n' | sort -n"))
 	printf "Remote env files=\n"
 	printf "  %s\n" ${remote_files[*]}
 
