@@ -8,7 +8,7 @@
 # For 1024 sims need ~20 GB for 10 CPUS (based on past experiments)
 #  = 2 GB per CPU
 # For 2048 up it to 4 GB per CPU
-#SBATCH --mem=128GB
+#SBATCH --mem=116GB       # so it fits within memory limits of nodes
 # Time = (|other pis| * |train seeds| * num_seeds) / cpus-per-task  * time_limit
 #      = (7*5*4)/32 * 7h
 #      = ceil(140 exps / 32 exps run at a time) * 7 h
