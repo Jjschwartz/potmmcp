@@ -3,15 +3,16 @@
 # RESOURCES
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16   # number of comparisons to be run in parallel
+#SBATCH --cpus-per-task=32   # number of comparisons to be run in parallel
 # Memory usage
 # For 1024 sims need ~20 GB for 10 CPUS (based on past experiments)
 #  = 2 GB per CPU
-#SBATCH --mem=36GB
-# Time = (|other pis| * |train seeds|) / cpus-per-task  * time_limit
-#      = (7*5)/16 * 12h
-#      = ceil(35 exps / 16 exps run at a time) * 8 h
-#      = 24 h
+# For 2048 up it to 4 GB per CPU
+#SBATCH --mem=128GB
+# Time = (|other pis| * |train seeds| * num_seeds) / cpus-per-task  * time_limit
+#      = (7*5*4)/32 * 7h
+#      = ceil(140 exps / 32 exps run at a time) * 7 h
+#      = 35 h
 #SBATCH --time=30:00:00
 #SBATCH --partition=gpu      # use GPU partition since more nodes available
 # OTHER
@@ -21,15 +22,18 @@
 #SBATCH --mail-user=jonathon.schwartz@anu.edu.au
 # TODO modify this
 # Num jobs = |test sims| * |train seeds|
-#          = 4 * 3
-#          = 12
-#SBATCH --array=0-11
+#          = 2 * 3
+#          = 6
+#SBATCH --array=0-5
 
 # Each array job is a different (train_seed, num_sims) pair.
 # Hence the total number of array jobs is |train_seeds| * |num_sims|
-# Which in this run is 3 * 4 = 12
+# Which in this run is 3 * 2 = 6
 
-# Within each array job, each experiment
+# Within each array job
+# The total number of experiments is
+# num_exp_seeds * |exp_other_policy_ids| * |train seeds|
+# In this case = 4 * 7 * 5 = 140
 
 root_save_dir=~/baposgmcp_results/Driving/results/baposgmcp_exp_$SLURM_ARRAY_JOB_ID
 if [ $SLURM_ARRAY_TASK_ID == $SLURM_ARRAY_TASK_MIN ]; then
@@ -39,7 +43,7 @@ fi
 # give each task time for the shared results directory to be created
 sleep 2
 
-test_sims=(8 32 128 512)
+test_sims=(1024 2048)
 num_policy_dirs=3
 policy_dir_names=( \
 train_klr_Driving7x7RoundAbout-v0_k4_seed0_2022-08-03_01-31-491db54_mq \
@@ -86,9 +90,9 @@ singularity exec \
 			--baposgmcp_policy_dirs $baposgmcp_policy_dirs \
 			--other_agent_policy_dirs $other_agent_policy_dirs \
 			--init_seed 0 \
-			--num_seeds 1 \
+			--num_seeds 4 \
 			--gamma 0.99 \
-			--num_episodes 100 \
+			--num_episodes 25 \
 			--time_limit $time_limit \
 			--num_sims $num_sims \
             --n_procs $SLURM_CPUS_PER_TASK \
