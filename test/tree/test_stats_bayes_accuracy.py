@@ -72,7 +72,12 @@ def test_bayes_accuracy_deterministic():
         other_policies=other_agent_policies,
         other_policy_prior=None,
         num_sims=64,
-        rollout_policy=policy_lib.RandomPolicy(env.model, 1, 0.9),
+        rollout_policies={
+            "pi_-1": policy_lib.RandomPolicy(env.model, 1, 0.9, "pi_-1")
+        },
+        rollout_selection={
+            pi_id: "pi_-1" for pi_id in other_agent_policies[1]
+        },
         c_init=1.0,
         c_base=100.0,
         truncated=False,
@@ -116,7 +121,12 @@ def test_bayes_accuracy_stochastic_uniform():
         other_policies=other_agent_policies,
         other_policy_prior=None,
         num_sims=64,
-        rollout_policy=policy_lib.RandomPolicy(env.model, 1, 0.9),
+        rollout_policies={
+            "pi_-1": policy_lib.RandomPolicy(env.model, 1, 0.9, "pi_-1")
+        },
+        rollout_selection={
+            pi_id: "pi_-1" for pi_id in other_agent_policies[1]
+        },
         c_init=1.0,
         c_base=100.0,
         truncated=False,
@@ -166,7 +176,12 @@ def test_bayes_accuracy_stochastic_biased():
         other_policies=other_agent_policies,
         other_policy_prior=None,
         num_sims=64,
-        rollout_policy=policy_lib.RandomPolicy(env.model, 1, 0.9),
+        rollout_policies={
+            "pi_-1": policy_lib.RandomPolicy(env.model, 1, 0.9, "pi_-1")
+        },
+        rollout_selection={
+            pi_id: "pi_-1" for pi_id in other_agent_policies[1]
+        },
         c_init=1.0,
         c_base=100.0,
         truncated=False,

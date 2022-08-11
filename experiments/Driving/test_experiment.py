@@ -93,8 +93,8 @@ def _renderer_fn(**kwargs) -> Sequence[run_lib.Renderer]:
     if kwargs["render"]:
         renderers = [
             run_lib.EpisodeRenderer(),
-            run_lib.SearchTreeRenderer(1),
-            PositionBeliefRenderer(),
+            # run_lib.SearchTreeRenderer(1),
+            # PositionBeliefRenderer(),
             run_lib.PauseRenderer()
         ]
     return renderers
@@ -110,7 +110,7 @@ def _tracker_fn(policies: List[policy_lib.BasePolicy],
         "step_limit": kwargs["step_limit"]
     }
 
-    # trackers.append(run_lib.BayesAccuracyTracker(**tracker_kwargs))
+    trackers.append(run_lib.BayesAccuracyTracker(**tracker_kwargs))
     # trackers.append(
     #     run_lib.ActionDistributionDistanceTracker(**tracker_kwargs)
     # )
@@ -298,9 +298,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.env_names = ["Driving7x7RoundAbout-v0"]
-    args.rollout_policy_ids = ["pi_3", "pi_4"]
-    args.baposgmcp_other_policy_ids = ["pi_2", "pi_3"]
-    args.exp_other_policy_ids = ["pi_2"]
+    args.rollout_policy_ids = ["pi_0", "pi_1", "pi_2", "pi_3", "pi_4"]
+    args.baposgmcp_other_policy_ids = ["pi_0", "pi_1", "pi_2", "pi_3"]
+    args.exp_other_policy_ids = ["pi_3"]
     args.baposgmcp_policy_dirs = [
         "/home/jonathon/baposgmcp_results/Driving/rl_policies/2022-08-02_banrmcp/train_klr_Driving7x7RoundAbout-v0_k4_seed0_2022-08-03_01-31-491db54_mq"
     ]
