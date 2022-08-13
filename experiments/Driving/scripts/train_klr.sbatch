@@ -52,7 +52,7 @@
 
 # EXPERIMENT PARAMETERS
 python_file=~/code/ba-posgmcp/experiments/Driving/train_klr.py
-env_name=Driving7x7RoundAbout-v0
+env_name=Driving14x14WideRoundAbout-v0
 nesting_level=4
 num_iterations=10000    # 20,480,000 steps
 
