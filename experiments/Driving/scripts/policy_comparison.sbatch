@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16    # number of comparisons to be run in parallel
 #SBATCH --mem=80GB           # should be > 4GB*cpus-per-task
-#SBATCH --time=0-16:00:00    # 0 days, 10 hours, 00 minutes, 00 seconds
+#SBATCH --time=0-24:00:00    # 0 days, 10 hours, 00 minutes, 00 seconds
 # OTHER
 #SBATCH --output=pairwise_comparison.%J.out
 #SBATCH --job-name="pairwise_comparison_driving"  # job name used by slurm
@@ -14,12 +14,12 @@
 
 # EXPERIMENT PARAMETERS
 python_file=~/code/ba-posgmcp/experiments/Driving/pairwise_comparison.py
-env_name=Driving7x7RoundAbout-v0
-policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-08-02/*
+env_name=Driving14x14WideRoundAbout-v0
+policy_dirs=~/baposgmcp_results/Driving/rl_policies/2022-08-13_driving14x14/*
 num_episodes=1000
 
 pwd; hostname; date
-echo "--- Running Pairwise Comparison for Driving7x7RoundAbout-v0 ---"
+echo "--- Running Pairwise Comparison for $env ---"
 echo "Seed=0"
 singularity exec \
 			-B ~/.local-baposgmcp:$Home/.local \

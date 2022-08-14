@@ -57,7 +57,7 @@ nesting_level=4
 num_iterations=10000    # 20,480,000 steps
 
 pwd; hostname; date
-echo "--- Running SyKLRBR training for Driving7x7RoundAbout-v0 ---"
+echo "--- Running SyKLRBR training for $env_name ---"
 echo "Env=$env_name"
 echo "K=$nesting_level"
 echo "num_iterations=$num_iterations"
