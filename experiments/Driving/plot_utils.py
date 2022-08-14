@@ -215,7 +215,6 @@ def get_coplayer_property(row, plot_df, key):
     return co_player_df[key].unique()[0]
 
 
-
 def import_results(result_dir: str,
                    columns_to_drop: List[str],
                    is_baposgmcp_result: bool) -> pd.DataFrame:
