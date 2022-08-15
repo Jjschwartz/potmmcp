@@ -58,15 +58,21 @@ do
 	for file_name in ${file_diff[*]}
 	do
 		printf "Remote file %s\n" $file_name
-		printf "  Compressing desired remote results files\n"
-		ssh $server "tar -cz --exclude-from=baposgmcp_results/$remote_exclude_file -C $remote_env_dir -f $file_name.tar  $file_name"
-		printf "  Copying tarball to local\n"
-		scp $server:$file_name.tar $local_env_dir/
-		printf "  Extracting tarball\n"
-		tar -xf $local_env_dir/$file_name.tar -C $local_env_dir
-		printf "  Cleaning up\n"
-		ssh $server "rm $file_name.tar"
-		rm $local_env_dir/$file_name.tar
+
+		read -p "Would you like to download this file [y/n]? " -n 1 -r
+		echo    # (optional) move to a new line
+		if [[ $REPLY =~ ^[Yy]$ ]]
+		then
+			printf "  Compressing desired remote results files\n"
+			ssh $server "tar -cz --exclude-from=baposgmcp_results/$remote_exclude_file -C $remote_env_dir -f $file_name.tar  $file_name"
+			printf "  Copying tarball to local\n"
+			scp $server:$file_name.tar $local_env_dir/
+			printf "  Extracting tarball\n"
+			tar -xf $local_env_dir/$file_name.tar -C $local_env_dir
+			printf "  Cleaning up\n"
+			ssh $server "rm $file_name.tar"
+			rm $local_env_dir/$file_name.tar
+		fi
 	done
 done
 

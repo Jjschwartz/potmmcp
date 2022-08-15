@@ -308,7 +308,6 @@ def validate_and_display(df: pd.DataFrame, is_baposgmcp_result: bool):
         _sort_and_display(ba_only_df, "other_alg", "Other Agent Policy Algs")
         _sort_and_display(ba_only_df, "other_seed", "Other Agent Policy Seeds")
 
-
         for c in BAPOSGMCP_HYPERPARAMETERS:
             values = ba_only_df[c].unique()
             values.sort()
@@ -663,3 +662,179 @@ def get_mean_pairwise_values(plot_df,
         # cross-play only
         return np.nan, np.mean(xp_values)
     return np.mean(sp_values), np.mean(xp_values)
+
+
+def get_all_mean_pairwise_values(plot_df, y_key: str):
+    """Get mean pairwise values for all policies."""
+    row_policy_IDs = plot_df["K"].unique().tolist()
+    row_policy_IDs.sort()
+    col_policy_IDs = plot_df["coplayer_K"].unique().tolist()
+    col_policy_IDs.sort()
+
+    xp_pw_returns = np.zeros((len(row_policy_IDs), len(col_policy_IDs)))
+    sp_pw_returns = np.zeros((len(row_policy_IDs), len(col_policy_IDs)))
+
+    for r, row_policy_id in enumerate(row_policy_IDs):
+        for c, col_policy_id in enumerate(col_policy_IDs):
+            sp_return, xp_return = get_mean_pairwise_values(
+                plot_df,
+                row_conds=[("K", "==", row_policy_id)],
+                row_seed_key="train_seed",
+                row_alg_key="train_alg",
+                col_conds=[("K", "==", col_policy_id)],
+                col_seed_key="train_seed",
+                col_alg_key="train_alg",
+                y_key=y_key
+            )
+
+            sp_pw_returns[r][c] = sp_return
+            xp_pw_returns[r][c] = xp_return
+
+    return (row_policy_IDs, col_policy_IDs), sp_pw_returns, xp_pw_returns
+
+
+def plot_pairwise_policy_comparison(plot_df,
+                                    y_key: str,
+                                    vrange=None,
+                                    figsize=(20, 20),
+                                    valfmt=None,
+                                    average_duplicates: bool = True):
+    """Plot results for each policy-seed pairings.
+
+    This produces a grid of (grid)-plots:
+
+    Outer-grid: train seed X train seed
+    Inner-grid: K X K
+
+    It is possible that the there are multiple pairings of the same
+    policy K X train seed matchup.
+    E.g. (agent 0 pi_0 vs agent 1 pi_1) and (agent 0 pi_1 vs agent 1 pi_0).
+    In some cases we can just take the average of the two (e.g. when looking
+    at times or returns). In such cases use `average_duplicates=True`.
+    For cases where we can't take the average (e.g. for getting exp_id), set
+    `average_duplicates=False`, in which case the first entry will be used.
+    """
+    if average_duplicates:
+        print("Averaging duplicates. FYI")
+    else:
+        print("Not averaging duplicates. FYI.")
+
+    train_seeds = plot_df["train_seed"].unique()
+    train_seeds.sort()
+
+    row_policy_ids = plot_df["K"].unique().tolist()
+    row_policy_ids.sort()
+    col_policy_ids = plot_df["coplayer_K"].unique().tolist()
+    col_policy_ids.sort()
+
+    agent_ids = plot_df["agent_id"].unique()
+    agent_ids.sort()
+
+    fig, axs = plt.subplots(
+        nrows=len(train_seeds), ncols=len(train_seeds), figsize=(20, 20)
+    )
+
+    for row_seed_idx, row_seed in enumerate(train_seeds):
+        for col_seed_idx, col_seed in enumerate(train_seeds):
+            pw_values = np.zeros((len(row_policy_ids), len(col_policy_ids)))
+            for col_policy_idx, col_policy_id in enumerate(col_policy_ids):
+                for row_policy_idx, row_policy_id in enumerate(row_policy_ids):
+                    ys = []
+                    for (a0, a1) in permutations(agent_ids):
+                        col_policy_df = filter_exps_by(
+                            plot_df,
+                            [
+                                ("agent_id", "==", a0),
+                                ("train_seed", "==", col_seed),
+                                ("K", "==", col_policy_id)
+                            ]
+                        )
+                        pairing_df = filter_by(
+                            col_policy_df,
+                            [
+                                ("agent_id", "==", a1),
+                                ("train_seed", "==", row_seed),
+                                ("K", "==", row_policy_id)
+                            ]
+                        )
+                        pairing_y_vals = pairing_df[y_key].unique()
+                        pairing_y_vals.sort()
+
+                        if len(pairing_y_vals) == 1:
+                            ys.append(pairing_y_vals[0])
+                        elif len(pairing_y_vals) > 1:
+                            print("More than 1 experiment found for pairing:")
+                            print(
+                                f"(pi={row_policy_id}, seed={row_seed}, "
+                                f"agent_id={a1}) vs (pi={col_policy_id}, "
+                                f"seed={col_seed}, agent_id={a0}): "
+                                f"{pairing_y_vals}"
+                            )
+                            print("Plotting only the first value.")
+                            ys.append(pairing_y_vals[0])
+
+                    if len(ys) == 0:
+                        y = np.nan
+                    elif len(ys) > 1 and not average_duplicates:
+                        y = ys[0]
+                    else:
+                        y = np.mean(ys)
+
+                    if y is not np.nan and valfmt is None:
+                        if isinstance(y, float):
+                            valfmt = "{x:.2f}"
+                        if isinstance(y, int):
+                            valfmt = "{x}"
+
+                    pw_values[row_policy_idx][col_policy_idx] = y
+
+            ax = axs[row_seed_idx][col_seed_idx]
+            plot_pairwise_heatmap(
+                ax,
+                (row_policy_ids, col_policy_ids),
+                pw_values,
+                title=None,
+                vrange=vrange,
+                valfmt=valfmt
+            )
+
+            if row_seed_idx == 0:
+                ax.set_title(col_seed_idx)
+            if col_seed_idx == 0:
+                ax.set_ylabel(row_seed_idx)
+
+
+def plot_mean_pairwise_comparison(plot_df,
+                                  y_key: str,
+                                  vrange: Optional[Tuple[float, float]] = None
+                                  ):
+    """Plot mean pairwise comparison of policies for given y variable."""
+    policy_ids, sp_values, xp_values = get_all_mean_pairwise_values(
+        plot_df, y_key
+    )
+
+    if vrange is None:
+        min_value = np.nanmin([np.nanmin(sp_values), np.nanmin(xp_values)])
+        max_value = np.nanmax([np.nanmax(sp_values), np.nanmax(xp_values)])
+        vrange = (min_value, max_value)
+
+    fig, axs = plt.subplots(nrows=1, ncols=3, figsize=(12, 6))
+    plot_pairwise_heatmap(
+        axs[0], policy_ids, sp_values, title="Same-Play", vrange=vrange
+    )
+    plot_pairwise_heatmap(
+        axs[1], policy_ids, xp_values, title="Cross-Play", vrange=vrange
+    )
+
+    pw_diff = sp_values - xp_values
+    plot_pairwise_heatmap(
+        axs[2],
+        policy_ids,
+        pw_diff,
+        title="Difference",
+        vrange=(np.nanmin(pw_diff), np.nanmax(pw_diff))
+    )
+
+    fig.tight_layout()
+    fig.suptitle(y_key)
+    return fig
