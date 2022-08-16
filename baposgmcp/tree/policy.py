@@ -237,14 +237,20 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             action_node, init_obs, init_rollout_prior, 0
         )
 
+        try:
+            b_0 = self.model.get_agent_initial_belief(self.ego_agent, init_obs)
+            rejection_sample = False
+        except NotImplementedError:
+            b_0 = self.model.initial_belief
+            rejection_sample = True
+
         hps_b_0 = B.HPSParticleBelief(self._other_policies_id_map)
-        b_0 = self.model.initial_belief
         while hps_b_0.size() < self.num_sims + self._extra_particles:
             # do rejection sampling from initial belief with initial obs
             state = b_0.sample()
             joint_obs = self.model.sample_initial_obs(state)
 
-            if joint_obs[self.ego_agent] != init_obs:
+            if rejection_sample and joint_obs[self.ego_agent] != init_obs:
                 continue
 
             joint_history = H.JointHistory.get_init_history(
