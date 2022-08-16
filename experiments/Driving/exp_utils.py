@@ -165,7 +165,7 @@ def load_agent_policy(policy_dir: str,
 
     sample_env = get_base_env(env_name, seed)
     env_model = sample_env.unwrapped.model
-    obs_space = env_model.obs_spaces[agent_id]
+    obs_space = env_model.observation_spaces[agent_id]
     preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
 
     policy = ba_rllib.PPORllibPolicy(
@@ -198,7 +198,7 @@ def rllib_policy_init_fn(model, ego_agent, gamma, **kwargs):
         eval_mode = kwargs.pop("eval_mode")
 
     preprocessor = ba_rllib.get_flatten_preprocessor(
-        model.obs_spaces[ego_agent]
+        model.observation_spaces[ego_agent]
     )
 
     pi = import_rllib_policy(
@@ -346,7 +346,7 @@ def load_agent_policies(agent_id: int,
             )
             random_policy_added = True
         else:
-            obs_space = env_model.obs_spaces[agent_id]
+            obs_space = env_model.observation_spaces[agent_id]
             preprocessor = ba_rllib.get_flatten_preprocessor(obs_space)
             new_policy = ba_rllib.PPORllibPolicy(
                 model=env_model,

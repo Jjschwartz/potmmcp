@@ -91,13 +91,13 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             self._depth_limit = math.ceil(math.log(epsilon) / math.log(gamma))
 
         # a belief is a dist over (state, joint history, other pi) tuples
-        b_0 = B.HPSParticleBelief(self._other_policies_id_map)
-
-        self._initial_belief = b_0
+        self._initial_belief = B.HPSParticleBelief(
+            self._other_policies_id_map
+        )
         self.root = ObsNode(
             None,
             None,
-            b_0,
+            self._initial_belief,
             policy={None: 1.0},
             rollout_hidden_states={
                 pi_id: pi.get_initial_hidden_state()
@@ -214,7 +214,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
     def update(self, action: M.Action, obs: M.Observation) -> None:
         self._log_info1(f"Step {self._step_num} update for a={action} o={obs}")
         start_time = time.time()
-        if self._step_num == 0:
+        if self.model.observation_first and self._step_num == 0:
             self.history = H.AgentHistory.get_init_history(obs)
             self._last_action = None
             self._initial_update(obs)
@@ -237,11 +237,16 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             action_node, init_obs, init_rollout_prior, 0
         )
 
-        s_b_0 = self.model.get_agent_initial_belief(self.ego_agent, init_obs)
         hps_b_0 = B.HPSParticleBelief(self._other_policies_id_map)
-        for _ in range(self.num_sims + self._extra_particles):
-            state = s_b_0.sample()
+        b_0 = self.model.initial_belief
+        while hps_b_0.size() < self.num_sims + self._extra_particles:
+            # do rejection sampling from initial belief with initial obs
+            state = b_0.sample()
             joint_obs = self.model.sample_initial_obs(state)
+
+            if joint_obs[self.ego_agent] != init_obs:
+                continue
+
             joint_history = H.JointHistory.get_init_history(
                 self.num_agents, joint_obs
             )
@@ -261,7 +266,14 @@ class BAPOSGMCP(policy_lib.BasePolicy):
     def _update(self, action: M.Action, obs: M.Observation) -> None:
         self._log_debug("Pruning histories")
         # Get new root node
-        a_node = self.root.get_child(action)
+        try:
+            a_node = self.root.get_child(action)
+        except AssertionError as ex:
+            if self.root.is_absorbing:
+                a_node = self._add_action_node(self.root, action)
+            else:
+                raise ex
+
         try:
             obs_node = a_node.get_child(obs)
 
@@ -273,13 +285,15 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                     action, obs, pi, self.root.rollout_hidden_states[pi_id]
                 )
                 obs_node.rollout_hidden_states[pi_id] = next_rollout_state
-
         except AssertionError:
             # Add obs node with uniform policy prior
             # This will be updated in the course of doing simulations
-            obs_node = self._add_obs_node(a_node, obs, None, 0)
+            obs_node = self._add_obs_node(
+                a_node, obs, None, 0
+            )
+            obs_node.is_absorbing = self.root.is_absorbing
 
-        if self.model.is_absorbing(obs, self.ego_agent):
+        if obs_node.is_absorbing:
             self._log_debug("Absorbing state reached.")
         else:
             self._log_debug(
@@ -338,9 +352,8 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             self._expand(self.root, self.history)
 
         max_search_depth = 0
-        if self.model.is_absorbing(self.root.obs, self.ego_agent):
+        if self.root.is_absorbing:
             self._log_debug("Agent in absorbing state. Not running search.")
-
         else:
             root_b = self.root.belief
             for t in range(self.num_sims):
@@ -421,6 +434,8 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         if action_node.has_child(ego_obs):
             child_obs_node = action_node.get_child(ego_obs)
             self._update_obs_node(child_obs_node, rollout_policy)
+            if not joint_step.dones[self.ego_agent]:
+                child_obs_node.is_absorbing = False
         else:
             child_obs_node = self._add_obs_node(
                 action_node,
@@ -428,13 +443,11 @@ class BAPOSGMCP(policy_lib.BasePolicy):
                 {rollout_policy.policy_id: 1.0},
                 init_visits=1
             )
+            child_obs_node.is_absorbing = joint_step.dones[self.ego_agent]
         child_obs_node.belief.add_particle(next_hp_state)
 
         max_depth = depth
-        if (
-            not joint_step.done
-            and not self.model.is_absorbing(ego_obs, self.ego_agent)
-        ):
+        if not joint_step.dones[self.ego_agent]:
             future_return, max_depth = self._simulate(
                 next_hp_state,
                 child_obs_node,
@@ -470,8 +483,7 @@ class BAPOSGMCP(policy_lib.BasePolicy):
         joint_obs = joint_step.observations
         reward = joint_step.rewards[self.ego_agent]
 
-        ego_obs = joint_obs[self.ego_agent]
-        if joint_step.done or self.model.is_absorbing(ego_obs, self.ego_agent):
+        if joint_step.dones[self.ego_agent]:
             return reward
 
         new_history = hp_state.history.extend(joint_action, joint_obs)
@@ -486,9 +498,11 @@ class BAPOSGMCP(policy_lib.BasePolicy):
             joint_step.state, new_history, next_pi_state, next_pi_hidden_states
         )
 
-        ego_action = joint_action[self.ego_agent]
         next_rollout_state = self._update_rollout_policy(
-            ego_action, ego_obs, rollout_policy, rollout_state
+            joint_action[self.ego_agent],
+            joint_obs[self.ego_agent],
+            rollout_policy,
+            rollout_state
         )
 
         future_return = self._rollout(

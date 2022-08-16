@@ -39,7 +39,8 @@ class ObsNode(Node):
                      Dict[parts.PolicyID, H.PolicyHiddenStates]
                  ] = None,
                  init_value: float = 0.0,
-                 init_visits: int = 0):
+                 init_visits: int = 0,
+                 is_absorbing: bool = False):
         super().__init__()
         self.parent: 'ActionNode' = NullNode() if parent is None else parent
         self.obs = obs
@@ -50,6 +51,7 @@ class ObsNode(Node):
             self.rollout_hidden_states = rollout_hidden_states
         self.value = init_value
         self.visits = init_visits
+        self.is_absorbing = is_absorbing
         self.children: List['ActionNode'] = []
 
     def get_child(self, action: M.Action) -> 'ActionNode':
