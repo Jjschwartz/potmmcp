@@ -9,7 +9,8 @@ from ray import rllib
 from ray.rllib.agents.trainer import Trainer
 
 from baposgmcp import pbt
-from baposgmcp.parts import AgentID, PolicyID, Policy
+from baposgmcp.parts import AgentID
+from baposgmcp.policy import PolicyID, BasePolicy
 
 from baposgmcp.rllib.trainer import get_remote_trainer, get_trainer
 from baposgmcp.rllib.utils import (
@@ -132,7 +133,7 @@ def get_trainer_weights_import_fn(trainer_args: TrainerImportArgs,
 
     def import_fn(agent_id: AgentID,
                   policy_id: PolicyID,
-                  import_dir: str) -> Policy:
+                  import_dir: str) -> BasePolicy:
         trainer = import_trainer(
             trainer_dir=import_dir,
             trainer_args=trainer_args,
@@ -227,7 +228,7 @@ def import_policy(policy_id: PolicyID,
 
 def _dummy_trainer_import_fn(agent_id: AgentID,
                              policy_id: PolicyID,
-                             import_dir: str) -> Policy:
+                             import_dir: str) -> BasePolicy:
     return {}
 
 
@@ -329,7 +330,6 @@ def import_igraph_policies(igraph_dir: str,
     for agent_id in agent_ids:
         policy_map[agent_id] = {}
         for policy_id in igraph.get_agent_policy_ids(agent_id):
-            print(f"{agent_id=} {policy_id=}")
             policy_map[agent_id][policy_id] = import_policy(
                 policy_id=policy_id,
                 igraph_dir=igraph_dir,

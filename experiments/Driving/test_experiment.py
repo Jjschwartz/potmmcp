@@ -6,11 +6,10 @@ from typing import Sequence, List
 
 from ray.tune.registry import register_env
 
+import baposgmcp.policy as P
 import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
-import baposgmcp.policy as policy_lib
 
-from render import PositionBeliefRenderer
 from exp_utils import (
     registered_env_creator,
     get_base_env,
@@ -54,7 +53,7 @@ def _baposgmcp_init_fn(model, ego_agent, gamma, **kwargs):
 
     if rollout_policy_ids is None:
         rollout_policies = {
-            "pi_-1": policy_lib.RandomPolicy(model, ego_agent, gamma)
+            "pi_-1": P.RandomPolicy(model, ego_agent, gamma)
         }
         rollout_selection = {
             pi_id: "pi_-1" for pi_id in other_policies[other_agent_id]
@@ -100,7 +99,7 @@ def _renderer_fn(**kwargs) -> Sequence[run_lib.Renderer]:
     return renderers
 
 
-def _tracker_fn(policies: List[policy_lib.BasePolicy],
+def _tracker_fn(policies: List[P.BasePolicy],
                 **kwargs) -> Sequence[run_lib.Tracker]:
     trackers = run_lib.get_default_trackers(policies)
 

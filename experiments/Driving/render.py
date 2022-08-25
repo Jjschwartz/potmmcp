@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import posggym.model as M
 from posggym.envs.grid_world.driving import DrivingEnv
 
-import baposgmcp.tree as tree_lib
+import baposgmcp.policy as P
 from baposgmcp.run import Renderer
-import baposgmcp.policy as policy_lib
+from baposgmcp.tree import BAPOSGMCP
 
 
 class PositionBeliefRenderer(Renderer):
@@ -26,14 +26,14 @@ class PositionBeliefRenderer(Renderer):
                     env: DrivingEnv,
                     timestep: M.JointTimestep,
                     action: M.JointAction,
-                    policies: Sequence[policy_lib.BasePolicy],
+                    policies: Sequence[P.BasePolicy],
                     episode_end: bool) -> None:
         if episode_t == 0:
             return
 
         if self._fig is None:
             num_baposgmcp = sum(
-                isinstance(pi, tree_lib.BAPOSGMCP) for pi in policies
+                isinstance(pi, BAPOSGMCP) for pi in policies
             )
             assert num_baposgmcp <= 1, (
                 "PositionBeliefRenderer currently only support one BAPOSGMCP "
@@ -61,10 +61,10 @@ class PositionBeliefRenderer(Renderer):
                         ax.set_yticklabels([])
 
         for policy in policies:
-            if isinstance(policy, tree_lib.BAPOSGMCP):
+            if isinstance(policy, BAPOSGMCP):
                 self._render_baposgmcp(policy)
 
-    def _render_baposgmcp(self, baposgmcp: tree_lib.BAPOSGMCP) -> None:
+    def _render_baposgmcp(self, baposgmcp: BAPOSGMCP) -> None:
         pos_beliefs, dest_beliefs = self._get_pos_beliefs(
             baposgmcp.root.belief
         )

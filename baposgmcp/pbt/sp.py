@@ -1,18 +1,18 @@
 from itertools import product
 from typing import Optional, List
 
-from baposgmcp import parts
+from baposgmcp.parts import AgentID
 import baposgmcp.pbt.utils as pbt_utils
 from baposgmcp.pbt.interaction_graph import InteractionGraph
 
 
-def get_sp_policy_id(agent_id: Optional[parts.AgentID],
+def get_sp_policy_id(agent_id: Optional[AgentID],
                      is_symmetric: bool) -> str:
     """Get the policy ID string for a self-play policy."""
     return pbt_utils.get_policy_id(agent_id, "SP", is_symmetric)
 
 
-def construct_sp_interaction_graph(agent_ids: List[parts.AgentID],
+def construct_sp_interaction_graph(agent_ids: List[AgentID],
                                    is_symmetric: bool,
                                    seed: Optional[int] = None
                                    ) -> InteractionGraph:

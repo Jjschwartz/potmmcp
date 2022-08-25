@@ -17,8 +17,8 @@ import numpy as np
 import posggym
 from posggym import wrappers
 
+import baposgmcp.policy as P
 from baposgmcp.run import runner
-import baposgmcp.policy as policy_lib
 import baposgmcp.run.stats as stats_lib
 import baposgmcp.run.render as render_lib
 import baposgmcp.run.writer as writer_lib
@@ -44,7 +44,7 @@ class PolicyParams(NamedTuple):
     name: str
     gamma: float
     kwargs: Dict[str, Any]
-    init: Callable[..., policy_lib.BasePolicy]
+    init: Callable[..., P.BasePolicy]
     info: Optional[Dict[str, Any]] = None
 
 
@@ -56,7 +56,7 @@ class ExpParams(NamedTuple):
     run_config: runner.RunConfig
     tracker_fn: Optional[
         Callable[
-            [List[policy_lib.BasePolicy], Dict[str, Any]],
+            [List[P.BasePolicy], Dict[str, Any]],
             Sequence[stats_lib.Tracker]
         ]
     ] = None
@@ -200,7 +200,7 @@ def _get_param_statistics(params: ExpParams
 
 
 def _get_exp_trackers(params: ExpParams,
-                      policies: List[policy_lib.BasePolicy]
+                      policies: List[P.BasePolicy]
                       ) -> Sequence[stats_lib.Tracker]:
     if params.tracker_fn:
         tracker_kwargs = params.tracker_kwargs if params.tracker_kwargs else {}
@@ -259,7 +259,7 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
             episode_trigger = None
         env = wrappers.RecordVideo(env, video_folder, episode_trigger)
 
-    policies: List[policy_lib.BasePolicy] = []
+    policies: List[P.BasePolicy] = []
     for i, pi_params in enumerate(params.policy_params_list):
         kwargs = copy.copy(pi_params.kwargs)
         kwargs["logger"] = exp_logger

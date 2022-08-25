@@ -6,9 +6,8 @@ from ray import rllib
 
 import posggym.model as M
 
-import baposgmcp.hps as H
-from baposgmcp import parts
-import baposgmcp.policy as policy_lib
+import baposgmcp.policy as P
+from baposgmcp.history import AgentHistory
 
 from baposgmcp.rllib import utils
 
@@ -21,7 +20,7 @@ _ACTION_PROB = "action_prob"
 _ACTION_LOGP = "action_logp"
 
 
-class RllibPolicy(policy_lib.BasePolicy):
+class RllibPolicy(P.BasePolicy):
     """A Rllib Policy.
 
     This class essentially acts as an interface between BA-POSGMCP and an
@@ -65,34 +64,34 @@ class RllibPolicy(policy_lib.BasePolicy):
     def get_action(self) -> M.Action:
         return self._last_action
 
-    def get_action_by_history(self, history: H.AgentHistory) -> M.Action:
+    def get_action_by_history(self, history: AgentHistory) -> M.Action:
         _, _, a_t, _ = self._unroll_history(history)
         return a_t
 
     def get_action_by_hidden_state(self,
-                                   hidden_state: H.PolicyHiddenState
+                                   hidden_state: P.PolicyHiddenState
                                    ) -> M.Action:
         return hidden_state["last_action"]
 
     def get_pi(self,
-               history: Optional[H.AgentHistory] = None
-               ) -> parts.ActionDist:
+               history: Optional[AgentHistory] = None
+               ) -> P.ActionDist:
         return self._get_pi_from_info(self._get_info(history))
 
     def get_pi_from_hidden_state(self,
-                                 hidden_state: H.PolicyHiddenState
-                                 ) -> parts.ActionDist:
+                                 hidden_state: P.PolicyHiddenState
+                                 ) -> P.ActionDist:
         return self._get_pi_from_info(hidden_state["last_pi_info"])
 
     @abc.abstractmethod
-    def _get_pi_from_info(self, info: Dict[str, Any]) -> parts.ActionDist:
+    def _get_pi_from_info(self, info: Dict[str, Any]) -> P.ActionDist:
         """Get policy distribution from info dict."""
 
-    def get_value(self, history: Optional[H.AgentHistory]) -> float:
+    def get_value(self, history: Optional[AgentHistory]) -> float:
         return self._get_value_from_info(self._get_info(history))
 
     def get_value_by_hidden_state(self,
-                                  hidden_state: H.PolicyHiddenState) -> float:
+                                  hidden_state: P.PolicyHiddenState) -> float:
         return self._get_value_from_info(hidden_state["last_pi_info"])
 
     @abc.abstractmethod
@@ -115,7 +114,7 @@ class RllibPolicy(policy_lib.BasePolicy):
         self._last_hidden_state = self._get_initial_hidden_state()
         self._last_pi_info = {}
 
-    def reset_history(self, history: H.AgentHistory) -> None:
+    def reset_history(self, history: AgentHistory) -> None:
         super().reset_history(history)
         output = self._unroll_history(history)
         self._last_obs = output[0]
@@ -124,11 +123,11 @@ class RllibPolicy(policy_lib.BasePolicy):
         self._last_pi_info = output[3]
 
     def get_next_hidden_state(self,
-                              hidden_state: H.PolicyHiddenState,
+                              hidden_state: P.PolicyHiddenState,
                               action: M.Action,
                               obs: M.Observation,
                               explore: Optional[bool] = None
-                              ) -> H.PolicyHiddenState:
+                              ) -> P.PolicyHiddenState:
         next_hidden_state = super().get_next_hidden_state(
             hidden_state, action, obs
         )
@@ -140,7 +139,7 @@ class RllibPolicy(policy_lib.BasePolicy):
         next_hidden_state["last_pi_info"] = output[2]
         return next_hidden_state
 
-    def get_initial_hidden_state(self) -> H.PolicyHiddenState:
+    def get_initial_hidden_state(self) -> P.PolicyHiddenState:
         hidden_state = super().get_initial_hidden_state()
         hidden_state["last_obs"] = None
         hidden_state["last_hidden_state"] = self._get_initial_hidden_state()
@@ -148,14 +147,14 @@ class RllibPolicy(policy_lib.BasePolicy):
         hidden_state["last_pi_info"] = {}
         return hidden_state
 
-    def get_hidden_state(self) -> H.PolicyHiddenState:
+    def get_hidden_state(self) -> P.PolicyHiddenState:
         hidden_state = super().get_hidden_state()
         hidden_state["last_obs"] = self._last_obs
         hidden_state["last_hidden_state"] = self._last_hidden_state
         hidden_state["last_pi_info"] = self._last_pi_info
         return hidden_state
 
-    def set_hidden_state(self, hidden_state: H.PolicyHiddenState):
+    def set_hidden_state(self, hidden_state: P.PolicyHiddenState):
         super().set_hidden_state(hidden_state)
         self._last_obs = hidden_state["last_obs"]
         self._last_hidden_state = hidden_state["last_hidden_state"]
@@ -197,7 +196,7 @@ class RllibPolicy(policy_lib.BasePolicy):
         return (actions, h_t_batch, info_batch)
 
     def _unroll_history(self,
-                        history: H.AgentHistory
+                        history: AgentHistory
                         ) -> Tuple[
                             M.Observation,
                             RllibHiddenState,
@@ -219,7 +218,7 @@ class RllibPolicy(policy_lib.BasePolicy):
         # info_t - the info returned after processing o_t, a_t, h_tm1
         return o_t, h_t, a_tp1, info_t
 
-    def _get_info(self, history: Optional[H.AgentHistory]) -> Dict[str, Any]:
+    def _get_info(self, history: Optional[AgentHistory]) -> Dict[str, Any]:
         if history is None:
             return self._last_pi_info
         _, _, _, info = self._unroll_history(history)
@@ -231,7 +230,7 @@ class PPORllibPolicy(RllibPolicy):
 
     VF_PRED = "vf_preds"
 
-    def _get_pi_from_info(self, info: Dict[str, Any]) -> parts.ActionDist:
+    def _get_pi_from_info(self, info: Dict[str, Any]) -> P.ActionDist:
         probs = utils.numpy_softmax(info[_ACTION_DIST_INPUTS])
         return {a: probs[a] for a in range(len(probs))}
 

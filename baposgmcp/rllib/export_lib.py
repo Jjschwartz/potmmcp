@@ -8,9 +8,10 @@ from typing import Dict, Sequence, Union
 import ray
 
 from baposgmcp import pbt
-from baposgmcp.parts import AgentID, PolicyID, Policy
-from baposgmcp.rllib.utils import RllibTrainerMap
+from baposgmcp.parts import AgentID
+from baposgmcp.policy import PolicyID, BasePolicy
 
+from baposgmcp.rllib.utils import RllibTrainerMap
 from baposgmcp.rllib.import_export_utils import (
     TRAINER_CONFIG_FILE, nested_remove
 )
@@ -30,7 +31,7 @@ def get_trainer_export_fn(trainer_map: RllibTrainerMap,
 
     def export_fn(agent_id: AgentID,
                   policy_id: PolicyID,
-                  policy: Policy,
+                  policy: BasePolicy,
                   export_dir: str):
         if policy_id not in trainer_map[agent_id]:
             # untrained policy, e.g. a random policy

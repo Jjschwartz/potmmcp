@@ -4,14 +4,14 @@ from typing import Callable, Any, Dict, List, Union, Optional
 from ray import rllib
 from ray.rllib.agents.trainer import Trainer
 
-
 import numpy as np
 from gym import spaces
 
 import posggym.model as M
 
 from baposgmcp import pbt
-from baposgmcp.parts import AgentID, PolicyID
+from baposgmcp.parts import AgentID
+from baposgmcp.policy import PolicyID
 
 
 ObsPreprocessor = Callable[[M.Observation], Any]

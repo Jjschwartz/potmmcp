@@ -3,8 +3,7 @@ from typing import Optional, List, Dict
 
 import posggym.model as M
 
-import baposgmcp.hps as H
-from baposgmcp import parts
+import baposgmcp.policy as P
 import baposgmcp.tree.belief as B
 
 
@@ -34,9 +33,9 @@ class ObsNode(Node):
                  parent: Optional['ActionNode'],
                  obs: M.Observation,
                  belief: B.HPSParticleBelief,
-                 policy: parts.ActionDist,
+                 policy: P.ActionDist,
                  rollout_hidden_states: Optional[
-                     Dict[parts.PolicyID, H.PolicyHiddenStates]
+                     Dict[P.PolicyID, P.PolicyHiddenStates]
                  ] = None,
                  init_value: float = 0.0,
                  init_visits: int = 0,

@@ -23,7 +23,7 @@ from posggym.wrappers.rllib_multi_agent_env import RllibMultiAgentEnv
 import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
 import baposgmcp.rllib as ba_rllib
-import baposgmcp.policy as policy_lib
+import baposgmcp.policy as P
 
 
 RENDER = False
@@ -103,15 +103,21 @@ def _get_ppo_trainer():
     return trainer
 
 
-def _get_baposgmcp(model, agent_id, other_policies, rollout_policy, truncated):
+def _get_baposgmcp(model,
+                   agent_id,
+                   other_policies,
+                   rollout_policies,
+                   rollout_selection,
+                   truncated):
     return tree_lib.BAPOSGMCP(
         model=model,
         ego_agent=agent_id,
         gamma=0.9,
+        num_sims=8,
         other_policies=other_policies,
         other_policy_prior=None,
-        num_sims=8,
-        rollout_policy=rollout_policy,
+        rollout_policies=rollout_policies,
+        rollout_selection=rollout_selection,
         c_init=1.0,
         c_base=100.0,
         truncated=truncated,
@@ -142,17 +148,21 @@ def test_rllib_ppopolicy():
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model
-    agent_0_policy = policy_lib.RandomPolicy(
+    agent_0_policy = P.RandomPolicy(
         env_model,
         ego_agent=0,
-        gamma=0.9
+        gamma=0.9,
+        policy_id='pi_-1_0',
     )
     agent_1_policy = ba_rllib.PPORllibPolicy(
         env_model,
         ego_agent=1,
         gamma=0.9,
+        policy_id='pi_0_1',
         policy=trainer.get_policy("pi_1"),
-        preprocessor=ba_rllib.get_flatten_preprocessor(env_model.obs_spaces[1])
+        preprocessor=ba_rllib.get_flatten_preprocessor(
+            env_model.observation_spaces[1]
+        )
     )
     policies = [agent_0_policy, agent_1_policy]
     _run_sims(sample_env, policies)
@@ -170,24 +180,31 @@ def test_rllib_ppopolicy_with_tree():
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model
-    agent_1_random_policy = policy_lib.RandomPolicy(
+    agent_1_random_policy = P.RandomPolicy(
         env_model,
         ego_agent=1,
-        gamma=0.9
+        gamma=0.9,
+        policy_id='pi_-1_1'
     )
     agent_1_rllib_policy = ba_rllib.PPORllibPolicy(
         env_model,
         ego_agent=1,
         gamma=0.9,
+        policy_id='pi_0_1',
         policy=trainer.get_policy("pi_1"),
-        preprocessor=ba_rllib.get_flatten_preprocessor(env_model.obs_spaces[1])
+        preprocessor=ba_rllib.get_flatten_preprocessor(
+            env_model.observation_spaces[1]
+        )
     )
 
     agent_0_policy = _get_baposgmcp(
         env_model,
         0,
         other_policies={1: {'pi_0_1': agent_1_rllib_policy}},
-        rollout_policy=policy_lib.RandomPolicy(env_model, 0, 0.9),
+        rollout_policies={
+            'pi_-1_0': P.RandomPolicy(env_model, 0, 0.9, policy_id='pi_-1_0')
+        },
+        rollout_selection={'pi_0_1': 'pi_-1_0'},
         truncated=False,
     )
 
@@ -201,24 +218,31 @@ def test_rllib_ppopolicy_with_tree_truncated():
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model
-    agent_1_random_policy = policy_lib.RandomPolicy(
+    agent_1_random_policy = P.RandomPolicy(
         env_model,
         ego_agent=1,
-        gamma=0.9
+        gamma=0.9,
+        policy_id='pi_-1_1'
     )
     agent_1_rllib_policy = ba_rllib.PPORllibPolicy(
         env_model,
         ego_agent=1,
         gamma=0.9,
+        policy_id='pi_0_1',
         policy=trainer.get_policy("pi_1"),
-        preprocessor=ba_rllib.get_flatten_preprocessor(env_model.obs_spaces[1])
+        preprocessor=ba_rllib.get_flatten_preprocessor(
+            env_model.observation_spaces[1]
+        )
     )
 
     agent_0_policy = _get_baposgmcp(
         env_model,
         0,
         other_policies={1: {'pi_0_1': agent_1_rllib_policy}},
-        rollout_policy=policy_lib.RandomPolicy(env_model, 0, 0.9),
+        rollout_policies={
+            'pi_-1_0': P.RandomPolicy(env_model, 0, 0.9, policy_id='pi_-1_0')
+        },
+        rollout_selection={'pi_0_1': 'pi_-1_0'},
         truncated=True,
     )
 
@@ -232,24 +256,29 @@ def test_rllib_ppopolicy_with_tree_as_rollout():
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model
-    agent_0_random_policy = policy_lib.RandomPolicy(
+    agent_0_random_policy = P.RandomPolicy(
         env_model,
         ego_agent=0,
-        gamma=0.9
+        gamma=0.9,
+        policy_id='pi_-1_0'
     )
     agent_1_rllib_policy = ba_rllib.PPORllibPolicy(
         env_model,
         ego_agent=1,
         gamma=0.9,
+        policy_id='pi_0_1',
         policy=trainer.get_policy("pi_1"),
-        preprocessor=ba_rllib.get_flatten_preprocessor(env_model.obs_spaces[1])
+        preprocessor=ba_rllib.get_flatten_preprocessor(
+            env_model.observation_spaces[1]
+        )
     )
 
     agent_1_policy = _get_baposgmcp(
         env_model,
         0,
         other_policies={1: {'pi_-1_0': agent_0_random_policy}},
-        rollout_policy=agent_1_rllib_policy,
+        rollout_policies={'pi_0_1': agent_1_rllib_policy},
+        rollout_selection={'pi_-1_0': 'pi_0_1'},
         truncated=False
     )
 
@@ -263,24 +292,29 @@ def test_rllib_ppopolicy_with_tree_as_rollout_truncated():
     trainer = _get_ppo_trainer()
 
     env_model = sample_env.model
-    agent_0_random_policy = policy_lib.RandomPolicy(
+    agent_0_random_policy = P.RandomPolicy(
         env_model,
         ego_agent=0,
-        gamma=0.9
+        gamma=0.9,
+        policy_id='pi_-1_0'
     )
     agent_1_rllib_policy = ba_rllib.PPORllibPolicy(
         env_model,
         ego_agent=1,
         gamma=0.9,
+        policy_id='pi_0_1',
         policy=trainer.get_policy("pi_1"),
-        preprocessor=ba_rllib.get_flatten_preprocessor(env_model.obs_spaces[1])
+        preprocessor=ba_rllib.get_flatten_preprocessor(
+            env_model.observation_spaces[1]
+        )
     )
 
     agent_1_policy = _get_baposgmcp(
         env_model,
         0,
         other_policies={1: {'pi_-1_0': agent_0_random_policy}},
-        rollout_policy=agent_1_rllib_policy,
+        rollout_policies={'pi_0_1': agent_1_rllib_policy},
+        rollout_selection={'pi_-1_0': 'pi_0_1'},
         truncated=True
     )
 

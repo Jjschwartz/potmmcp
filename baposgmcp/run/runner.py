@@ -85,6 +85,10 @@ def run_episode_loop(env: posggym.Env,
     )
 
     joint_obs = env.reset()
+
+    if not env.observation_first:
+        joint_obs = [None] * env.n_agents
+
     joint_timestep = (    # type: ignore
         joint_obs, tuple(0.0 for _ in range(env.n_agents)), False, {}
     )

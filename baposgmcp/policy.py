@@ -2,13 +2,67 @@
 import abc
 import random
 import logging
-from typing import Optional, Dict, Mapping, Any
+from typing import Optional, Dict, Mapping, Any, Union, Tuple
 
 import gym
 import posggym.model as M
 
-import baposgmcp.hps as H
 from baposgmcp import parts
+from baposgmcp.history import AgentHistory
+
+# Convenient type definitions
+PolicyID = Union[int, str]
+ActionDist = Dict[M.Action, float]
+PolicyMap = Dict[PolicyID, "BasePolicy"]
+PolicyHiddenState = Dict[str, Any]
+PolicyHiddenStates = Tuple[PolicyHiddenState, ...]
+PolicyDist = Dict[PolicyID, float]
+PolicyVectorDist = Tuple[Tuple[PolicyID, ...], Tuple[float, ...]]
+AgentPolicyMap = Dict[parts.AgentID, PolicyMap]
+AgentPolicyDist = Dict[parts.AgentID, PolicyDist]
+
+
+def sample_action_dist(dist: ActionDist) -> M.Action:
+    """Sample an action from an action distribution."""
+    return random.choices(list(dist.keys()), weights=dist.values(), k=1)[0]
+
+
+def vectorize_policy_dist(dist: PolicyDist,
+                          make_cumulative: bool) -> PolicyVectorDist:
+    """Convert a policy distribution dictionary into a vectorized format.
+
+    The vectorized format is two tuples, one for policyIDs and one for the
+    corresponding probabilities.
+
+    If make_cumulative=True, distribution vector will have cumulative
+    probabilities, otherwise they are just normal. Cumulative probabilities are
+    faster when working with random.choices function.
+    """
+    policy_ids = tuple(dist)
+    policy_probs = list(dist.values())
+
+    prob_sum = sum(policy_probs)
+    is_cumulative = prob_sum >= 1.0 and policy_probs[-1] == 1.0
+
+    if not is_cumulative and prob_sum != 1.0:
+        policy_probs = parts.normalize_dist(policy_probs)
+
+    if make_cumulative and not is_cumulative:
+        cumulative_probs = []
+        last_prob = 0
+        for p in policy_probs:
+            last_prob = p + last_prob
+            cumulative_probs.append(last_prob)
+        policy_probs = cumulative_probs
+    elif not make_cumulative and is_cumulative:
+        noncumulative_policy_probs = []
+        last_prob = 0
+        for p in policy_probs:
+            noncumulative_policy_probs.append(p-last_prob)
+            last_prob = p
+        policy_probs = noncumulative_policy_probs
+
+    return policy_ids, tuple(policy_probs)
 
 
 class BasePolicy(abc.ABC):
@@ -18,7 +72,7 @@ class BasePolicy(abc.ABC):
                  model: M.POSGModel,
                  ego_agent: int,
                  gamma: float,
-                 policy_id: Optional[str] = None,
+                 policy_id: Optional[str],
                  logger: Optional[logging.Logger] = None,
                  **kwargs):
         self.model = model
@@ -28,7 +82,7 @@ class BasePolicy(abc.ABC):
         self._logger = logging.getLogger() if logger is None else logger
         self.kwargs = kwargs
 
-        self.history = H.AgentHistory.get_init_history()
+        self.history = AgentHistory.get_init_history()
         self._last_action = None
         self._statistics: Dict[str, Any] = {}
 
@@ -47,7 +101,7 @@ class BasePolicy(abc.ABC):
     def get_action(self) -> M.Action:
         """Get action for given obs."""
 
-    def get_action_by_history(self, history: H.AgentHistory) -> M.Action:
+    def get_action_by_history(self, history: AgentHistory) -> M.Action:
         """Get action given history, leaving state of policy unchanged."""
         current_history = self.history
         self.reset_history(history)
@@ -57,14 +111,14 @@ class BasePolicy(abc.ABC):
 
     @abc.abstractmethod
     def get_action_by_hidden_state(self,
-                                   hidden_state: H.PolicyHiddenState
+                                   hidden_state: PolicyHiddenState
                                    ) -> M.Action:
         """Get action given hidden state of policy."""
 
     @abc.abstractmethod
     def get_pi(self,
-               history: Optional[H.AgentHistory] = None
-               ) -> parts.ActionDist:
+               history: Optional[AgentHistory] = None
+               ) -> ActionDist:
         """Get agent's distribution over actions for a given history.
 
         If history is None or not given then uses current history.
@@ -72,17 +126,17 @@ class BasePolicy(abc.ABC):
 
     @abc.abstractmethod
     def get_pi_from_hidden_state(self,
-                                 hidden_state: H.PolicyHiddenState
-                                 ) -> parts.ActionDist:
+                                 hidden_state: PolicyHiddenState
+                                 ) -> ActionDist:
         """Get agent's distribution over actions for given hidden state."""
 
     @abc.abstractmethod
-    def get_value(self, history: Optional[H.AgentHistory]) -> float:
+    def get_value(self, history: Optional[AgentHistory]) -> float:
         """Get a value estimate of a history."""
 
     @abc.abstractmethod
     def get_value_by_hidden_state(self,
-                                  hidden_state: H.PolicyHiddenState) -> float:
+                                  hidden_state: PolicyHiddenState) -> float:
         """Get a value estimate from policy's hidden state."""
 
     def update(self, action: M.Action, obs: M.Observation) -> None:
@@ -91,21 +145,21 @@ class BasePolicy(abc.ABC):
 
     def reset(self) -> None:
         """Reset the policy."""
-        self.history = H.AgentHistory.get_init_history()
+        self.history = AgentHistory.get_init_history()
         self._last_action = None
 
-    def reset_history(self, history: H.AgentHistory) -> None:
+    def reset_history(self, history: AgentHistory) -> None:
         """Reset policy history to given history."""
         self.history = history
 
     def get_next_hidden_state(self,
-                              hidden_state: H.PolicyHiddenState,
+                              hidden_state: PolicyHiddenState,
                               action: M.Action,
                               obs: M.Observation
-                              ) -> H.PolicyHiddenState:
+                              ) -> PolicyHiddenState:
         """Get next hidden state of policy."""
         if hidden_state["history"] is None:
-            next_history = H.AgentHistory(((action, obs), ))
+            next_history = AgentHistory(((action, obs), ))
         else:
             next_history = hidden_state["history"].extend(action, obs)
         return {
@@ -113,21 +167,21 @@ class BasePolicy(abc.ABC):
             "last_action": action
         }
 
-    def get_initial_hidden_state(self) -> H.PolicyHiddenState:
+    def get_initial_hidden_state(self) -> PolicyHiddenState:
         """Get the initial hidden state of the policy."""
         return {
             "history": None,
             "last_action": None
         }
 
-    def get_hidden_state(self) -> H.PolicyHiddenState:
+    def get_hidden_state(self) -> PolicyHiddenState:
         """Get the hidden state of the policy given it's current history."""
         return {
             "history": self.history,
             "last_action": self._last_action
         }
 
-    def set_hidden_state(self, hidden_state: H.PolicyHiddenState):
+    def set_hidden_state(self, hidden_state: PolicyHiddenState):
         """Set the hidden state of the policy."""
         self.history = hidden_state["history"]
         self._last_action = hidden_state["last_action"]
@@ -175,7 +229,7 @@ class FixedDistributionPolicy(BasePolicy):
                  model: M.POSGModel,
                  ego_agent: int,
                  gamma: float,
-                 dist: parts.ActionDist,
+                 dist: ActionDist,
                  policy_id: Optional[str] = None,
                  logger: Optional[logging.Logger] = None,
                  **kwargs):
@@ -201,24 +255,24 @@ class FixedDistributionPolicy(BasePolicy):
         )[0]
 
     def get_pi(self,
-               history: Optional[H.AgentHistory] = None
-               ) -> parts.ActionDist:
+               history: Optional[AgentHistory] = None
+               ) -> ActionDist:
         return dict(self._dist)
 
     def get_pi_from_hidden_state(self,
-                                 hidden_state: H.PolicyHiddenState
-                                 ) -> parts.ActionDist:
+                                 hidden_state: PolicyHiddenState
+                                 ) -> ActionDist:
         return self.get_pi(None)
 
-    def get_value(self, history: Optional[H.AgentHistory]) -> float:
+    def get_value(self, history: Optional[AgentHistory]) -> float:
         return 0.0
 
     def get_value_by_hidden_state(self,
-                                  hidden_state: H.PolicyHiddenState) -> float:
+                                  hidden_state: PolicyHiddenState) -> float:
         return 0.0
 
     def get_action_by_hidden_state(self,
-                                   hidden_state: H.PolicyHiddenState
+                                   hidden_state: PolicyHiddenState
                                    ) -> M.Action:
         return self.get_action()
 

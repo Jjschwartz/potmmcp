@@ -11,9 +11,9 @@ from posggym.wrappers import FlattenObservation
 from posggym.wrappers.rllib_multi_agent_env import RllibMultiAgentEnv
 
 from baposgmcp import pbt
+import baposgmcp.policy as P
 import baposgmcp.run as run_lib
 import baposgmcp.rllib as ba_rllib
-import baposgmcp.policy as ba_policy_lib
 from baposgmcp.config import BASE_RESULTS_DIR
 
 
@@ -261,7 +261,7 @@ def load_agent_policy_params(policy_dir: str,
                 name="RandomPolicy",
                 gamma=gamma,
                 kwargs={"policy_id": policy_id},
-                init=ba_policy_lib.RandomPolicy,
+                init=P.RandomPolicy,
                 info=info
             )
             random_policy_added = True
@@ -285,7 +285,7 @@ def load_agent_policy_params(policy_dir: str,
             name="RandomPolicy",
             gamma=gamma,
             kwargs={"policy_id": "pi_-1"},
-            init=ba_policy_lib.RandomPolicy,
+            init=P.RandomPolicy,
             info=info
         )
         policy_params_list.append(policy_params)
@@ -300,7 +300,7 @@ def load_agent_policies(agent_id: int,
                         include_random_policy: bool = False,
                         env_seed: Optional[int] = None,
                         include_policy_ids: Optional[List[str]] = None
-                        ) -> Dict[str, ba_policy_lib.BasePolicy]:
+                        ) -> Dict[str, P.BasePolicy]:
     """Load agent rllib policies from file."""
     sample_env = get_base_env(env_name, env_seed)
     env_model = sample_env.unwrapped.model
@@ -341,7 +341,7 @@ def load_agent_policies(agent_id: int,
             continue
 
         if "-1" in policy_id:
-            new_policy = ba_policy_lib.RandomPolicy(
+            new_policy = P.RandomPolicy(
                 env_model, agent_id, gamma
             )
             random_policy_added = True
@@ -359,7 +359,7 @@ def load_agent_policies(agent_id: int,
         policies_map[policy_id] = new_policy
 
     if include_random_policy and not random_policy_added:
-        new_policy = ba_policy_lib.RandomPolicy(
+        new_policy = P.RandomPolicy(
             env_model,
             agent_id,
             gamma,

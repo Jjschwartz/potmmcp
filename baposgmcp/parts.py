@@ -1,17 +1,13 @@
-import random
-from typing import Dict, Union, Any
+from typing import Dict, Union, Tuple, Sequence
 
 import posggym.model as M
 
 AgentID = Union[str, int, M.AgentID, None]
 
 StateDist = Dict[M.State, float]
-ActionDist = Dict[M.Action, float]
-
-Policy = Any
-PolicyID = Union[int, str]
 
 
-def sample_action_dist(dist: ActionDist) -> M.Action:
-    """Sample an action from an action distribution."""
-    return random.choices(list(dist.keys()), weights=dist.values(), k=1)[0]
+def normalize_dist(dist: Sequence[float]) -> Tuple[float]:
+    """Normalize a distribution."""
+    prob_sum = sum(dist)
+    return tuple(p / prob_sum for p in dist)

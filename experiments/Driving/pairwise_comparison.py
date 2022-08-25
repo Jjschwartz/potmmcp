@@ -13,8 +13,8 @@ from itertools import combinations_with_replacement, product
 
 from ray.tune.registry import register_env
 
+import baposgmcp.policy as P
 import baposgmcp.run as run_lib
-import baposgmcp.policy as policy_lib
 
 from exp_utils import (
     registered_env_creator,
@@ -31,7 +31,7 @@ def _renderer_fn(**kwargs) -> Sequence[run_lib.Renderer]:
     return renderers
 
 
-def _tracker_fn(policies: List[policy_lib.BasePolicy],
+def _tracker_fn(policies: List[P.BasePolicy],
                 **kwargs) -> Sequence[run_lib.Tracker]:
     trackers = run_lib.get_default_trackers(policies)
     return trackers

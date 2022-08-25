@@ -1,9 +1,9 @@
 from typing import Optional
 
-from baposgmcp import parts
+from baposgmcp.parts import AgentID
 
 
-def get_policy_id(agent_id: Optional[parts.AgentID],
+def get_policy_id(agent_id: Optional[AgentID],
                   name: str,
                   is_symmetric: bool) -> str:
     """Get a standard format policy ID string.
@@ -16,7 +16,7 @@ def get_policy_id(agent_id: Optional[parts.AgentID],
     return f"pi_{name}_{agent_id}"
 
 
-def get_agent_id_from_policy_id(policy_id: str) -> parts.AgentID:
+def get_agent_id_from_policy_id(policy_id: str) -> AgentID:
     """Get agent id from policy id.
 
     Assumes pbt naming and that env is asymmetric.

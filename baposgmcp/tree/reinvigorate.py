@@ -1,11 +1,11 @@
-"""Functions and classes for belief reinvigoration in BAPOSGMCP."""
 import abc
 from typing import Callable, List
 
 import posggym.model as M
 
-import baposgmcp.hps as H
+from baposgmcp import parts
 import baposgmcp.tree.belief as B
+from baposgmcp.tree.hps import HistoryPolicyState
 
 
 class BeliefReinvigorator(abc.ABC):
@@ -13,7 +13,7 @@ class BeliefReinvigorator(abc.ABC):
 
     @abc.abstractmethod
     def reinvigorate(self,
-                     agent_id: M.AgentID,
+                     agent_id: parts.AgentID,
                      belief: B.ParticleBelief,
                      action: M.Action,
                      obs: M.Observation,
@@ -41,11 +41,13 @@ class BeliefReinvigorator(abc.ABC):
             the number of additional particles to sample
         parent_belief : M.Belief
             the parent belief of the belief being reinvigorated
-        joint_action_fn : Callable[[H.HistoryState, M.Action], M.JointAction]
+        joint_action_fn : Callable[
+                [HistoryPolicyState, M.Action], M.JointAction
+            ]
             joint action selection function
         joint_update_fn : Callable[
-            [H.HistoryPolicyState, M.JointAction, M.JointObservation],
-            H.PolicyHiddenStates
+            [HistoryPolicyState, M.JointAction, M.JointObservation],
+            baposgmcp.policy.PolicyHiddenStates
         ]
             update function for policies
 
@@ -101,7 +103,7 @@ class BABeliefRejectionSampler(BeliefReinvigorator):
                           joint_action_fn: Callable,
                           joint_update_fn: Callable,
                           use_rejected_samples: bool
-                          ) -> List[H.HistoryPolicyState]:
+                          ) -> List[HistoryPolicyState]:
         sample_count = 0
         retry_count = 0
         rejected_samples = []
@@ -120,7 +122,7 @@ class BABeliefRejectionSampler(BeliefReinvigorator):
             next_policy_hidden_state = joint_update_fn(
                 hp_state, joint_action, joint_obs
             )
-            next_hp_state = H.HistoryPolicyState(
+            next_hp_state = HistoryPolicyState(
                 joint_step.state,
                 new_history,
                 hp_state.other_policies,
@@ -182,7 +184,7 @@ class BABeliefRandomSampler(BeliefReinvigorator):
                        num_samples: int,
                        joint_action_fn: Callable,
                        joint_update_fn: Callable
-                       ) -> List[H.HistoryPolicyState]:
+                       ) -> List[HistoryPolicyState]:
         samples = []
         for _ in range(num_samples):
             hp_state = parent_belief.sample()
@@ -199,7 +201,7 @@ class BABeliefRandomSampler(BeliefReinvigorator):
             next_policy_hidden_state = joint_update_fn(
                 hp_state, joint_action, joint_obs
             )
-            next_hp_state = H.HistoryPolicyState(
+            next_hp_state = HistoryPolicyState(
                 joint_step.state,
                 new_history,
                 hp_state.other_policies,

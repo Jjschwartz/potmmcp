@@ -1,17 +1,14 @@
-import logging
-
 import posggym
 
+import baposgmcp.policy as P
 import baposgmcp.run as run_lib
-import baposgmcp.tree as tree_lib
-import baposgmcp.policy as policy_lib
+
+import utils as test_utils
 
 RENDER = False
 
 
 def _run_sims(env, policies, run_config):
-    logging.basicConfig(level=logging.INFO-1, format='%(message)s')
-
     trackers = run_lib.get_default_trackers(policies)
     trackers.append(
         run_lib.ActionDistributionDistanceTracker(
@@ -20,45 +17,7 @@ def _run_sims(env, policies, run_config):
             step_limit=run_config.episode_step_limit
         )
     )
-
-    renderers = []
-    if RENDER:
-        renderers.append(run_lib.EpisodeRenderer())
-
-    run_lib.run_sims(env, policies, trackers, renderers, run_config)
-
-
-def _get_rps_deterministic_policies(env, agent_id):
-    other_agent_policies = {agent_id: {}}
-    for pi_a in range(env.action_spaces[agent_id].n):
-        dist = {a: 0.0 for a in range(env.action_spaces[agent_id].n)}
-        dist[pi_a] = 1.0
-        pi = policy_lib.FixedDistributionPolicy(
-            env.model,
-            ego_agent=agent_id,
-            gamma=0.9,
-            dist=dist,
-            policy_id=f"pi_{pi_a}"
-        )
-        other_agent_policies[agent_id][f"pi_{pi_a}"] = pi
-    return other_agent_policies
-
-
-def _get_rps_biased_policies(env, agent_id, bias):
-    other_agent_policies = {agent_id: {}}
-    p_non_biased = (1.0 - bias) / 2
-    for pi_a in range(env.action_spaces[agent_id].n):
-        dist = {a: p_non_biased for a in range(env.action_spaces[agent_id].n)}
-        dist[pi_a] = bias
-        pi = policy_lib.FixedDistributionPolicy(
-            env.model,
-            ego_agent=agent_id,
-            gamma=0.9,
-            dist=dist,
-            policy_id=f"pi_{pi_a}"
-        )
-        other_agent_policies[agent_id][f"pi_{pi_a}"] = pi
-    return other_agent_policies
+    test_utils.run_sims(env, policies, trackers, run_config, RENDER)
 
 
 def test_action_dist_distance_single_policy():
@@ -71,25 +30,12 @@ def test_action_dist_distance_single_policy():
     env = posggym.make(env_name)
     rps_step_limit = 10
 
-    agent_0_policy = tree_lib.BAPOSGMCP(
-        env.model,
-        ego_agent=0,
-        gamma=0.9,
-        other_policies={
-            1: {"pi_-1": policy_lib.RandomPolicy(env.model, 1, 0.9)}
-        },
-        other_policy_prior=None,
-        num_sims=64,
-        rollout_policy=policy_lib.RandomPolicy(env.model, 1, 0.9),
-        c_init=1.0,
-        c_base=100.0,
-        truncated=False,
-        reinvigorator=tree_lib.BABeliefRejectionSampler(env.model),
-        step_limit=rps_step_limit
-
+    other_policies = test_utils.get_rps_random_policy(env, 1)
+    agent_0_policy = test_utils.get_random_baposgmcp(
+        env, 0, other_policies, False, rps_step_limit
     )
 
-    agent_1_policy = policy_lib.RandomPolicy(
+    agent_1_policy = P.RandomPolicy(
         env.model, 1, 0.9, policy_id="pi_-1"
     )
 
@@ -113,26 +59,16 @@ def test_action_dist_distance_rps_deterministic():
     rps_step_limit = 20
 
     # BAPOSGMCP has an opponent policy for each action
-    other_agent_policies = _get_rps_deterministic_policies(env, 1)
+    other_policies = test_utils.get_rps_deterministic_policies(env, 1)
 
-    agent_0_policy = tree_lib.BAPOSGMCP(
-        env.model,
-        ego_agent=0,
-        gamma=0.9,
-        other_policies=other_agent_policies,
-        other_policy_prior=None,
-        num_sims=64,
-        rollout_policy=policy_lib.RandomPolicy(env.model, 1, 0.9),
-        c_init=1.0,
-        c_base=100.0,
-        truncated=False,
-        reinvigorator=tree_lib.BABeliefRejectionSampler(env.model),
-        step_limit=rps_step_limit
-
+    agent_0_policy = test_utils.get_random_baposgmcp(
+        env, 0, other_policies, False, rps_step_limit
     )
 
     # Opponent always plays first action "ROCK"
-    agent_1_policy = _get_rps_deterministic_policies(env, 1)[1]["pi_0"]
+    agent_1_policy = test_utils.get_rps_deterministic_policies(
+        env, 1
+    )[1]["pi_0"]
 
     policies = [agent_0_policy, agent_1_policy]
 
@@ -157,26 +93,14 @@ def test_action_dist_distance_rps_stochastic_biased():
     env = posggym.make(env_name)
     rps_step_limit = 100
 
-    other_agent_policies = _get_rps_biased_policies(env, 1, 0.6)
+    other_policies = test_utils.get_rps_biased_policies(env, 1, 0.6)
 
-    agent_0_policy = tree_lib.BAPOSGMCP(
-        env.model,
-        ego_agent=0,
-        gamma=0.9,
-        other_policies=other_agent_policies,
-        other_policy_prior=None,
-        num_sims=64,
-        rollout_policy=policy_lib.RandomPolicy(env.model, 1, 0.9),
-        c_init=1.0,
-        c_base=100.0,
-        truncated=False,
-        reinvigorator=tree_lib.BABeliefRejectionSampler(env.model),
-        step_limit=rps_step_limit
-
+    agent_0_policy = test_utils.get_random_baposgmcp(
+        env, 0, other_policies, False, rps_step_limit
     )
 
     # Opponent always plays biased towards "ROCK" policy
-    agent_1_policy = _get_rps_biased_policies(env, 1, 0.6)[1]["pi_0"]
+    agent_1_policy = test_utils.get_rps_biased_policies(env, 1, 0.6)[1]["pi_0"]
 
     policies = [agent_0_policy, agent_1_policy]
 
@@ -202,27 +126,17 @@ def test_action_dist_distance_rps_stochastic_biased2():
     env = posggym.make(env_name)
     rps_step_limit = 10
 
-    other_agent_policies = _get_rps_biased_policies(env, 1, 0.6)
+    other_policies = test_utils.get_rps_biased_policies(env, 1, 0.6)
 
-    agent_0_policy = tree_lib.BAPOSGMCP(
-        env.model,
-        ego_agent=0,
-        gamma=0.9,
-        other_policies=other_agent_policies,
-        other_policy_prior=None,
-        num_sims=64,
-        rollout_policy=policy_lib.RandomPolicy(env.model, 1, 0.9),
-        c_init=1.0,
-        c_base=100.0,
-        truncated=False,
-        reinvigorator=tree_lib.BABeliefRejectionSampler(env.model),
-        step_limit=rps_step_limit
-
+    agent_0_policy = test_utils.get_random_baposgmcp(
+        env, 0, other_policies, False, rps_step_limit
     )
 
     # Opponent always plays biased towards "ROCK" policy
     # Bias is different to bias in other_agent_policies
-    agent_1_policy = _get_rps_biased_policies(env, 1, 0.45)[1]["pi_0"]
+    agent_1_policy = test_utils.get_rps_biased_policies(
+        env, 1, 0.45
+    )[1]["pi_0"]
 
     policies = [agent_0_policy, agent_1_policy]
 

@@ -2,19 +2,20 @@ import math
 from itertools import product
 from typing import Tuple, Optional, List, Callable
 
-from baposgmcp import parts
+from baposgmcp.parts import AgentID
+
 import baposgmcp.pbt.utils as pbt_utils
 from baposgmcp.pbt.interaction_graph import InteractionGraph
 
 
-def get_klr_policy_id(agent_id: Optional[parts.AgentID],
+def get_klr_policy_id(agent_id: Optional[AgentID],
                       k: int,
                       is_symmetric: bool) -> str:
     """Get the policy ID string for a K-level reasoning policy."""
     return pbt_utils.get_policy_id(agent_id, str(k), is_symmetric)
 
 
-def get_br_policy_id(agent_id: Optional[parts.AgentID],
+def get_br_policy_id(agent_id: Optional[AgentID],
                      is_symmetric: bool) -> str:
     """Get the policy ID string for a Best Response policy."""
     return pbt_utils.get_policy_id(agent_id, "BR", is_symmetric)
@@ -42,7 +43,7 @@ def get_klr_poisson_prob_fn(num_levels: int,
     return poisson_fn
 
 
-def parse_klr_policy_id(policy_id: str) -> Tuple[Optional[parts.AgentID], int]:
+def parse_klr_policy_id(policy_id: str) -> Tuple[Optional[AgentID], int]:
     """Parse KLR policy ID string to get reasoning level.
 
     Also get optional agent ID (for non-symmetric environments)
@@ -57,7 +58,7 @@ def parse_klr_policy_id(policy_id: str) -> Tuple[Optional[parts.AgentID], int]:
     raise ValueError(f"Invalid KLR Policy ID str '{policy_id}'")
 
 
-def construct_klr_interaction_graph(agent_ids: List[parts.AgentID],
+def construct_klr_interaction_graph(agent_ids: List[AgentID],
                                     k_levels: int,
                                     is_symmetric: bool,
                                     seed: Optional[int] = None
@@ -92,7 +93,7 @@ def construct_klr_interaction_graph(agent_ids: List[parts.AgentID],
     return igraph
 
 
-def construct_klrbr_interaction_graph(agent_ids: List[parts.AgentID],
+def construct_klrbr_interaction_graph(agent_ids: List[AgentID],
                                       k_levels: int,
                                       is_symmetric: bool,
                                       dist: Optional[Callable[[int], float]],

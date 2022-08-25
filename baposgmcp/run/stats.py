@@ -10,9 +10,9 @@ from scipy import stats
 import posggym
 import posggym.model as M
 
-from baposgmcp import parts
+import baposgmcp.policy as P
 import baposgmcp.tree as tree_lib
-import baposgmcp.policy as policy_lib
+from baposgmcp.parts import AgentID
 
 
 AgentStatisticsMap = Mapping[M.AgentID, Mapping[str, Any]]
@@ -41,8 +41,8 @@ def combine_statistics(statistic_maps: Sequence[AgentStatisticsMap]
     }
 
 
-def get_action_dist_distance(dist1: parts.ActionDist,
-                             dist2: parts.ActionDist) -> float:
+def get_action_dist_distance(dist1: P.ActionDist,
+                             dist2: P.ActionDist) -> float:
     """Get the Wassersteing distance between two action distributions."""
     # ensure dists are over the same actions or one dist's actions are
     # a subset of the other
@@ -62,7 +62,7 @@ def get_action_dist_distance(dist1: parts.ActionDist,
     return stats.wasserstein_distance(actions, actions, probs1, probs2)
 
 
-def get_default_trackers(policies: Sequence[policy_lib.BasePolicy]
+def get_default_trackers(policies: Sequence[P.BasePolicy]
                          ) -> Sequence['Tracker']:
     """Get the default set of Trackers."""
     num_agents = len(policies)
@@ -84,7 +84,7 @@ class Tracker(abc.ABC):
              env: posggym.Env,
              timestep: M.JointTimestep,
              action: M.JointAction,
-             policies: Sequence[policy_lib.BasePolicy],
+             policies: Sequence[P.BasePolicy],
              episode_end: bool):
         """Accumulates statistics for a single step."""
 
@@ -132,7 +132,7 @@ class EpisodeTracker(Tracker):
              env: posggym.Env,
              timestep: M.JointTimestep,
              action: M.JointAction,
-             policies: Sequence[policy_lib.BasePolicy],
+             policies: Sequence[P.BasePolicy],
              episode_end: bool):
         if episode_t == 0:
             return
@@ -254,12 +254,10 @@ class SearchTimeTracker(Tracker):
 
         self._num_episodes = 0
         self._current_episode_steps = 0
-        self._current_episode_times: Dict[
-            M.AgentID, Dict[str, List[float]]
-        ] = {}
+        self._current_episode_times: Dict[AgentID, Dict[str, List[float]]] = {}
 
         self._steps: List[int] = []
-        self._times: Dict[M.AgentID, Dict[str, List[float]]] = {}
+        self._times: Dict[AgentID, Dict[str, List[float]]] = {}
 
         self.reset()
 
@@ -268,7 +266,7 @@ class SearchTimeTracker(Tracker):
              env: posggym.Env,
              timestep: M.JointTimestep,
              action: M.JointAction,
-             policies: Sequence[policy_lib.BasePolicy],
+             policies: Sequence[P.BasePolicy],
              episode_end: bool):
         if episode_t == 0:
             return
@@ -348,13 +346,11 @@ class BayesAccuracyTracker(Tracker):
 
         self._num_episodes = 0
         self._episode_steps = 0
-        self._episode_acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
+        self._episode_acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
 
         self._steps: List[int] = []
-        self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
-        self._step_acc: Dict[
-            M.AgentID, Dict[M.AgentID, List[List[float]]]
-        ] = {}
+        self._acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
+        self._step_acc: Dict[AgentID, Dict[AgentID, List[List[float]]]] = {}
 
         self.reset()
 
@@ -363,7 +359,7 @@ class BayesAccuracyTracker(Tracker):
              env: posggym.Env,
              timestep: M.JointTimestep,
              action: M.JointAction,
-             policies: Sequence[policy_lib.BasePolicy],
+             policies: Sequence[P.BasePolicy],
              episode_end: bool):
         if episode_t == 0:
             return
@@ -494,11 +490,11 @@ class BeliefStateAccuracyTracker(Tracker):
         self._num_episodes = 0
         self._episode_steps = 0
         self._prev_state: M.State = None
-        self._episode_acc: Dict[M.AgentID, List[float]] = {}
+        self._episode_acc: Dict[AgentID, List[float]] = {}
 
         self._steps: List[int] = []
-        self._acc: Dict[M.AgentID, List[float]] = {}
-        self._step_acc: Dict[M.AgentID, List[List[float]]] = {}
+        self._acc: Dict[AgentID, List[float]] = {}
+        self._step_acc: Dict[AgentID, List[List[float]]] = {}
 
         self.reset()
 
@@ -507,7 +503,7 @@ class BeliefStateAccuracyTracker(Tracker):
              env: posggym.Env,
              timestep: M.JointTimestep,
              action: M.JointAction,
-             policies: Sequence[policy_lib.BasePolicy],
+             policies: Sequence[P.BasePolicy],
              episode_end: bool):
         if episode_t == 0:
             self._prev_state = env.state
@@ -621,13 +617,11 @@ class BeliefHistoryAccuracyTracker(Tracker):
 
         self._num_episodes = 0
         self._episode_steps = 0
-        self._episode_acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
+        self._episode_acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
 
         self._steps: List[int] = []
-        self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
-        self._step_acc: Dict[
-            M.AgentID, Dict[M.AgentID, List[List[float]]]
-        ] = {}
+        self._acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
+        self._step_acc: Dict[AgentID, Dict[AgentID, List[List[float]]]] = {}
 
         self.reset()
 
@@ -636,7 +630,7 @@ class BeliefHistoryAccuracyTracker(Tracker):
              env: posggym.Env,
              timestep: M.JointTimestep,
              action: M.JointAction,
-             policies: Sequence[policy_lib.BasePolicy],
+             policies: Sequence[P.BasePolicy],
              episode_end: bool):
         if episode_t == 0:
             return
@@ -774,13 +768,11 @@ class ActionDistributionDistanceTracker(Tracker):
 
         self._num_episodes = 0
         self._episode_steps = 0
-        self._episode_acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
+        self._episode_acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
 
         self._steps: List[int] = []
-        self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
-        self._step_acc: Dict[
-            M.AgentID, Dict[M.AgentID, List[List[float]]]
-        ] = {}
+        self._acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
+        self._step_acc: Dict[AgentID, Dict[AgentID, List[List[float]]]] = {}
 
         self.reset()
 
@@ -789,7 +781,7 @@ class ActionDistributionDistanceTracker(Tracker):
              env: posggym.Env,
              timestep: M.JointTimestep,
              action: M.JointAction,
-             policies: Sequence[policy_lib.BasePolicy],
+             policies: Sequence[P.BasePolicy],
              episode_end: bool):
         if episode_t == 0:
             return

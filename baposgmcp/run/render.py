@@ -11,8 +11,8 @@ from networkx.drawing.nx_agraph import graphviz_layout
 import posggym
 import posggym.model as M
 
+import baposgmcp.policy as P
 import baposgmcp.tree as tree_lib
-import baposgmcp.policy as policy_lib
 
 # Used to map a probability to a color
 prob_color_mapper = cm.ScalarMappable(
@@ -51,7 +51,7 @@ class Renderer(abc.ABC):
                     env: posggym.Env,
                     timestep: M.JointTimestep,
                     action: M.JointAction,
-                    policies: Sequence[policy_lib.BasePolicy],
+                    policies: Sequence[P.BasePolicy],
                     episode_end: bool) -> None:
         """Render a single environment step."""
 
@@ -72,7 +72,7 @@ class EpisodeRenderer(Renderer):
                     env: posggym.Env,
                     timestep: M.JointTimestep,
                     action: M.JointAction,
-                    policies: Sequence[policy_lib.BasePolicy],
+                    policies: Sequence[P.BasePolicy],
                     episode_end: bool) -> None:
         if self._episode_count % self._render_frequency != 0:
             self._episode_count += int(episode_end)
@@ -97,7 +97,7 @@ class PauseRenderer(Renderer):
                     env: posggym.Env,
                     timestep: M.JointTimestep,
                     action: M.JointAction,
-                    policies: Sequence[policy_lib.BasePolicy],
+                    policies: Sequence[P.BasePolicy],
                     episode_end: bool) -> None:
         input("Press ENTER to continue.")
 
@@ -114,7 +114,7 @@ class PolicyBeliefRenderer(Renderer):
                     env: posggym.Env,
                     timestep: M.JointTimestep,
                     action: M.JointAction,
-                    policies: Sequence[policy_lib.BasePolicy],
+                    policies: Sequence[P.BasePolicy],
                     episode_end: bool) -> None:
         if episode_t == 0:
             return
@@ -162,7 +162,7 @@ class SearchTreeRenderer(Renderer):
                     env: posggym.Env,
                     timestep: M.JointTimestep,
                     action: M.JointAction,
-                    policies: Sequence[policy_lib.BasePolicy],
+                    policies: Sequence[P.BasePolicy],
                     episode_end: bool) -> None:
         if episode_t == 0:
             return
@@ -243,7 +243,7 @@ def generate_renders(renderers: Iterable[Renderer],
                      env: posggym.Env,
                      timestep: M.JointTimestep,
                      action: M.JointAction,
-                     policies: Sequence[policy_lib.BasePolicy],
+                     policies: Sequence[P.BasePolicy],
                      episode_end: bool) -> None:
     """Handle the generation of environment step renderings."""
     num_renderers = 0

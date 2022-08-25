@@ -2,16 +2,16 @@ import logging
 
 import posggym
 
+import baposgmcp.policy as P
 import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
-import baposgmcp.policy as policy_lib
+
+import utils as test_utils
 
 RENDER = False
 
 
 def _run_sims(env, policies, run_config):
-    logging.basicConfig(level=logging.INFO-1, format='%(message)s')
-
     trackers = run_lib.get_default_trackers(policies)
     trackers.append(
         run_lib.BeliefHistoryAccuracyTracker(
@@ -21,11 +21,7 @@ def _run_sims(env, policies, run_config):
         )
     )
 
-    renderers = []
-    if RENDER:
-        renderers.append(run_lib.EpisodeRenderer())
-
-    run_lib.run_sims(env, policies, trackers, renderers, run_config)
+    test_utils.run_sims(env, policies, trackers, run_config, RENDER)
 
 
 def test_history_accuracy_fully_obs():
@@ -38,27 +34,11 @@ def test_history_accuracy_fully_obs():
     env = posggym.make(env_name)
     rps_step_limit = 10
 
-    agent_0_policy = tree_lib.BAPOSGMCP(
-        env.model,
-        ego_agent=0,
-        gamma=0.9,
-        other_policies={
-            1: {"pi_-1": policy_lib.RandomPolicy(env.model, 1, 0.9)}
-        },
-        other_policy_prior=None,
-        num_sims=64,
-        rollout_policy=policy_lib.RandomPolicy(env.model, 1, 0.9),
-        c_init=1.0,
-        c_base=100.0,
-        truncated=False,
-        reinvigorator=tree_lib.BABeliefRejectionSampler(env.model),
-        step_limit=rps_step_limit
-
+    other_policies = test_utils.get_rps_random_policy(env, 1)
+    agent_0_policy = test_utils.get_random_baposgmcp(
+        env, 0, other_policies, False, rps_step_limit
     )
-
-    agent_1_policy = policy_lib.RandomPolicy(
-        env.model, 1, 0.9, policy_id="pi_-1"
-    )
+    agent_1_policy = P.RandomPolicy(env.model, 1, 0.9, policy_id="pi_-1")
 
     policies = [agent_0_policy, agent_1_policy]
 
@@ -78,27 +58,11 @@ def test_history_accuracy_small():
     env = posggym.make(env_name)
     rps_step_limit = 20
 
-    agent_0_policy = tree_lib.BAPOSGMCP(
-        env.model,
-        ego_agent=0,
-        gamma=0.9,
-        other_policies={
-            1: {"pi_-1": policy_lib.RandomPolicy(env.model, 1, 0.9)}
-        },
-        other_policy_prior=None,
-        num_sims=64,
-        rollout_policy=policy_lib.RandomPolicy(env.model, 1, 0.9),
-        c_init=1.0,
-        c_base=100.0,
-        truncated=False,
-        reinvigorator=tree_lib.BABeliefRejectionSampler(env.model),
-        step_limit=rps_step_limit
-
+    other_policies = test_utils.get_rps_random_policy(env, 1)
+    agent_0_policy = test_utils.get_random_baposgmcp(
+        env, 0, other_policies, False, rps_step_limit
     )
-
-    agent_1_policy = policy_lib.RandomPolicy(
-        env.model, 1, 0.9, policy_id="pi_-1"
-    )
+    agent_1_policy = P.RandomPolicy(env.model, 1, 0.9, policy_id="pi_-1")
 
     policies = [agent_0_policy, agent_1_policy]
 
