@@ -9,17 +9,13 @@ import posggym.model as M
 from baposgmcp import parts
 import baposgmcp.policy as P
 from baposgmcp.rllib import RllibPolicy
+from baposgmcp.meta_policy import MetaPolicy
 from baposgmcp.history import JointHistory, AgentHistory
 
 import baposgmcp.tree.belief as B
+from baposgmcp.tree.hps import HistoryPolicyState
 from baposgmcp.tree.node import ObsNode, ActionNode
 from baposgmcp.tree.reinvigorate import BeliefReinvigorator
-from baposgmcp.tree.hps import HistoryPolicyState, PolicyState
-
-
-# Map from the policy of the other agent to the rollout policy ID
-PolicySelectionMap = Dict[P.PolicyID, P.PolicyID]
-PolicyHiddenStateMap = Dict[P.PolicyID, P.PolicyHiddenState]
 
 
 class BAPOSGMCP(P.BasePolicy):
@@ -32,8 +28,7 @@ class BAPOSGMCP(P.BasePolicy):
                  num_sims: int,
                  other_policies: P.AgentPolicyMap,
                  other_policy_prior: Optional[P.AgentPolicyDist],
-                 rollout_policies: P.PolicyMap,
-                 rollout_selection: PolicySelectionMap,
+                 meta_policy: MetaPolicy,
                  c_init: float,
                  c_base: float,
                  truncated: bool,
@@ -49,7 +44,7 @@ class BAPOSGMCP(P.BasePolicy):
             policy_id=kwargs.pop("policy_id", f"baposgmcp_{ego_agent}"),
             **kwargs
         )
-        assert model.n_agents == 2, "Currently only supporting 2 agents"
+        # assert model.n_agents == 2, "Currently only supporting 2 agents"
         assert len(other_policies) == model.n_agents-1
         assert all(
             i in other_policies
@@ -73,8 +68,7 @@ class BAPOSGMCP(P.BasePolicy):
         num_actions = model.action_spaces[ego_agent].n
         self.action_space = list(range(num_actions))
 
-        self._rollout_policies = rollout_policies
-        self._rollout_selection = rollout_selection
+        self._meta_policy = meta_policy
         self._c_init = c_init
         self._c_base = c_base
         self._truncated = truncated
@@ -122,40 +116,28 @@ class BAPOSGMCP(P.BasePolicy):
         return initial_belief
 
     def _init_root(self, initial_belief: B.HPSParticleBelief) -> ObsNode:
+        hidden_states = {
+            pi_id: pi.get_initial_hidden_state()
+            for pi_id, pi in self._meta_policy.ego_policies.items()
+        }
+
         if self.model.observation_first:
             policy = {None: 1.0}
         else:
-            init_rollout_prior = self._get_init_rollout_prior()
-            policy = {a: 0.0 for a in self.action_space}
-            for pi_id, pi_prob in init_rollout_prior.items():
-                pi = self._rollout_policies[pi_id]
-                pi_dist = pi.get_pi_from_hidden_state(
-                    pi.get_initial_hidden_state()
-                )
-                for a, a_prob in pi_dist.items():
-                    policy[a] += pi_prob * a_prob
-
-            # normalize
-            prob_sum = sum(policy.values())
-            for a in policy:
-                policy[a] /= prob_sum
+            meta_prior = self._meta_policy.get_exp_policy_dist(
+                self._other_prior
+            )
+            policy = self._meta_policy.get_exp_action_dist(
+                meta_prior, hidden_states
+            )
 
         return ObsNode(
             None,
             None,
             initial_belief,
             policy=policy,
-            rollout_hidden_states={
-                pi_id: pi.get_initial_hidden_state()
-                for pi_id, pi in self._rollout_policies.items()
-            }
+            rollout_hidden_states=hidden_states
         )
-
-    def _get_init_rollout_prior(self) -> P.PolicyDist:
-        init_rollout_prior = {pi_id: 0.0 for pi_id in self._rollout_policies}
-        for (pi_j_id, prob) in zip(*self._other_prior[(self.ego_agent+1) % 2]):
-            init_rollout_prior[self._rollout_selection[pi_j_id]] += prob
-        return init_rollout_prior
 
     #######################################################
     # Other Policy Functions
@@ -170,28 +152,27 @@ class BAPOSGMCP(P.BasePolicy):
                 continue
             num_policies = len(other_agent_policies[agent_id])
             uniform_prob = 1.0 / num_policies
-            priors[agent_id] = (
-                tuple(other_agent_policies[agent_id]),
-                # used cumulative prob since its faster to sample from
-                # using random.choices
-                tuple(uniform_prob * (i+1) for i in range(num_policies))
-            )
+            priors[agent_id] = {
+                pi_id: uniform_prob for pi_id in other_agent_policies[agent_id]
+            }
         return priors
 
-    def _sample_other_policy_prior(self) -> PolicyState:
+    def _sample_other_policy_prior(self) -> P.PolicyState:
         policy_state = []
         for i in range(self.num_agents):
             if i == self.ego_agent:
                 # placeholder
                 policy_id = -1
             else:
-                policy_ids, probs = self._other_prior[i]
-                policy_id = random.choices(policy_ids, cum_weights=probs)[0]
+                prior_i = self._other_prior[i]
+                policy_id = random.choices(
+                    list(prior_i), weights=prior_i.values(), k=1
+                )[0]
             policy_state.append(policy_id)
         return tuple(policy_state)
 
     def _get_other_policies(self,
-                            policy_state: PolicyState
+                            policy_state: P.PolicyState
                             ) -> Dict[parts.AgentID, P.BasePolicy]:
         other_policies = {}
         for i in range(self.num_agents):
@@ -232,7 +213,7 @@ class BAPOSGMCP(P.BasePolicy):
         for policies in self._other_policies.values():
             for pi in policies.values():
                 pi.reset()
-        for policy in self._rollout_policies.values():
+        for policy in self._meta_policy.ego_policies.values():
             policy.reset()
 
     def _reset_step_statistics(self):
@@ -266,7 +247,9 @@ class BAPOSGMCP(P.BasePolicy):
 
     def _initial_update(self, init_obs: M.Observation):
         action_node = self._add_action_node(self.root, None)
-        init_rollout_prior = self._get_init_rollout_prior()
+        init_rollout_prior = self._meta_policy.get_exp_policy_dist(
+            self._other_prior
+        )
         obs_node = self._add_obs_node(
             action_node, init_obs, init_rollout_prior, 0
         )
@@ -318,10 +301,10 @@ class BAPOSGMCP(P.BasePolicy):
             obs_node = a_node.get_child(obs)
 
             # ensure all rollout hidden states are up-to-date in root node
-            for pi_id, pi in self._rollout_policies.items():
+            for pi_id, pi in self._meta_policy.ego_policies.items():
                 if pi_id in obs_node.rollout_hidden_states:
                     continue
-                next_rollout_state = self._update_rollout_policy(
+                next_rollout_state = self._update_policy_hidden_state(
                     action, obs, pi, self.root.rollout_hidden_states[pi_id]
                 )
                 obs_node.rollout_hidden_states[pi_id] = next_rollout_state
@@ -350,7 +333,7 @@ class BAPOSGMCP(P.BasePolicy):
         obs_node.parent = None
 
     def _get_initial_hidden_policy_states(self,
-                                          policy_state: PolicyState,
+                                          policy_state: P.PolicyState,
                                           joint_obs: Optional[
                                               M.JointObservation
                                           ]
@@ -380,11 +363,11 @@ class BAPOSGMCP(P.BasePolicy):
     def _get_next_rollout_hidden_states(self,
                                         action: M.Action,
                                         obs: M.Observation,
-                                        hidden_states: PolicyHiddenStateMap
-                                        ) -> PolicyHiddenStateMap:
+                                        hidden_states: P.PolicyHiddenStateMap
+                                        ) -> P.PolicyHiddenStateMap:
         next_hidden_states = {}
-        for pi_id, pi in self._rollout_policies.items():
-            next_hidden_states[pi_id] = self._update_rollout_policy(
+        for pi_id, pi in self._meta_policy.ego_policies.items():
+            next_hidden_states[pi_id] = self._update_policy_hidden_state(
                 action, obs, pi, hidden_states[pi_id]
             )
         return next_hidden_states
@@ -408,8 +391,7 @@ class BAPOSGMCP(P.BasePolicy):
             for t in range(self.num_sims):
                 hp_state: HistoryPolicyState = root_b.sample()
 
-                rollout_pi_id = self._select_rollout_policy(hp_state)
-                rollout_pi = self._rollout_policies[rollout_pi_id]
+                rollout_pi = self._meta_policy.sample(hp_state.policy_state)
 
                 _, search_depth = self._simulate(
                     hp_state, self.root, 0, rollout_pi
@@ -468,8 +450,8 @@ class BAPOSGMCP(P.BasePolicy):
         ego_return = joint_step.rewards[self.ego_agent]
 
         new_history = hp_state.history.extend(joint_action, joint_obs)
-        next_pi_state = hp_state.other_policies
-        next_pi_hidden_states = self._update_policies(
+        next_pi_state = hp_state.policy_state
+        next_pi_hidden_states = self._update_other_policies(
             next_pi_state,
             hp_state.hidden_states,
             joint_action,
@@ -536,8 +518,8 @@ class BAPOSGMCP(P.BasePolicy):
             return reward
 
         new_history = hp_state.history.extend(joint_action, joint_obs)
-        next_pi_state = hp_state.other_policies
-        next_pi_hidden_states = self._update_policies(
+        next_pi_state = hp_state.policy_state
+        next_pi_hidden_states = self._update_other_policies(
             next_pi_state,
             hp_state.hidden_states,
             joint_action,
@@ -547,7 +529,7 @@ class BAPOSGMCP(P.BasePolicy):
             joint_step.state, new_history, next_pi_state, next_pi_hidden_states
         )
 
-        next_rollout_state = self._update_rollout_policy(
+        next_rollout_state = self._update_policy_hidden_state(
             joint_action[self.ego_agent],
             joint_obs[self.ego_agent],
             rollout_policy,
@@ -568,36 +550,29 @@ class BAPOSGMCP(P.BasePolicy):
             )
         )
 
-    def _select_rollout_policy(self,
-                               hp_state: HistoryPolicyState
-                               ) -> P.PolicyID:
-        j_id = (self.ego_agent + 1) % 2
-        pi_j_id = hp_state.other_policies[j_id]
-        return self._rollout_selection[pi_j_id]
-
-    def _update_rollout_policy(self,
-                               action: M.Action,
-                               obs: M.Observation,
-                               rollout_policy: P.BasePolicy,
-                               rollout_state: P.PolicyHiddenState
-                               ) -> P.PolicyHiddenState:
+    def _update_policy_hidden_state(self,
+                                    action: M.Action,
+                                    obs: M.Observation,
+                                    policy: P.BasePolicy,
+                                    hidden_state: P.PolicyHiddenState
+                                    ) -> P.PolicyHiddenState:
         start_time = time.time()
-        next_rollout_state = rollout_policy.get_next_hidden_state(
-            rollout_state, action, obs
+        next_hidden_state = policy.get_next_hidden_state(
+            hidden_state, action, obs
         )
         self._statistics["inference_time"] += time.time() - start_time
 
-        if isinstance(rollout_policy, RllibPolicy):
+        if isinstance(policy, RllibPolicy):
             self._statistics["policy_calls"] += 1
 
-        return next_rollout_state
+        return next_hidden_state
 
-    def _update_policies(self,
-                         pi_state: PolicyState,
-                         hidden_pi_states: P.PolicyHiddenStates,
-                         joint_action: M.JointAction,
-                         joint_obs: M.JointObservation
-                         ) -> P.PolicyHiddenStates:
+    def _update_other_policies(self,
+                               pi_state: P.PolicyState,
+                               hidden_pi_states: P.PolicyHiddenStates,
+                               joint_action: M.JointAction,
+                               joint_obs: M.JointObservation
+                               ) -> P.PolicyHiddenStates:
         other_policies = self._get_other_policies(pi_state)
         next_hidden_policy_states = []
         for i in range(self.num_agents):
@@ -609,14 +584,7 @@ class BAPOSGMCP(P.BasePolicy):
             else:
                 pi = other_policies[i]
                 h_tm1 = hidden_pi_states[i]
-
-                start_time = time.time()
-                h_t = pi.get_next_hidden_state(h_tm1, a_i, o_i)
-                self._statistics["inference_time"] += time.time() - start_time
-
-                if isinstance(pi, RllibPolicy):
-                    self._statistics["policy_calls"] += 1
-
+                h_t = self._update_policy_hidden_state(a_i, o_i, pi, h_tm1)
             next_hidden_policy_states.append(h_t)
         return tuple(next_hidden_policy_states)
 
@@ -665,7 +633,7 @@ class BAPOSGMCP(P.BasePolicy):
                           hp_state: HistoryPolicyState,
                           ego_action: M.Action) -> M.JointAction:
         agent_actions = []
-        other_policies = self._get_other_policies(hp_state.other_policies)
+        other_policies = self._get_other_policies(hp_state.policy_state)
         for i in range(self.num_agents):
             if i == self.ego_agent:
                 a_i = ego_action
@@ -707,7 +675,7 @@ class BAPOSGMCP(P.BasePolicy):
                             hp_state: HistoryPolicyState
                             ) -> Dict[M.AgentID, P.ActionDist]:
         """Get other agent policies for given history policy state."""
-        other_policies = self._get_other_policies(hp_state.other_policies)
+        other_policies = self._get_other_policies(hp_state.policy_state)
         action_dists = {}
         for i in range(self.num_agents):
             if i == self.ego_agent:
@@ -756,17 +724,14 @@ class BAPOSGMCP(P.BasePolicy):
                       ) -> ObsNode:
         use_uniform_prior = rollout_prior is None
         if rollout_prior is None:
-            rollout_prior = {
-                pi_id: 1.0 / len(self._rollout_policies)
-                for pi_id in self._rollout_policies
-            }
+            rollout_prior = self._meta_policy.get_uniform_policy_dist()
 
         next_rollout_states = {}
         for pi_id in rollout_prior:
-            next_rollout_states[pi_id] = self._update_rollout_policy(
+            next_rollout_states[pi_id] = self._update_policy_hidden_state(
                 parent.action,
                 obs,
-                self._rollout_policies[pi_id],
+                self._meta_policy.get_policy_obj(pi_id),
                 parent.parent.rollout_hidden_states[pi_id]
             )
 
@@ -775,19 +740,9 @@ class BAPOSGMCP(P.BasePolicy):
                 a: 1.0 / len(self.action_space) for a in self.action_space
             }
         else:
-            policy = {a: 0.0 for a in self.action_space}
-            for pi_id, pi_prob in rollout_prior.items():
-                pi = self._rollout_policies[pi_id]
-                pi_dist = pi.get_pi_from_hidden_state(
-                    next_rollout_states[pi_id]
-                )
-                for a, a_prob in pi_dist.items():
-                    policy[a] += pi_prob * a_prob
-
-            # normalize
-            prob_sum = sum(policy.values())
-            for a in policy:
-                policy[a] /= prob_sum
+            policy = self._meta_policy.get_exp_action_dist(
+                rollout_prior, next_rollout_states
+            )
 
         obs_node = ObsNode(
             parent,
@@ -796,28 +751,28 @@ class BAPOSGMCP(P.BasePolicy):
             policy=policy,
             rollout_hidden_states=next_rollout_states,
             init_value=0.0,
-            init_visits=0
+            init_visits=init_visits
         )
         parent.children.append(obs_node)
         return obs_node
 
     def _update_obs_node(self,
                          obs_node: ObsNode,
-                         rollout_policy: P.BasePolicy):
+                         policy: P.BasePolicy):
         obs_node.visits += 1
 
-        pi_id = rollout_policy.policy_id
+        pi_id = policy.policy_id
         if pi_id not in obs_node.rollout_hidden_states:
-            next_rollout_state = self._update_rollout_policy(
+            next_rollout_state = self._update_policy_hidden_state(
                 obs_node.parent.action,
                 obs_node.obs,
-                rollout_policy,
+                policy,
                 obs_node.parent.parent.rollout_hidden_states[pi_id]
             )
             obs_node.rollout_hidden_states[pi_id] = next_rollout_state
 
         # Add rollout policy distribution to moving average policy of node
-        pi_dist = rollout_policy.get_pi_from_hidden_state(
+        pi_dist = policy.get_pi_from_hidden_state(
             obs_node.rollout_hidden_states[pi_id]
         )
         for a, a_prob in pi_dist.items():
@@ -903,8 +858,8 @@ class BAPOSGMCP(P.BasePolicy):
                                 joint_action: M.JointAction,
                                 joint_obs: M.JointObservation
                                 ) -> P.PolicyHiddenStates:
-        pi_state = hp_state.other_policies
-        return self._update_policies(
+        pi_state = hp_state.policy_state
+        return self._update_other_policies(
             pi_state, hp_state.hidden_states, joint_action, joint_obs
         )
 

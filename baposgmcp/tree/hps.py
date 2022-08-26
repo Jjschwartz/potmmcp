@@ -1,12 +1,9 @@
-from typing import Tuple, Optional
+from typing import Optional
 
 import posggym.model as M
 
 import baposgmcp.policy as P
 import baposgmcp.history as H
-
-
-PolicyState = Tuple[P.PolicyID, ...]
 
 
 class HistoryPolicyState:
@@ -28,19 +25,19 @@ class HistoryPolicyState:
     def __init__(self,
                  state: M.State,
                  history: H.JointHistory,
-                 other_policies: PolicyState,
+                 policy_state: P.PolicyState,
                  hidden_states: Optional[P.PolicyHiddenStates] = None):
         super().__init__()
         assert (
-            hidden_states is None or len(hidden_states) == len(other_policies)
+            hidden_states is None or len(hidden_states) == len(policy_state)
         )
         self.state = state
         self.history = history
-        self.other_policies = other_policies
+        self.policy_state = policy_state
         self.hidden_states = hidden_states
 
     def __hash__(self):
-        return hash((self.state, self.history, self.other_policies))
+        return hash((self.state, self.history, self.policy_state))
 
     def __eq__(self, other):
         if not isinstance(other, HistoryPolicyState):
@@ -48,11 +45,11 @@ class HistoryPolicyState:
         return (
             self.state == other.state
             and self.history == other.history
-            and self.other_policies == other.other_policies
+            and self.policy_state == other.policy_state
         )
 
     def __str__(self):
-        return f"[s={self.state}, h={self.history}, pi={self.other_policies}]"
+        return f"[s={self.state}, h={self.history}, pi={self.policy_state}]"
 
     def __repr__(self):
         return self.__str__()

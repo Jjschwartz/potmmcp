@@ -171,8 +171,7 @@ class HPSParticleBelief(BaseParticleBelief):
 
     def add_particle(self, state: HistoryPolicyState):
         self._particles.append(state)
-        pi_state = state.other_policies
-        for i, pi_id in enumerate(pi_state):
+        for i, pi_id in enumerate(state.policy_state):
             if i not in self._agent_policy_particles:
                 continue
             self._agent_policy_particles[i][pi_id].append(state)

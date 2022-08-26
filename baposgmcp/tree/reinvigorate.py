@@ -125,7 +125,7 @@ class BABeliefRejectionSampler(BeliefReinvigorator):
             next_hp_state = HistoryPolicyState(
                 joint_step.state,
                 new_history,
-                hp_state.other_policies,
+                hp_state.policy_state,
                 next_policy_hidden_state
             )
 
@@ -204,7 +204,7 @@ class BABeliefRandomSampler(BeliefReinvigorator):
             next_hp_state = HistoryPolicyState(
                 joint_step.state,
                 new_history,
-                hp_state.other_policies,
+                hp_state.policy_state,
                 next_policy_hidden_state
             )
             samples.append(next_hp_state)

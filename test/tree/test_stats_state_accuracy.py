@@ -1,6 +1,5 @@
 import posggym
 
-import baposgmcp.policy as P
 import baposgmcp.run as run_lib
 
 import utils as test_utils
@@ -25,11 +24,16 @@ def test_state_accuracy_single_state():
     env = posggym.make(env_name)
     rps_step_limit = 10
 
-    other_policies = test_utils.get_rps_random_policy(env, 1)
-    agent_0_policy = test_utils.get_random_baposgmcp(
-        env, 0, other_policies, False, rps_step_limit
+    agent_0_policy = test_utils.get_random_policy(env, 0)
+    agent_1_policy = test_utils.get_random_baposgmcp(
+        env,
+        1,
+        other_policies=None,
+        meta_policy=None,
+        truncated=False,
+        step_limit=rps_step_limit,
+        num_sims=64
     )
-    agent_1_policy = P.RandomPolicy(env.model, 1, 0.9, policy_id="pi_-1")
 
     policies = [agent_0_policy, agent_1_policy]
     run_config = run_lib.RunConfig(
@@ -44,11 +48,16 @@ def test_state_accuracy_small():
     env = posggym.make(env_name)
     rps_step_limit = 10
 
-    other_policies = test_utils.get_rps_random_policy(env, 1)
-    agent_0_policy = test_utils.get_random_baposgmcp(
-        env, 0, other_policies, False, rps_step_limit
+    agent_0_policy = test_utils.get_random_policy(env, 0)
+    agent_1_policy = test_utils.get_random_baposgmcp(
+        env,
+        1,
+        other_policies=None,
+        meta_policy=None,
+        truncated=False,
+        step_limit=rps_step_limit,
+        num_sims=64
     )
-    agent_1_policy = P.RandomPolicy(env.model, 1, 0.9, policy_id="pi_-1")
 
     policies = [agent_0_policy, agent_1_policy]
 

@@ -1,6 +1,5 @@
 import posggym
 
-import baposgmcp.policy as P
 import baposgmcp.run as run_lib
 
 import utils as test_utils
@@ -19,15 +18,19 @@ def test_bayes_accuracy_deterministic():
     env = posggym.make(env_name)
     rps_step_limit = 100
 
-    other_policies = test_utils.get_rps_deterministic_policies(env, 1)
-    agent_0_policy = test_utils.get_random_baposgmcp(
-        env, 0, other_policies, False, rps_step_limit
-    )
-
     # Opponent always plays first action "ROCK"
-    agent_1_policy = test_utils.get_rps_deterministic_policies(
-        env, 1
-    )[1]["pi_0"]
+    agent_0_policy = test_utils.get_deterministic_policies(env, 0)["pi_0"]
+
+    # BAPOSGMCP has an opponent policy for each action
+    agent_1_policy = test_utils.get_random_baposgmcp(
+        env,
+        1,
+        other_policies=test_utils.get_deterministic_other_policies(env, 1),
+        meta_policy=None,
+        truncated=False,
+        step_limit=rps_step_limit,
+        num_sims=64
+    )
 
     policies = [agent_0_policy, agent_1_policy]
 
@@ -51,19 +54,22 @@ def test_bayes_accuracy_stochastic_uniform():
     env = posggym.make(env_name)
     rps_step_limit = 100
 
-    other_policies = test_utils.get_rps_deterministic_policies(env, 1)
-    agent_0_policy = test_utils.get_random_baposgmcp(
-        env, 0, other_policies, False, rps_step_limit
-    )
-
     # Opponent always plays uniform random
     # Need to give this policy same ID as a policy in BAPOSGMCP other agent
     # policies so the BayesAccuracy tracker can track it properly
-    agent_1_policy = P.RandomPolicy(
-        env.model,
-        ego_agent=1,
-        gamma=0.9,
-        policy_id="pi_0"   # give it same ID as a policy in BAPOSGMCP policies
+    agent_0_policy = test_utils.get_random_policy(env, 0)
+    # give it same ID as a policy in BAPOSGMCP policies
+    agent_0_policy.policy_id = "pi_0"
+
+    # BAPOSGMCP has an opponent policy for each action
+    agent_1_policy = test_utils.get_random_baposgmcp(
+        env,
+        1,
+        other_policies=test_utils.get_deterministic_other_policies(env, 1),
+        meta_policy=None,
+        truncated=False,
+        step_limit=rps_step_limit,
+        num_sims=64
     )
 
     policies = [agent_0_policy, agent_1_policy]
@@ -87,13 +93,17 @@ def test_bayes_accuracy_stochastic_biased():
     env = posggym.make(env_name)
     rps_step_limit = 10
 
-    other_policies = test_utils.get_rps_biased_policies(env, 1, 0.6)
-    agent_0_policy = test_utils.get_random_baposgmcp(
-        env, 0, other_policies, False, rps_step_limit
-    )
-
     # Opponent always plays biased towards "ROCK" policy
-    agent_1_policy = test_utils.get_rps_biased_policies(env, 1, 0.6)[1]["pi_0"]
+    agent_0_policy = test_utils.get_biased_policies(env, 0, 0.3)["pi_0"]
+    agent_1_policy = test_utils.get_random_baposgmcp(
+        env,
+        1,
+        other_policies=test_utils.get_biased_other_policies(env, 1, 0.3),
+        meta_policy=None,
+        truncated=False,
+        step_limit=rps_step_limit,
+        num_sims=64
+    )
 
     policies = [agent_0_policy, agent_1_policy]
 
