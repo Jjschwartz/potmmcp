@@ -5,6 +5,7 @@ import baposgmcp.policy as P
 import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
 from baposgmcp.meta_policy import DictMetaPolicy
+from baposgmcp.policy_prior import UniformPolicyPrior
 
 
 def run_sims(env, policies, trackers, run_config, render=False):    # noqa
@@ -60,12 +61,21 @@ def get_deterministic_other_policies(env, ego_agent):  # noqa
         for i in range(env.n_agents) if i != ego_agent
     }
 
+def get_deterministic_other_policy_prior(env, ego_agent):  # noqa
+    policies = get_deterministic_other_policies(env, ego_agent)
+    return UniformPolicyPrior(env.model, ego_agent, policies)
+
 
 def get_biased_other_policies(env, ego_agent, bias):  # noqa
     return {
         i: get_biased_policies(env, i, bias)
         for i in range(env.n_agents) if i != ego_agent
     }
+
+
+def get_biased_other_policy_prior(env, ego_agent, bias):  # noqa
+    policies = get_biased_other_policies(env, ego_agent, bias)
+    return UniformPolicyPrior(env.model, ego_agent, policies)
 
 
 def get_random_other_policies(env, ego_agent):   # noqa
@@ -75,7 +85,12 @@ def get_random_other_policies(env, ego_agent):   # noqa
     }
 
 
-def get_random_meta_policy(env, ego_agent, other_policies):  # noqa
+def get_random_other_policy_prior(env, ego_agent):   # noqa
+    policies = get_random_other_policies(env, ego_agent)
+    return UniformPolicyPrior(env.model, ego_agent, policies)
+
+
+def get_random_meta_policy(env, ego_agent):  # noqa
     ego_policies = {
         'pi_-1': P.RandomPolicy(env.model, ego_agent, 0.9, "pi_-1")
     }
@@ -87,24 +102,23 @@ def get_random_meta_policy(env, ego_agent, other_policies):  # noqa
 
 def get_random_baposgmcp(env,
                          ego_agent,
-                         other_policies,
+                         other_policy_prior,
                          meta_policy,
                          truncated,
                          step_limit,
                          num_sims=64):   # noqa
-    if other_policies is None:
-        other_policies = get_random_other_policies(env, ego_agent)
+    if other_policy_prior is None:
+        other_policy_prior = get_random_other_policy_prior(env, ego_agent)
 
     if meta_policy is None:
-        meta_policy = get_random_meta_policy(env, ego_agent, other_policies)
+        meta_policy = get_random_meta_policy(env, ego_agent)
 
     return tree_lib.BAPOSGMCP(
         env.model,
         ego_agent=ego_agent,
         gamma=0.9,
         num_sims=num_sims,
-        other_policies=other_policies,
-        other_policy_prior=None,
+        other_policy_prior=other_policy_prior,
         meta_policy=meta_policy,
         c_init=1.0,
         c_base=100.0,

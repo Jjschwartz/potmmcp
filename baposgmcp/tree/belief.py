@@ -90,10 +90,10 @@ class HPSParticleBelief(BaseParticleBelief):
     def __init__(self, agent_policy_id_map: Dict[M.AgentID, List[PolicyID]]):
         super().__init__()
         self._particles: List[HistoryPolicyState] = []
+
         self._agent_policy_particles: Dict[
             M.AgentID, Dict[PolicyID, List[HistoryPolicyState]]
         ] = {}
-
         for i, policy_ids in agent_policy_id_map.items():
             self._agent_policy_particles[i] = {
                 pi_id: [] for pi_id in policy_ids

@@ -28,7 +28,7 @@ def test_with_single_random_policy():
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=None,
+        other_policy_prior=None,
         meta_policy=None,
         truncated=False,
         step_limit=None,
@@ -50,7 +50,7 @@ def test_action_first_with_single_random_policy():
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_baposgmcp(
         env, 1,
-        other_policies=None,
+        other_policy_prior=None,
         meta_policy=None,
         truncated=False,
         step_limit=rps_step_limit,
@@ -70,7 +70,7 @@ def test_with_single_random_policy_truncated():
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=None,
+        other_policy_prior=None,
         meta_policy=None,
         truncated=True,
         step_limit=None,
@@ -88,11 +88,11 @@ def test_with_multiple_random_policies():
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
 
-    other_policies = test_utils.get_biased_other_policies(env, 1, 0.2)
+    other_policy_prior = test_utils.get_biased_other_policy_prior(env, 1, 0.2)
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=other_policies,
+        other_policy_prior=other_policy_prior,
         meta_policy=None,
         truncated=False,
         step_limit=None,
@@ -110,7 +110,7 @@ def test_with_multiple_random_opponent_and_rollout_policies():
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
 
-    other_policies = test_utils.get_biased_other_policies(env, 1, 0.2)
+    other_policy_prior = test_utils.get_biased_other_policy_prior(env, 1, 0.2)
     ego_policies = test_utils.get_biased_policies(env, 1, 0.2)
 
     meta_default = {pi_id: 1.0 / len(ego_policies) for pi_id in ego_policies}
@@ -120,7 +120,7 @@ def test_with_multiple_random_opponent_and_rollout_policies():
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=other_policies,
+        other_policy_prior=other_policy_prior,
         meta_policy=meta_policy,
         truncated=False,
         step_limit=None,
@@ -141,7 +141,7 @@ def test_with_three_other_agents():
     agent_2_policy = test_utils.get_random_baposgmcp(
         env,
         2,
-        other_policies=None,
+        other_policy_prior=None,
         meta_policy=None,
         truncated=False,
         step_limit=None,

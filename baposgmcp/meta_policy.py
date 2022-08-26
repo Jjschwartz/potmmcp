@@ -1,7 +1,6 @@
 import abc
 import random
 from typing import Dict
-from itertools import product
 
 import gym
 
@@ -46,20 +45,14 @@ class MetaPolicy(abc.ABC):
         """Get distribution over ego policies given other agents policies."""
 
     def get_exp_policy_dist(self,
-                            policy_dist: P.AgentPolicyDist) -> P.PolicyDist:
+                            policy_state_dist: Dict[P.PolicyState, float]
+                            ) -> P.PolicyDist:
         """Get meta-distribution given distribution of other agent policies."""
         exp_dist = {pi_id: 0.0 for pi_id in self.ego_policies}
-        for policy_tuples in product(
-                *[policy_dist[i].items() for i in policy_dist]
-        ):
-            # each policy tuple = ((pi_0_id, prob), ..., (pi_n_id, prob))
-            # with one tuple for each other agent
-            policy_state = tuple(pt[0] for pt in policy_tuples)
-            policy_state_prob = sum(pt[1] for pt in policy_tuples)
-
+        for policy_state, prob in policy_state_dist.items():
             meta_policy_dist = self.get_policy_dist(policy_state)
             for pi_id, meta_prob in meta_policy_dist.items():
-                exp_dist[pi_id] += policy_state_prob * meta_prob
+                exp_dist[pi_id] += prob * meta_prob
 
         # normalize
         dist_sum = sum(exp_dist.values())

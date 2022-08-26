@@ -33,7 +33,7 @@ def test_action_dist_distance_single_policy():
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=None,
+        other_policy_prior=None,
         meta_policy=None,
         truncated=False,
         step_limit=rps_step_limit,
@@ -66,7 +66,9 @@ def test_action_dist_distance_rps_deterministic():
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=test_utils.get_deterministic_other_policies(env, 1),
+        other_policy_prior=test_utils.get_deterministic_other_policy_prior(
+            env, 1
+        ),
         meta_policy=None,
         truncated=False,
         step_limit=rps_step_limit,
@@ -100,7 +102,9 @@ def test_action_dist_distance_rps_stochastic_biased():
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=test_utils.get_biased_other_policies(env, 1, 0.3),
+        other_policy_prior=test_utils.get_biased_other_policy_prior(
+            env, 1, 0.3
+        ),
         meta_policy=None,
         truncated=False,
         step_limit=rps_step_limit,
@@ -137,7 +141,9 @@ def test_action_dist_distance_rps_stochastic_biased2():
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=test_utils.get_biased_other_policies(env, 1, 0.3),
+        other_policy_prior=test_utils.get_biased_other_policy_prior(
+            env, 1, 0.3
+        ),
         meta_policy=None,
         truncated=False,
         step_limit=rps_step_limit,

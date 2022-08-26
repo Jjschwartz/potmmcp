@@ -34,7 +34,7 @@ def test_history_accuracy_fully_obs():
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=None,
+        other_policy_prior=None,
         meta_policy=None,
         truncated=False,
         step_limit=rps_step_limit,
@@ -63,7 +63,7 @@ def test_history_accuracy_small():
     agent_1_policy = test_utils.get_random_baposgmcp(
         env,
         1,
-        other_policies=None,
+        other_policy_prior=None,
         meta_policy=None,
         truncated=False,
         step_limit=rps_step_limit,

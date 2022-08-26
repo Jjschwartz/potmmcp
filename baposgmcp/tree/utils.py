@@ -45,11 +45,12 @@ def get_other_pis_belief(tree: BAPOSGMCP) -> Optional[P.AgentPolicyDist]:
         return None
 
     pi_belief: P.AgentPolicyDist = {}
+    # pylint: disable=[protected-access]
+    other_policies = tree._other_policy_prior.policies
     for i in range(tree.num_agents):
         if i == tree.ego_agent:
             continue
-        # pylint: disable=[protected-access]
-        pi_belief[i] = {pi_id: 0.0 for pi_id in tree._other_prior[i]}
+        pi_belief[i] = {pi_id: 0.0 for pi_id in other_policies[i]}
 
     for hp_state, prob in tree.root.belief.get_dist().items():
         pi_state = hp_state.policy_state   # type: ignore
