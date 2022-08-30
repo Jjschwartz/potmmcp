@@ -5,8 +5,12 @@ import json
 import time
 import random
 import logging
+import pathlib
+import argparse
+import tempfile
 from pprint import pformat
 import multiprocessing as mp
+from datetime import datetime
 from typing import (
     List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple
 )
@@ -22,10 +26,22 @@ from baposgmcp.run import runner
 import baposgmcp.run.stats as stats_lib
 import baposgmcp.run.render as render_lib
 import baposgmcp.run.writer as writer_lib
+from baposgmcp.config import BASE_RESULTS_DIR
 
 
 LINE_BREAK = "-"*60
 EXP_ARG_FILE_NAME = "exp_args.json"
+
+
+# A global lock used for controlling when processes print to stdout
+# This helps keep top level stdout readable
+LOCK = mp.Lock()
+
+
+def _init_lock(lck):
+    # pylint: disable=[global-statement]
+    global LOCK
+    LOCK = lck
 
 
 class PolicyParams(NamedTuple):
@@ -74,15 +90,42 @@ class ExpParams(NamedTuple):
     record_env_freq: Optional[int] = None
 
 
-# A global lock used for controlling when processes print to stdout
-# This helps keep top level stdout readable
-LOCK = mp.Lock()
+def get_exp_parser() -> argparse.ArgumentParser:
+    """Get command line argument parser with default experiment args."""
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "--n_procs", type=int, default=1,
+        help="Number of processors/experiments to run in parallel."
+    )
+    parser.add_argument(
+        "--log_level", type=int, default=21,
+        help="Experiment log level."
+    )
+    parser.add_argument(
+        "--root_save_dir", type=str, default=None,
+        help=(
+            "Optional directory to save results in. If supplied then it must "
+            "be an existing directory. If None uses default "
+            "~/baposgmcp_results/<env_name>/results/ dir as root results dir."
+        )
+    )
+    return parser
 
 
-def _init_lock(lck):
-    # pylint: disable=[global-statement]
-    global LOCK
-    LOCK = lck
+def make_exp_result_dir(exp_name: str,
+                        env_name: str,
+                        root_save_dir: Optional[str] = None) -> str:
+    """Make a directory for experiment results."""
+    time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
+    if root_save_dir is None:
+        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_name, "results")
+    pathlib.Path(root_save_dir).mkdir(exist_ok=True)
+    result_dir = tempfile.mkdtemp(
+        prefix=f"{exp_name}_{time_str}", dir=root_save_dir
+    )
+    return result_dir
 
 
 def _log_exp_start(params: ExpParams,
@@ -296,12 +339,16 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         )
 
 
-def run_experiments(exp_params_list: List[ExpParams],
+def run_experiments(exp_name: str,
+                    exp_params_list: List[ExpParams],
                     exp_log_level: int = logging.INFO+1,
                     n_procs: Optional[int] = None,
-                    result_dir: Optional[str] = None,
-                    extra_output_dir: Optional[str] = None) -> str:
-    """Run series of experiments."""
+                    exp_args: Optional[Dict] = None,
+                    root_save_dir: Optional[str] = None) -> str:
+    """Run series of experiments.
+
+    If exp_args is not None then will write to file in the result dir.
+    """
     exp_start_time = time.time()
     logging.basicConfig(
         level=exp_log_level,
@@ -312,10 +359,13 @@ def run_experiments(exp_params_list: List[ExpParams],
     num_exps = len(exp_params_list)
     logging.log(exp_log_level, "Running %d experiments", num_exps)
 
-    if result_dir is None:
-        result_dir = writer_lib.make_dir(exp_params_list[0].env_name)
-
+    result_dir = make_exp_result_dir(
+        exp_name, exp_params_list[0].env_name, root_save_dir
+    )
     logging.log(exp_log_level, "Saving results to dir=%s", result_dir)
+
+    if exp_args:
+        write_experiment_arguments(exp_args, result_dir)
 
     if n_procs is None:
         n_procs = os.cpu_count()
@@ -342,7 +392,7 @@ def run_experiments(exp_params_list: List[ExpParams],
             p.map(run_single_experiment, args_list, 1)
 
     logging.log(exp_log_level, "Compiling results")
-    writer_lib.compile_results(result_dir, extra_output_dir)
+    writer_lib.compile_results(result_dir)
 
     logging.log(
         exp_log_level,

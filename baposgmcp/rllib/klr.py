@@ -2,6 +2,8 @@
 import os
 from typing import Optional, Dict, Any, Callable, Tuple
 
+import ray
+from ray.tune.registry import register_env
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.agents.ppo import PPOTorchPolicy
 from ray.rllib.examples.policy.random_policy import RandomPolicy
@@ -18,6 +20,7 @@ from baposgmcp.rllib.trainer import BAPOSGMCPPPOTrainer
 from baposgmcp.rllib.trainer import standard_logger_creator
 from baposgmcp.rllib.utils import get_igraph_policy_mapping_fn
 from baposgmcp.rllib.export_lib import export_trainers_to_file
+from baposgmcp.rllib.utils import posggym_registered_env_creator
 from baposgmcp.rllib.trainer import get_remote_trainer, get_trainer
 
 
@@ -150,25 +153,30 @@ def get_klr_igraph_and_trainer(env_name: str,
 
 
 def train_klr_policy(env_name: str,
-                     env: RllibMultiAgentEnv,
                      k: int,
                      best_response: bool,
                      is_symmetric: bool,
                      seed: Optional[int],
                      trainer_config: Dict[str, Any],
                      num_workers: int,
-                     num_gpus_per_trainer: float,
+                     num_gpus: float,
                      num_iterations: int,
                      run_serially: bool = False,
-                     save_policy: bool = True,
+                     save_policies: bool = True,
                      verbose: bool = True
                      ):
-    """Run training of KLR policy.
+    """Run training of KLR policy."""
+    assert "env_config" in trainer_config
 
-    Assumes:
-    1. ray has been initialized: ray.init
-    2. environment has been registered using ray.tune.registry.register_env
-    """
+    ray.init()
+    register_env(env_name, posggym_registered_env_creator)
+    env = posggym_registered_env_creator(trainer_config["env_config"])
+
+    num_trainers = (k+1)
+    if best_response:
+        num_trainers += 1
+    num_gpus_per_trainer = num_gpus / num_trainers
+
     igraph, trainer_map = get_klr_igraph_and_trainer(
         env_name,
         env,
@@ -186,7 +194,7 @@ def train_klr_policy(env_name: str,
 
     run_training(trainer_map, igraph, num_iterations, verbose=verbose)
 
-    if save_policy:
+    if save_policies:
         print("== Exporting Graph ==")
         parent_dir = os.path.join(BASE_RESULTS_DIR, env_name, "policies")
         if not os.path.exists(parent_dir):

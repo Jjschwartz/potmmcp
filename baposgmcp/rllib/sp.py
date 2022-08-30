@@ -2,6 +2,8 @@
 import os
 from typing import Optional, Dict, Any, Callable, Tuple
 
+import ray
+from ray.tune.registry import register_env
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.agents.ppo import PPOTorchPolicy
 
@@ -18,6 +20,7 @@ from baposgmcp.rllib.trainer import BAPOSGMCPPPOTrainer
 from baposgmcp.rllib.trainer import standard_logger_creator
 from baposgmcp.rllib.utils import get_igraph_policy_mapping_fn
 from baposgmcp.rllib.export_lib import export_trainers_to_file
+from baposgmcp.rllib.utils import posggym_registered_env_creator
 
 
 def get_sp_igraph(env: RllibMultiAgentEnv,
@@ -114,28 +117,27 @@ def get_sp_igraph_and_trainer(env_name: str,
 
 
 def train_sp_policy(env_name: str,
-                    env: RllibMultiAgentEnv,
                     seed: Optional[int],
                     trainer_config: Dict[str, Any],
                     num_workers: int,
-                    num_gpus_per_trainer: float,
+                    num_gpus: float,
                     num_iterations: int,
                     save_policy: bool = True,
-                    verbose: bool = True
-                    ):
-    """Run training of self-play policy.
+                    verbose: bool = True):
+    """Run training of self-play policy."""
+    assert "env_config" in trainer_config
 
-    Assumes:
-    1. ray has been initialized: ray.init
-    2. environment has been registered using ray.tune.registry.register_env
-    """
+    ray.init()
+    register_env(env_name, posggym_registered_env_creator)
+    env = posggym_registered_env_creator(trainer_config["env_config"])
+
     igraph, trainer_map = get_sp_igraph_and_trainer(
         env_name,
         env,
         seed,
         trainer_config=trainer_config,
         num_workers=num_workers,
-        num_gpus_per_trainer=num_gpus_per_trainer,
+        num_gpus_per_trainer=num_gpus,
         logger_creator=None
     )
     igraph.display()

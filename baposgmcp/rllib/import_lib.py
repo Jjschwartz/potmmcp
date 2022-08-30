@@ -18,7 +18,8 @@ from baposgmcp.rllib.utils import (
     RllibPolicyMap,
     get_igraph_policy_mapping_fn,
     default_asymmetric_policy_mapping_fn,
-    default_symmetric_policy_mapping_fn
+    default_symmetric_policy_mapping_fn,
+    register_posggym_env
 )
 from baposgmcp.rllib.import_export_utils import (
     TRAINER_CONFIG_FILE, nested_update

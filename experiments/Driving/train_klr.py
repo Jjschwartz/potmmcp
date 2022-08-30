@@ -1,44 +1,8 @@
 import argparse
 
-import ray
-
-from ray.tune.registry import register_env
-
 import baposgmcp.rllib as ba_rllib
 
-from exp_utils import registered_env_creator, get_rl_training_config
-
-
-def main(args):  # noqa
-    ray.init()
-    register_env(args.env_name, registered_env_creator)
-
-    env = registered_env_creator(
-        {"env_name": args.env_name, "seed": args.seed}
-    )
-
-    num_trainers = (args.k+1)
-    if args.train_best_response:
-        num_trainers += 1
-    num_gpus_per_trainer = args.num_gpus / num_trainers
-
-    ba_rllib.train_klr_policy(
-        args.env_name,
-        env,
-        k=args.k,
-        best_response=args.train_best_response,
-        is_symmetric=True,
-        seed=args.seed,
-        trainer_config=get_rl_training_config(
-            args.env_name, args.seed, args.log_level
-        ),
-        num_workers=args.num_workers,
-        num_gpus_per_trainer=num_gpus_per_trainer,
-        num_iterations=args.num_iterations,
-        run_serially=args.run_serially,
-        save_policy=args.save_policy,
-        verbose=True
-    )
+from exp_utils import get_rl_training_config
 
 
 if __name__ == "__main__":
@@ -85,4 +49,21 @@ if __name__ == "__main__":
         "--run_serially", action="store_true",
         help="Run training serially."
     )
-    main(parser.parse_args())
+    args = parser.parse_args()
+
+    ba_rllib.train_klr_policy(
+        args.env_name,
+        k=args.k,
+        best_response=args.train_best_response,
+        is_symmetric=True,
+        seed=args.seed,
+        trainer_config=get_rl_training_config(
+            args.env_name, args.seed, args.log_level
+        ),
+        num_workers=args.num_workers,
+        num_gpus=args.num_gpus,
+        num_iterations=args.num_iterations,
+        run_serially=args.run_serially,
+        save_policies=args.save_policies,
+        verbose=True
+    )

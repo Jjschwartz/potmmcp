@@ -1,35 +1,8 @@
 import argparse
 
-import ray
-
-from ray.tune.registry import register_env
-
 import baposgmcp.rllib as ba_rllib
 
-from exp_utils import registered_env_creator, get_rl_training_config
-
-
-def main(args):  # noqa
-    ray.init()
-    register_env(args.env_name, registered_env_creator)
-
-    env = registered_env_creator(
-        {"env_name": args.env_name, "seed": args.seed}
-    )
-
-    ba_rllib.train_sp_policy(
-        args.env_name,
-        env,
-        seed=args.seed,
-        trainer_config=get_rl_training_config(
-            args.env_name, args.seed, args.log_level
-        ),
-        num_workers=args.num_workers,
-        num_gpus_per_trainer=args.num_gpus,
-        num_iterations=args.num_iterations,
-        save_policy=args.save_policy,
-        verbose=True
-    )
+from exp_utils import get_rl_training_config
 
 
 if __name__ == "__main__":
@@ -64,4 +37,17 @@ if __name__ == "__main__":
         "--save_policy", action="store_true",
         help="Save policies to file."
     )
-    main(parser.parse_args())
+    args = parser.parse_args()
+
+    ba_rllib.train_sp_policy(
+        args.env_name,
+        seed=args.seed,
+        trainer_config=get_rl_training_config(
+            args.env_name, args.seed, args.log_level
+        ),
+        num_workers=args.num_workers,
+        num_gpus=args.num_gpus,
+        num_iterations=args.num_iterations,
+        save_policy=args.save_policy,
+        verbose=True
+    )

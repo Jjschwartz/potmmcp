@@ -25,6 +25,8 @@ from baposgmcp.rllib.trainer import get_remote_trainer
 from baposgmcp.rllib.trainer import get_trainer
 from baposgmcp.rllib.trainer import noop_logger_creator
 from baposgmcp.rllib.trainer import custom_log_creator
+from baposgmcp.rllib.utils import register_posggym_env
+from baposgmcp.rllib.utils import posggym_registered_env_creator
 from baposgmcp.rllib.utils import get_igraph_policy_mapping_fn
 from baposgmcp.rllib.utils import default_symmetric_policy_mapping_fn
 from baposgmcp.rllib.utils import default_asymmetric_policy_mapping_fn

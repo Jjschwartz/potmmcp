@@ -2,6 +2,7 @@ import random
 from typing import Callable, Any, Dict, List, Union, Optional
 
 from ray import rllib
+from ray.tune.registry import register_env
 from ray.rllib.agents.trainer import Trainer
 
 import numpy as np
@@ -35,6 +36,12 @@ def posggym_registered_env_creator(config):
     if config.get("flatten_obs", True):
         env = FlattenObservation(env)
     return RllibMultiAgentEnv(env)
+
+
+def register_posggym_env(env_name: str):
+    """Register posggym env with Ray."""
+    print(f"\n\n\nRegistered {env_name=} \n\n\n")
+    register_env(env_name, posggym_registered_env_creator)
 
 
 def identity_preprocessor(obs: M.Observation) -> Any:
