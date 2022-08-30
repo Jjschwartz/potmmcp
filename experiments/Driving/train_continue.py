@@ -1,16 +1,11 @@
 import argparse
-import os.path as osp
 
 import ray
 from ray.tune.registry import register_env
 
 import baposgmcp.rllib as ba_rllib
 
-from exp_utils import (
-    get_rllib_env,
-    registered_env_creator,
-    EXP_RL_POLICY_DIR
-)
+from exp_utils import registered_env_creator
 
 
 if __name__ == "__main__":
@@ -55,40 +50,17 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # check env name is valid
-    get_rllib_env(args)
-
     ray.init()
     register_env(args.env_name, registered_env_creator)
 
-    trainer_args = ba_rllib.TrainerImportArgs(
+    ba_rllib.continue_training(
+        args.policy_dir,
+        is_symmetric=True,
         trainer_class=ba_rllib.BAPOSGMCPPPOTrainer,
-        trainer_remote=not args.run_serially,
-        num_workers=args.num_workers,
-    )
-
-    igraph, trainers = ba_rllib.import_igraph_trainers(
-        igraph_dir=args.policy_dir,
-        env_is_symmetric=True,
-        trainer_args=trainer_args,
-        policy_mapping_fn=None,
-        extra_config={},
+        trainers_remote=not args.run_serially,
+        num_iterations=args.num_iterations,
         seed=args.seed,
-        num_gpus=args.num_gpus
+        num_workers=args.num_workers,
+        num_gpus=args.num_gpus,
+        verbose=True
     )
-    igraph.display()
-
-    ba_rllib.run_training(trainers, igraph, args.num_iterations, verbose=True)
-
-    if args.save_policies:
-        print("== Exporting Graph ==")
-        policy_dir_name = osp.basename(osp.normpath(args.policy_dir))
-        save_dir = "_".join(policy_dir_name.split("_")[:-2])
-        export_dir = ba_rllib.export_trainers_to_file(
-            EXP_RL_POLICY_DIR,
-            igraph,
-            trainers,
-            trainers_remote=not args.run_serially,
-            save_dir_name=save_dir
-        )
-        print(f"{export_dir=}")

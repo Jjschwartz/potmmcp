@@ -7,7 +7,10 @@ from ray.rllib.agents.trainer import Trainer
 import numpy as np
 from gym import spaces
 
+import posggym
 import posggym.model as M
+from posggym.wrappers import FlattenObservation
+from posggym.wrappers.rllib_multi_agent_env import RllibMultiAgentEnv
 
 from baposgmcp import pbt
 from baposgmcp.parts import AgentID
@@ -17,6 +20,21 @@ from baposgmcp.policy import PolicyID
 ObsPreprocessor = Callable[[M.Observation], Any]
 RllibTrainerMap = Dict[AgentID, Dict[PolicyID, Trainer]]
 RllibPolicyMap = Dict[AgentID, Dict[PolicyID, rllib.policy.policy.Policy]]
+
+
+def posggym_registered_env_creator(config):
+    """Create a new rllib compatible environment from POSGgym environment.
+
+    Config expects:
+    "env_name" - name of the posggym env
+    "seed" - environment seed
+    "flatten_obs" - bool whether to use observation flattening wrapper
+                   (default=True)
+    """
+    env = posggym.make(config["env_name"], **{"seed": config["seed"]})
+    if config.get("flatten_obs", True):
+        env = FlattenObservation(env)
+    return RllibMultiAgentEnv(env)
 
 
 def identity_preprocessor(obs: M.Observation) -> Any:

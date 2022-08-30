@@ -377,7 +377,8 @@ def get_rl_training_config(env_name: str, seed: int, log_level: str):
     config["seed"] = seed
     config["env_config"] = {
         "env_name": env_name,
-        "seed": seed
+        "seed": seed,
+        "flatten_obs": True
     }
     config["explore"] = True
     config["exploration_config"] = {

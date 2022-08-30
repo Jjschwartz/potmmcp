@@ -19,6 +19,7 @@ from baposgmcp.rllib.policy import RllibPolicy
 from baposgmcp.rllib.policy import PPORllibPolicy
 from baposgmcp.rllib.train import run_training
 from baposgmcp.rllib.train import run_evaluation
+from baposgmcp.rllib.train import continue_training
 from baposgmcp.rllib.trainer import BAPOSGMCPPPOTrainer
 from baposgmcp.rllib.trainer import get_remote_trainer
 from baposgmcp.rllib.trainer import get_trainer
@@ -35,3 +36,11 @@ from baposgmcp.rllib.utils import ObsPreprocessor
 from baposgmcp.rllib.utils import identity_preprocessor
 from baposgmcp.rllib.utils import get_flatten_preprocessor
 from baposgmcp.rllib.utils import numpy_softmax
+from baposgmcp.rllib.sp import get_sp_igraph
+from baposgmcp.rllib.sp import get_sp_trainer
+from baposgmcp.rllib.sp import get_sp_igraph_and_trainer
+from baposgmcp.rllib.sp import train_sp_policy
+from baposgmcp.rllib.klr import get_klr_igraph
+from baposgmcp.rllib.klr import get_klr_trainer
+from baposgmcp.rllib.klr import get_klr_igraph_and_trainer
+from baposgmcp.rllib.klr import train_klr_policy

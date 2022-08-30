@@ -1,9 +1,17 @@
+import os.path as osp
+from typing import Optional
+
 import ray
 from ray.tune.logger import pretty_print
 
 from baposgmcp import pbt
+from baposgmcp.config import BASE_RESULTS_DIR
 
 from baposgmcp.rllib.utils import RllibTrainerMap
+from baposgmcp.rllib.export_lib import export_trainers_to_file
+from baposgmcp.rllib.import_lib import (
+    TrainerImportArgs, import_igraph_trainers
+)
 
 
 def _check_train_policy_weights(trainer):
@@ -144,3 +152,65 @@ def run_evaluation(trainers: RllibTrainerMap, verbose: bool = True):
                 print(pretty_print(result))
 
     return results
+
+
+def continue_training(policy_dir,
+                      is_symmetric,
+                      trainer_class,
+                      trainers_remote: bool,
+                      num_iterations: int,
+                      seed: Optional[int],
+                      num_workers: int,
+                      num_gpus: float,
+                      save_policies: bool = True,
+                      verbose: bool = True):
+    """Continue training of saved policies.
+
+    Assumes:
+    1. ray has been initialized
+    2. training environment has been registered with ray
+    """
+    trainer_args = TrainerImportArgs(
+        trainer_class=trainer_class,
+        trainer_remote=trainers_remote,
+        num_workers=num_workers,
+    )
+
+    igraph, trainers = import_igraph_trainers(
+        igraph_dir=policy_dir,
+        env_is_symmetric=is_symmetric,
+        trainer_args=trainer_args,
+        policy_mapping_fn=None,
+        extra_config={},
+        seed=seed,
+        num_gpus=num_gpus
+    )
+    igraph.display()
+
+    run_training(trainers, igraph, num_iterations, verbose=verbose)
+
+    if save_policies:
+        print("== Exporting Graph ==")
+        # use same save dir name but with new checkpoint number
+        policy_dir_name = osp.basename(osp.normpath(policy_dir))
+        name_tokens = policy_dir_name.split("_")[-1]
+        if "checkpoint" in name_tokens[-1]:
+            try:
+                checkpoint_num = int(name_tokens[-1].replace("checkpoint", ""))
+                checkpoint = f"checkpoint{checkpoint_num+1}"
+            except ValueError:
+                checkpoint = name_tokens[-1] + "1"
+            name_tokens = name_tokens[:-1]
+        else:
+            checkpoint = "checkpoint1"
+        name_tokens.append(checkpoint)
+        save_dir = "_".join(name_tokens)
+
+        export_dir = export_trainers_to_file(
+            osp.dirname(osp.normpath(policy_dir)),
+            igraph,
+            trainers,
+            trainers_remote=trainers_remote,
+            save_dir_name=save_dir
+        )
+        print(f"{export_dir=}")

@@ -42,6 +42,23 @@ def custom_log_creator(custom_path: str,
     return logger_creator
 
 
+def standard_logger_creator(env_name: str,
+                            parent_dir: str,
+                            seed: Optional[int],
+                            suffix: Optional[str]) -> Callable:
+    """Get standard logger creator for training.
+
+    Logs results to ~/ray_results/{env_name}/{parent_dir}/seed{seed}{_suffix}
+    """
+    custom_path = os.path.join(env_name, parent_dir)
+
+    custom_str = f"seed{seed}"
+    if suffix is not None:
+        custom_str += f"_{suffix}"
+
+    return custom_log_creator(custom_path, custom_str, True)
+
+
 class BAPOSGMCPPPOTrainer(PPOTrainer):
     """Custom Rllib trainer class for the Rllib PPOPolicy.
 
