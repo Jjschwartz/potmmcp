@@ -1,8 +1,8 @@
 """Script for running pairwise evaluation of trained Rllib policies.
 
-The script takes a list of environments names and a list of rllib policy save
-directories as arguments. It then runs a pairwise evaluation between each
-policy in each of the policy directories for each environment.
+The script takes a list of rllib policy save directories as arguments.
+It then runs a pairwise evaluation between each policy in each of the policy
+directories.
 
 """
 from pprint import pprint

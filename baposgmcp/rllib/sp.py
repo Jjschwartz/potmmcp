@@ -1,5 +1,6 @@
 """Code for training self-play agents using rllib."""
 import os
+import argparse
 from typing import Optional, Dict, Any, Callable, Tuple
 
 import ray
@@ -21,6 +22,42 @@ from baposgmcp.rllib.trainer import standard_logger_creator
 from baposgmcp.rllib.utils import get_igraph_policy_mapping_fn
 from baposgmcp.rllib.export_lib import export_trainers_to_file
 from baposgmcp.rllib.utils import posggym_registered_env_creator
+
+
+def get_train_sp_exp_parser() -> argparse.ArgumentParser:
+    """Get command line argument parser with default SP training args."""
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "env_name", type=str,
+        help="Name of the environment to train on."
+    )
+    parser.add_argument(
+        "--num_iterations", type=int, default=2500,
+        help="Number of iterations to train."
+    )
+    parser.add_argument(
+        "--num_workers", type=int, default=1,
+        help="Number of worker processes per trainer"
+    )
+    parser.add_argument(
+        "--log_level", type=str, default='WARN',
+        help="Log level"
+    )
+    parser.add_argument(
+        "--seed", type=int, default=None,
+        help="Random seed."
+    )
+    parser.add_argument(
+        "--num_gpus", type=float, default=1.0,
+        help="Number of GPUs to use (can be a proportion)."
+    )
+    parser.add_argument(
+        "--save_policy", action="store_true",
+        help="Save policies to file."
+    )
+    return parser
 
 
 def get_sp_igraph(env: RllibMultiAgentEnv,

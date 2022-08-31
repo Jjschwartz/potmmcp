@@ -1,42 +1,10 @@
-import argparse
-
 import baposgmcp.rllib as ba_rllib
 
 from rl_config import get_rl_training_config
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument(
-        "env_name", type=str,
-        help="Name of the environment to train on."
-    )
-    parser.add_argument(
-        "--num_iterations", type=int, default=2500,
-        help="Number of iterations to train."
-    )
-    parser.add_argument(
-        "--num_workers", type=int, default=1,
-        help="Number of worker processes per trainer"
-    )
-    parser.add_argument(
-        "--log_level", type=str, default='WARN',
-        help="Log level"
-    )
-    parser.add_argument(
-        "--seed", type=int, default=None,
-        help="Random seed."
-    )
-    parser.add_argument(
-        "--num_gpus", type=float, default=1.0,
-        help="Number of GPUs to use (can be a proportion)."
-    )
-    parser.add_argument(
-        "--save_policy", action="store_true",
-        help="Save policies to file."
-    )
+    parser = ba_rllib.get_train_sp_exp_parser()
     args = parser.parse_args()
 
     ba_rllib.train_sp_policy(

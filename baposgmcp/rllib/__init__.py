@@ -41,8 +41,10 @@ from baposgmcp.rllib.utils import numpy_softmax
 from baposgmcp.rllib.sp import get_sp_igraph
 from baposgmcp.rllib.sp import get_sp_trainer
 from baposgmcp.rllib.sp import get_sp_igraph_and_trainer
+from baposgmcp.rllib.sp import get_train_sp_exp_parser
 from baposgmcp.rllib.sp import train_sp_policy
 from baposgmcp.rllib.klr import get_klr_igraph
 from baposgmcp.rllib.klr import get_klr_trainer
 from baposgmcp.rllib.klr import get_klr_igraph_and_trainer
+from baposgmcp.rllib.klr import get_train_klr_exp_parser
 from baposgmcp.rllib.klr import train_klr_policy
