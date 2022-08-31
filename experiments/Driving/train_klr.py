@@ -2,7 +2,7 @@ import argparse
 
 import baposgmcp.rllib as ba_rllib
 
-from exp_utils import get_rl_training_config
+from rl_config import get_rl_training_config
 
 
 if __name__ == "__main__":

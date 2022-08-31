@@ -62,8 +62,7 @@ def get_action_dist_distance(dist1: P.ActionDist,
     return stats.wasserstein_distance(actions, actions, probs1, probs2)
 
 
-def get_default_trackers(policies: Sequence[P.BasePolicy]
-                         ) -> Sequence['Tracker']:
+def get_default_trackers(policies: Sequence[P.BasePolicy]) -> List['Tracker']:
     """Get the default set of Trackers."""
     num_agents = len(policies)
     gammas = [pi.gamma for pi in policies]
@@ -71,7 +70,6 @@ def get_default_trackers(policies: Sequence[P.BasePolicy]
         EpisodeTracker(num_agents, gammas),
         SearchTimeTracker(num_agents),
     ]
-
     return trackers
 
 

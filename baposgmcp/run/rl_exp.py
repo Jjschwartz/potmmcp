@@ -191,7 +191,7 @@ def load_agent_policy_params(env_name: str,
         ):
             continue
 
-        if "-1" in policy_id:
+        if "-1" in str(policy_id):
             policy_params = PolicyParams(
                 name="RandomPolicy",
                 gamma=gamma,
@@ -229,14 +229,40 @@ def load_agent_policy_params(env_name: str,
     return policy_params_list
 
 
-def _renderer_fn(**kwargs) -> Sequence[Renderer]:
+def load_all_agent_policy_params(env_name: str,
+                                 policy_dirs: List[str],
+                                 gamma: float,
+                                 include_policy_ids: Optional[
+                                     List[str]
+                                 ] = None,
+                                 policy_load_kwargs: Optional[Dict] = None):
+    """Load agent rllib policy params from multiple directories.
+
+    See load_agent_policy_params function for info.
+    """
+    all_policy_params = []
+    for i, policy_dir in enumerate(policy_dirs):
+        all_policy_params.extend(
+            load_agent_policy_params(
+                env_name,
+                policy_dir,
+                gamma,
+                include_random_policy=(i == 0),
+                include_policy_ids=None,
+                policy_load_kwargs=policy_load_kwargs
+            )
+        )
+    return all_policy_params
+
+
+def _renderer_fn(kwargs) -> Sequence[Renderer]:
     renderers = []
     if kwargs["render"]:
         renderers.append(EpisodeRenderer())
     return renderers
 
 
-def _tracker_fn(policies: List[P.BasePolicy], **kwargs) -> Sequence[Tracker]:
+def _tracker_fn(policies: List[P.BasePolicy], kwargs) -> Sequence[Tracker]:
     trackers = get_default_trackers(policies)
     return trackers
 
@@ -260,18 +286,13 @@ def get_rl_exp_params(env_name: str,
     """
     env = posggym.make(env_name)
 
-    all_policy_params = []
-    for i, policy_dir in enumerate(policy_dirs):
-        all_policy_params.extend(
-            load_agent_policy_params(
-                env_name,
-                policy_dir,
-                gamma,
-                include_random_policy=(i == 0),
-                include_policy_ids=None,
-                policy_load_kwargs=policy_load_kwargs
-            )
-        )
+    all_policy_params = load_all_agent_policy_params(
+        env_name,
+        policy_dirs,
+        gamma,
+        include_policy_ids=None,
+        policy_load_kwargs=policy_load_kwargs
+    )
 
     exp_params_list = []
     for i, (exp_seed, policies) in enumerate(product(

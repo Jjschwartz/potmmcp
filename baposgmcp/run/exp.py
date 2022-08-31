@@ -12,7 +12,8 @@ from pprint import pformat
 import multiprocessing as mp
 from datetime import datetime
 from typing import (
-    List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple
+    List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple,
+
 )
 
 import ray
@@ -247,9 +248,7 @@ def _get_exp_trackers(params: ExpParams,
                       ) -> Sequence[stats_lib.Tracker]:
     if params.tracker_fn:
         tracker_kwargs = params.tracker_kwargs if params.tracker_kwargs else {}
-        trackers = params.tracker_fn(
-            policies, **tracker_kwargs
-        )
+        trackers = params.tracker_fn(policies, tracker_kwargs)
     else:
         trackers = stats_lib.get_default_trackers(policies)
     return trackers
@@ -260,7 +259,7 @@ def _get_exp_renderers(params: ExpParams) -> Sequence[render_lib.Renderer]:
         renderer_kwargs = {}
         if params.renderer_kwargs:
             renderer_kwargs = params.renderer_kwargs
-        renderers = params.renderer_fn(**renderer_kwargs)
+        renderers = params.renderer_fn(renderer_kwargs)
     else:
         renderers = []
     return renderers

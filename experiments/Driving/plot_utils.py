@@ -9,7 +9,11 @@ import matplotlib.pyplot as plt
 
 import posggym
 
-import exp_utils
+from baposgmcp.config import BASE_RESULTS_DIR
+
+EXP_BASE_DIR = osp.dirname(osp.abspath(__file__))
+EXP_BASE_SAVE_DIR = osp.join(BASE_RESULTS_DIR, "Driving")
+EXP_RESULTS_DIR = osp.join(EXP_BASE_SAVE_DIR, "results")
 
 
 BAPOSGMCP_HYPERPARAMETERS = [
@@ -220,7 +224,7 @@ def import_results(result_dir: str,
                    is_baposgmcp_result: bool) -> pd.DataFrame:
     """Import driving experiment results and do some cleaning."""
     result_file = osp.join(
-        exp_utils.EXP_RESULTS_DIR, result_dir, "compiled_results.csv"
+        EXP_RESULTS_DIR, result_dir, "compiled_results.csv"
     )
     df = pd.read_csv(result_file)
 

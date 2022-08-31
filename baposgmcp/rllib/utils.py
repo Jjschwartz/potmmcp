@@ -40,7 +40,6 @@ def posggym_registered_env_creator(config):
 
 def register_posggym_env(env_name: str):
     """Register posggym env with Ray."""
-    print(f"\n\n\nRegistered {env_name=} \n\n\n")
     register_env(env_name, posggym_registered_env_creator)
 
 

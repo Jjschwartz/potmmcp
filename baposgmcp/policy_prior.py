@@ -7,7 +7,6 @@ from itertools import product
 import posggym.model as M
 
 import baposgmcp.policy as P
-from baposgmcp.parts import AgentID
 
 
 class PolicyPrior(abc.ABC):
@@ -15,7 +14,7 @@ class PolicyPrior(abc.ABC):
 
     def __init__(self,
                  model: M.POSGModel,
-                 ego_agent: AgentID,
+                 ego_agent: M.AgentID,
                  policies: P.AgentPolicyMap):
         assert len(policies) == model.n_agents-1
         assert all(
@@ -27,14 +26,14 @@ class PolicyPrior(abc.ABC):
         self.policies = policies
 
     @abc.abstractmethod
-    def sample_agent_policy(self, agent_id: AgentID) -> P.PolicyID:
+    def sample_agent_policy(self, agent_id: M.AgentID) -> P.PolicyID:
         """Sample policy for a specific agent from the prior."""
 
     @abc.abstractmethod
     def get_prior_dist(self) -> Dict[P.PolicyState, float]:
         """Get the distribution over policy states for this prior."""
 
-    def get_agent_policy_id_map(self) -> Dict[AgentID, List[P.PolicyID]]:
+    def get_agent_policy_id_map(self) -> Dict[M.AgentID, List[P.PolicyID]]:
         """Get map from agent id to list of policy IDs for that agent."""
         return {i: list(pi_map) for i, pi_map in self.policies.items()}
 
@@ -49,16 +48,16 @@ class PolicyPrior(abc.ABC):
         """
         policy_state = []
         for i in range(self.num_agents):
-            if i == self.ego_agent:
-                pi_id = -1
-            else:
+            if i != self.ego_agent:
                 pi_id = self.sample_agent_policy(i)
+            else:
+                pi_id = -1
             policy_state.append(pi_id)
         return tuple(policy_state)
 
     def get_policy_objs(self,
                         policy_state: P.PolicyState
-                        ) -> Dict[AgentID, P.BasePolicy]:
+                        ) -> Dict[M.AgentID, P.BasePolicy]:
         """Get policy objects given polict_state."""
         policies = {}
         for i in range(self.num_agents):
@@ -71,15 +70,22 @@ class PolicyPrior(abc.ABC):
 class UniformPolicyPrior(PolicyPrior):
     """Uniform prior over other agent policies."""
 
-    def sample_agent_policy(self, agent_id: AgentID) -> P.PolicyID:
+    def sample_agent_policy(self, agent_id: M.AgentID) -> P.PolicyID:
         return random.choice(list(self.policies[agent_id]))
 
     def get_prior_dist(self) -> Dict[P.PolicyState, float]:
-        all_policy_states = list(product(
+        all_policy_tuples = list(product(
             *[self.policies[i] for i in self.policies]
         ))
-        prob = 1.0 / len(all_policy_states)
-        return {ps: prob for ps in all_policy_states}
+        prob = 1.0 / len(all_policy_tuples)
+
+        prior = {}
+        for policy_tuple in all_policy_tuples:
+            policy_state = list(policy_tuple)
+            policy_state.insert(self.ego_agent, -1)
+            prior[tuple(policy_state)] = prob
+
+        return prior
 
 
 class MapPolicyPrior(PolicyPrior):
@@ -87,16 +93,16 @@ class MapPolicyPrior(PolicyPrior):
 
     def __init__(self,
                  model: M.POSGModel,
-                 ego_agent: AgentID,
+                 ego_agent: M.AgentID,
                  policies: P.AgentPolicyMap,
                  policy_dist_map: P.AgentPolicyDist):
         super().__init__(model, ego_agent, policies)
         self._policy_dist_map = policy_dist_map
 
-    def sample_agent_policy(self, agent_id: AgentID) -> P.PolicyID:
+    def sample_agent_policy(self, agent_id: M.AgentID) -> P.PolicyID:
         policy_dist = self._policy_dist_map[agent_id]
         return random.choices(
-            list(policy_dist), weights=policy_dist.values(), k=1
+            list(policy_dist), weights=list(policy_dist.values()), k=1
         )[0]
 
     def get_prior_dist(self) -> Dict[P.PolicyState, float]:
@@ -106,7 +112,8 @@ class MapPolicyPrior(PolicyPrior):
         ):
             # each policy tuple = ((pi_0_id, prob), ..., (pi_n_id, prob))
             # with one (pi_id, prob) tuple for each non-ego agent
-            policy_state = tuple(pt[0] for pt in policy_tuples)
+            policy_state = list(pt[0] for pt in policy_tuples)
+            policy_state.insert(self.ego_agent, -1)
             policy_state_prob = math.prod(pt[1] for pt in policy_tuples)
             prior[policy_state] = policy_state_prob
 

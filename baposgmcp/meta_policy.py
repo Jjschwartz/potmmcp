@@ -37,7 +37,7 @@ class MetaPolicy(abc.ABC):
     def sample(self, policy_state: P.PolicyState) -> P.BasePolicy:
         """Sample policy to use given policies of other agents."""
         dist = self.get_policy_dist(policy_state)
-        pi_id = random.choices(list(dist), weights=dist.values(), k=1)[0]
+        pi_id = random.choices(list(dist), weights=list(dist.values()), k=1)[0]
         return self.ego_policies[pi_id]
 
     @abc.abstractmethod
@@ -89,6 +89,22 @@ class MetaPolicy(abc.ABC):
         return exp_action_dist
 
 
+class SingleMetaPolicy(MetaPolicy):
+    """A Meta-Policy with only a single policy."""
+
+    def __init__(self,
+                 model: M.POSGModel,
+                 ego_agent: AgentID,
+                 ego_policies: P.PolicyMap):
+        super().__init__(model, ego_agent, ego_policies)
+        assert len(ego_policies) == 0
+        self._policy_id = list(ego_policies.keys())[0]
+        self._policy = ego_policies[self._policy_id]
+
+    def get_policy_dist(self, policy_state: P.PolicyState) -> P.PolicyDist:
+        return {self._policy_id: 1.0}
+
+
 class DictMetaPolicy(MetaPolicy):
     """A Meta-Policy defined using a dictionary.
 
@@ -98,12 +114,16 @@ class DictMetaPolicy(MetaPolicy):
     """
 
     def __init__(self,
+                 model: M.POSGModel,
                  ego_agent: AgentID,
-                 num_agents: int,
                  ego_policies: P.PolicyMap,
                  meta_policy_dict: Dict[P.PolicyState, P.PolicyDist]):
-        super().__init__(ego_agent, num_agents, ego_policies)
+        super().__init__(model, ego_agent, ego_policies)
         self._meta_policy_dict = meta_policy_dict
 
     def get_policy_dist(self, policy_state: P.PolicyState) -> P.PolicyDist:
-        return self._meta_policy_dict[policy_state]
+        meta_policy = self._meta_policy_dict[policy_state]
+        for pi_id in self.ego_policies:
+            if pi_id not in meta_policy:
+                meta_policy[pi_id] = 0.0
+        return meta_policy

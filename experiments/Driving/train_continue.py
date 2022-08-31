@@ -1,11 +1,6 @@
 import argparse
 
-import ray
-from ray.tune.registry import register_env
-
 import baposgmcp.rllib as ba_rllib
-
-from exp_utils import registered_env_creator
 
 
 if __name__ == "__main__":
@@ -50,8 +45,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    ray.init()
-    register_env(args.env_name, registered_env_creator)
+    ba_rllib.register_posggym_env(args.env_name)
 
     ba_rllib.continue_training(
         args.policy_dir,

@@ -151,7 +151,7 @@ class BAPOSGMCP(P.BasePolicy):
         self._initial_belief = self._init_belief()
         self.root = self._init_root(self._initial_belief)
 
-        for agent_policies in self._other_policy_prior.policies.values():
+        for i, agent_policies in self._other_policy_prior.policies.items():
             for pi in agent_policies.values():
                 pi.reset()
 

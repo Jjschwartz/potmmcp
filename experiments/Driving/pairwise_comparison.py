@@ -11,7 +11,7 @@ import baposgmcp.run as run_lib
 import baposgmcp.rllib as ba_rllib
 
 
-def _main(args):
+def main(args):    # noqa
     ba_rllib.register_posggym_env(args.env_name)
 
     print("\n== Running Experiments ==")
@@ -27,7 +27,7 @@ def _main(args):
     print(f"== Using {args.n_procs} CPUs ==")
     run_lib.run_experiments(
         exp_name,
-        exp_params_list=exp_params_list[:5],
+        exp_params_list=exp_params_list,
         exp_log_level=args.log_level,
         n_procs=args.n_procs,
         exp_args=vars(args)
@@ -38,4 +38,4 @@ def _main(args):
 
 if __name__ == "__main__":
     parser = run_lib.get_rl_exp_parser()
-    _main(parser.parse_args())
+    main(parser.parse_args())

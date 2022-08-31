@@ -2,7 +2,7 @@
 import abc
 import random
 import logging
-from typing import Optional, Dict, Mapping, Any, Union, Tuple
+from typing import Optional, Dict, Mapping, Any, Union, Tuple, List
 
 import gym
 import posggym.model as M
@@ -26,7 +26,9 @@ AgentPolicyDist = Dict[parts.AgentID, PolicyDist]
 
 def sample_action_dist(dist: ActionDist) -> M.Action:
     """Sample an action from an action distribution."""
-    return random.choices(list(dist.keys()), weights=dist.values(), k=1)[0]
+    return random.choices(
+        list(dist.keys()), weights=list(dist.values()), k=1
+    )[0]
 
 
 def vectorize_policy_dist(dist: PolicyDist,
@@ -41,7 +43,7 @@ def vectorize_policy_dist(dist: PolicyDist,
     faster when working with random.choices function.
     """
     policy_ids = tuple(dist)
-    policy_probs = list(dist.values())
+    policy_probs = tuple(dist.values())
 
     prob_sum = sum(policy_probs)
     is_cumulative = prob_sum >= 1.0 and policy_probs[-1] == 1.0
@@ -51,20 +53,20 @@ def vectorize_policy_dist(dist: PolicyDist,
 
     if make_cumulative and not is_cumulative:
         cumulative_probs = []
-        last_prob = 0
+        last_prob = 0.0
         for p in policy_probs:
             last_prob = p + last_prob
             cumulative_probs.append(last_prob)
-        policy_probs = cumulative_probs
+        policy_probs = tuple(cumulative_probs)
     elif not make_cumulative and is_cumulative:
         noncumulative_policy_probs = []
         last_prob = 0
         for p in policy_probs:
             noncumulative_policy_probs.append(p-last_prob)
             last_prob = p
-        policy_probs = noncumulative_policy_probs
+        policy_probs = tuple(noncumulative_policy_probs)
 
-    return policy_ids, tuple(policy_probs)
+    return policy_ids, policy_probs
 
 
 class BasePolicy(abc.ABC):
@@ -246,7 +248,7 @@ class FixedDistributionPolicy(BasePolicy):
         assert isinstance(action_space, gym.spaces.Discrete)
         self._action_space = list(range(action_space.n))
         self._dist = dist
-        self._cum_weights = []
+        self._cum_weights: List[float] = []
         for i, a in enumerate(self._action_space):
             prob_sum = 0.0 if i == 0 else self._cum_weights[-1]
             self._cum_weights.append(self._dist[a] + prob_sum)
@@ -295,6 +297,6 @@ class RandomPolicy(FixedDistributionPolicy):
             ego_agent,
             gamma,
             dist={a: 1.0 / action_space.n for a in range(action_space.n)},
-            policy_id="uniform_random" if policy_id is None else policy_id,
+            policy_id="pi_-1" if policy_id is None else policy_id,
             logger=logger
         )
