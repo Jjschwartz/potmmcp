@@ -9,7 +9,6 @@ import posggym.model as M
 from baposgmcp import pbt
 import baposgmcp.policy as P
 import baposgmcp.tree as tree_lib
-import baposgmcp.rllib as ba_rllib
 from baposgmcp.meta_policy import MetaPolicy, SingleMetaPolicy, DictMetaPolicy
 from baposgmcp.policy_prior import (
     PolicyPrior, UniformPolicyPrior, MapPolicyPrior
@@ -20,6 +19,8 @@ from baposgmcp.run.runner import RunConfig
 from baposgmcp.run.rl_exp import load_rllib_agent_policy
 from baposgmcp.run.render import Renderer, EpisodeRenderer
 from baposgmcp.run.exp import ExpParams, PolicyParams, get_exp_parser
+
+# TODO Update load_agent_policies to use policy_id and posggym-agents
 
 
 def get_baposgmcp_exp_parser() -> argparse.ArgumentParser:

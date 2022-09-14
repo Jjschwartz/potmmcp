@@ -7,7 +7,6 @@ import gym
 import posggym.model as M
 
 import baposgmcp.policy as P
-from baposgmcp.rllib import RllibPolicy
 from baposgmcp.meta_policy import MetaPolicy
 from baposgmcp.policy_prior import PolicyPrior
 from baposgmcp.history import JointHistory, AgentHistory
@@ -505,9 +504,7 @@ class BAPOSGMCP(P.BasePolicy):
             hidden_state, action, obs
         )
         self._statistics["inference_time"] += time.time() - start_time
-
-        if isinstance(policy, RllibPolicy):
-            self._statistics["policy_calls"] += 1
+        self._statistics["policy_calls"] += 1
 
         return next_hidden_state
 
