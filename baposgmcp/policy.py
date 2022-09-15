@@ -8,6 +8,7 @@ from posggym.utils.history import AgentHistory
 from posggym_agents.policy import BasePolicy, PolicyID, PolicyHiddenState
 
 # Convenient type definitions
+ActionDist = Dict[M.Action, float]
 PolicyMap = Dict[PolicyID, "BasePolicy"]
 PolicyState = Tuple[PolicyID, ...]
 PolicyHiddenStates = Tuple[PolicyHiddenState, ...]
