@@ -1,7 +1,6 @@
 # My additions
 archive
 !.gitkeep
-results
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
