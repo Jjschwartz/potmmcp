@@ -3,6 +3,7 @@ from pprint import pprint
 
 import posggym_agents
 
+from baposgmcp.baselines.po_meta import POMeta
 from baposgmcp.run.render import EpisodeRenderer
 from baposgmcp.baselines.meta import MetaBaselinePolicy
 from baposgmcp.run.tree_exp import load_baposgmcp_params
@@ -92,15 +93,26 @@ def main(args):   # noqa
         baposgmcp_agent_id=BAPOSGMCP_AGENT_ID,
         **vars(args)
     )
+    # TODO remove
+    exp_params_list = []
 
     if args.run_baselines:
         baseline_params = [
+            # PolicyParams(
+            #     id="metabaseline",
+            #     entry_point=MetaBaselinePolicy.posggym_agents_entry_point,
+            #     kwargs={
+            #         "other_policy_dist": POLICY_PRIOR_MAP,
+            #         "meta_policy_dict": META_POLICY_MAP
+            #     }
+            # ),
             PolicyParams(
-                id="metabaseline",
-                entry_point=MetaBaselinePolicy.posggym_agents_entry_point,
+                id="POMeta",
+                entry_point=POMeta.posggym_agents_entry_point,
                 kwargs={
+                    "belief_size": 1000,
                     "other_policy_dist": POLICY_PRIOR_MAP,
-                    "meta_policy_dict": META_POLICY_MAP
+                    "meta_policy_dict": META_POLICY_MAP,
                 }
             )
         ]
@@ -108,7 +120,9 @@ def main(args):   # noqa
             ENV_NAME,
             [baseline_params, other_params],
             discount=DISCOUNT,
-            exp_id_init=exp_params_list[-1].exp_id,
+            # TODO change this
+            # exp_id_init=exp_params_list[-1].exp_id,
+            exp_id_init=0,
             tracker_fn=None,
             renderer_fn=(lambda: [EpisodeRenderer()]) if args.render else None,
             **vars(args)

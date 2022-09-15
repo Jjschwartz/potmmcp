@@ -3,6 +3,7 @@ from pprint import pprint
 
 import posggym_agents
 
+from baposgmcp.baselines.po_meta import POMeta
 from baposgmcp.run.render import EpisodeRenderer
 from baposgmcp.baselines.meta import MetaBaselinePolicy
 from baposgmcp.run.tree_exp import load_baposgmcp_params
@@ -102,6 +103,15 @@ def main(args):   # noqa
                 kwargs={
                     "other_policy_dist": POLICY_PRIOR_MAP,
                     "meta_policy_dict": META_POLICY_MAP
+                }
+            ),
+            PolicyParams(
+                id="POMeta",
+                entry_point=POMeta.posggym_agents_entry_point,
+                kwargs={
+                    "belief_size": 1000,
+                    "other_policy_dist": POLICY_PRIOR_MAP,
+                    "meta_policy_dict": META_POLICY_MAP,
                 }
             )
         ]

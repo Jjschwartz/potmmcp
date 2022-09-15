@@ -4,8 +4,8 @@ from typing import Optional, Dict, Sequence, List
 
 import posggym.model as M
 
-from baposgmcp.policy import PolicyID
 from baposgmcp.tree.hps import HistoryPolicyState
+from baposgmcp.policy import PolicyID, PolicyState
 
 
 class BaseParticleBelief(M.Belief, abc.ABC):
@@ -204,4 +204,18 @@ class HPSParticleBelief(BaseParticleBelief):
         if prob_sum < 1.0:
             for state, prob in dist.items():
                 dist[state] = prob / prob_sum
+        return dist
+
+    def get_policy_state_dist(self) -> Dict[PolicyState, float]:
+        """Get belief's distribution over policy states."""
+        dist = {}
+        for particle in self._particles:
+            if particle.policy_state not in dist:
+                dist[particle.policy_state] = 1
+            else:
+                dist[particle.policy_state] += 1
+
+        for policy_state in dist:
+            dist[policy_state] /= len(self._particles)
+
         return dist

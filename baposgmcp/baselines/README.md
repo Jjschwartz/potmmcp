@@ -34,3 +34,13 @@ Meta-Policy w.r.t the belief over policy-states.
 
 This provides baseline performance of BAPOSGMCP using beliefs and the
 meta-policy but without search.
+
+## PO-MetaRollout
+
+This baseline maintains a belief over the history-policy-state similar to
+PO-Meta and BAPOSGMCP. Each step it runs N rollouts from the root node using
+the meta-policy for rollouts and PUCB for selecting the actions to explore from
+the root node.
+
+This provides baseline performance of BAPOSGMCP using beliefs, the
+meta-policy and simple monte-carlo search.

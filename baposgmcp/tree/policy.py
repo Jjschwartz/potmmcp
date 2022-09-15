@@ -17,7 +17,7 @@ from baposgmcp.tree.node import ObsNode, ActionNode
 from baposgmcp.tree.reinvigorate import BeliefReinvigorator
 
 
-class BAPOSGMCP(P.BasePolicy):
+class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
     """Bayes Adaptive POSGMCP."""
 
     def __init__(self,
@@ -35,11 +35,12 @@ class BAPOSGMCP(P.BasePolicy):
                  step_limit: Optional[int] = None,
                  epsilon: float = 0.01,
                  **kwargs):
+        print(kwargs)
         super().__init__(
             model,
             agent_id,
-            discount,
             policy_id=kwargs.pop("policy_id", f"baposgmcp_{agent_id}"),
+            discount=discount,
             **kwargs
         )
 
