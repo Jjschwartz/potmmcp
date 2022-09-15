@@ -6,12 +6,10 @@ from typing import List, Sequence, Optional, Dict, Callable
 import posggym
 import posggym.model as M
 
-import posggym_agents
-
 import baposgmcp.policy as P
 import baposgmcp.tree as tree_lib
-from baposgmcp.meta_policy import MetaPolicy, DictMetaPolicy
-from baposgmcp.policy_prior import PolicyPrior, MapPolicyPrior
+from baposgmcp.meta_policy import DictMetaPolicy
+from baposgmcp.policy_prior import MapPolicyPrior
 
 import baposgmcp.run.stats as stats_lib
 from baposgmcp.run.render import Renderer, EpisodeRenderer
@@ -77,42 +75,6 @@ def get_baposgmcp_exp_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _load_other_policy_prior(model: M.POSGModel,
-                             ego_agent_id: M.AgentID,
-                             other_policy_ids: List[str],
-                             other_policy_dist: P.AgentPolicyDist
-                             ) -> PolicyPrior:
-    other_policies = {}
-    for i in range(model.n_agents):
-        if i == ego_agent_id:
-            continue
-        other_policies[i] = {
-            policy_id: posggym_agents.make(policy_id, model, i)
-            for policy_id in other_policy_ids
-        }
-
-    other_policy_prior = MapPolicyPrior(
-        model, ego_agent_id, other_policies, other_policy_dist
-    )
-    return other_policy_prior
-
-
-def _load_meta_policy(model: M.POSGModel,
-                      agent_id: M.AgentID,
-                      meta_policy_ids: List[str],
-                      meta_policy_dict: [Dict[P.PolicyState, P.PolicyDist]]
-                      ) -> MetaPolicy:
-    policies = {
-        policy_id: posggym_agents.make(policy_id, model, agent_id)
-        for policy_id in meta_policy_ids
-    }
-
-    meta_policy = DictMetaPolicy(
-        model, agent_id, policies, meta_policy_dict
-    )
-    return meta_policy
-
-
 def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
     """Initialize BAPOSGMCP policy.
 
@@ -122,9 +84,7 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
 
     Required kwargs
     ---------------
-    other_policy_ids : List[str]
     other_policy_prior : P.AgentPolicyDist
-    meta_policy_ids : List[str]
     meta_policy_dict : Dict[P.PolicyState, P.PolicyDist]
 
     """
@@ -132,17 +92,15 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
     # and may be reused in a different experiment if done on the same CPU
     kwargs = copy.deepcopy(kwargs)
 
-    other_policy_prior = _load_other_policy_prior(
+    other_policy_prior = MapPolicyPrior.load_posggym_agents_prior(
         model,
         agent_id,
-        other_policy_ids=kwargs.pop("other_policy_ids"),
         other_policy_dist=kwargs.pop("other_policy_dist")
     )
 
-    meta_policy = _load_meta_policy(
+    meta_policy = DictMetaPolicy(
         model,
         agent_id,
-        meta_policy_ids=kwargs.pop("meta_policy_ids"),
         meta_policy_dict=kwargs.pop("meta_policy_dict")
     )
 
@@ -160,9 +118,7 @@ def load_baposgmcp_params(env_name: str,
                           discount: float,
                           num_sims: List[int],
                           baposgmcp_kwargs: Dict,
-                          other_policy_ids: List[str],
                           other_policy_dist: P.AgentPolicyDist,
-                          meta_policy_ids: List[str],
                           meta_policy_dict: Dict[P.PolicyState, P.PolicyDist]
                           ) -> List[PolicyParams]:
     """Load list of policy params for BAPOSGMCP policy."""
@@ -172,9 +128,7 @@ def load_baposgmcp_params(env_name: str,
     base_kwargs.update({
         "policy_id": "pi_baposgmcp",
         "discount": discount,
-        "other_policy_ids": other_policy_ids,
         "other_policy_dist": other_policy_dist,
-        "meta_policy_ids": meta_policy_ids,
         "meta_policy_dict": meta_policy_dict
     })
 

@@ -3,9 +3,13 @@ from pprint import pprint
 
 import posggym_agents
 
+from baposgmcp.run.render import EpisodeRenderer
+from baposgmcp.baselines.meta import MetaBaselinePolicy
 from baposgmcp.run.tree_exp import load_baposgmcp_params
 from baposgmcp.run.tree_exp import get_baposgmcp_exp_params
-from baposgmcp.run.exp import run_experiments, PolicyParams, get_exp_parser
+from baposgmcp.run.exp import (
+    run_experiments, PolicyParams, get_exp_parser, get_pairwise_exp_params
+)
 
 ENV_NAME = "LBF10x10-n2-f7-static-v2"
 DISCOUNT = 0.99
@@ -66,9 +70,7 @@ def main(args):   # noqa
         discount=DISCOUNT,
         num_sims=args.num_sims,
         baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-        other_policy_ids=POLICY_IDS,
         other_policy_dist=POLICY_PRIOR_MAP,
-        meta_policy_ids=POLICY_IDS,
         meta_policy_dict=META_POLICY_MAP
     )
 
@@ -90,6 +92,30 @@ def main(args):   # noqa
         baposgmcp_agent_id=BAPOSGMCP_AGENT_ID,
         **vars(args)
     )
+    exp_params_list = []
+
+    if args.run_baselines:
+        baseline_params = [
+            PolicyParams(
+                id="metabaseline",
+                entry_point=MetaBaselinePolicy.posggym_agents_entry_point,
+                kwargs={
+                    "other_policy_dist": POLICY_PRIOR_MAP,
+                    "meta_policy_dict": META_POLICY_MAP
+                }
+            )
+        ]
+        baseline_exp_params_list = get_pairwise_exp_params(
+            ENV_NAME,
+            [baseline_params, other_params],
+            discount=DISCOUNT,
+            # exp_id_init=exp_params_list[-1].exp_id,
+            exp_id_init=0,
+            tracker_fn=None,
+            renderer_fn=(lambda: [EpisodeRenderer()]) if args.render else None,
+            **vars(args)
+        )
+        exp_params_list.extend(baseline_exp_params_list)
 
     seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
     exp_name = f"baposgmcp_heuristic_{seed_str}"
@@ -145,5 +171,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--record_env", action="store_true",
         help="Record renderings of experiment episodes."
+    )
+    parser.add_argument(
+        "--run_baselines", action="store_true",
+        help="Run baseline policies as well."
     )
     main(parser.parse_args())

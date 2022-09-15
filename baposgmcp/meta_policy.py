@@ -126,3 +126,23 @@ class DictMetaPolicy(MetaPolicy):
             if pi_id not in meta_policy:
                 meta_policy[pi_id] = 0.0
         return meta_policy
+
+    @staticmethod
+    def load_possgym_agents_meta_policy(model: M.POSGModel,
+                                        agent_id: M.AgentID,
+                                        meta_policy_dict: [
+                                            Dict[P.PolicyState, P.PolicyDist]
+                                        ]
+                                        ) -> MetaPolicy:
+        import posggym_agents
+
+        policy_ids = set()
+        for policy_dist in meta_policy_dict.values():
+            policy_ids.update(policy_dist)
+
+        policies = {
+            id: posggym_agents.make(id, model, agent_id) for id in policy_ids
+        }
+        return DictMetaPolicy(
+            model, agent_id, policies, meta_policy_dict
+        )

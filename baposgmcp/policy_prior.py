@@ -118,3 +118,18 @@ class MapPolicyPrior(PolicyPrior):
             prior[tuple(policy_state)] = policy_state_prob
 
         return prior
+
+    @staticmethod
+    def load_posggym_agents_prior(model: M.POSGModel,
+                                  ego_agent: M.AgentID,
+                                  policy_dist_map: P.AgentPolicyDist):
+        import posggym_agents
+        policies = {}
+        for i in range(model.n_agents):
+            if i == ego_agent:
+                continue
+            policies[i] = {
+                id: posggym_agents.make(id, model, i)
+                for id in policy_dist_map[i]
+            }
+        return MapPolicyPrior(model, ego_agent, policies, policy_dist_map)
