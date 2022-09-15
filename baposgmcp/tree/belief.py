@@ -1,4 +1,3 @@
-"""Belief data structures."""
 import abc
 import random
 from typing import Optional, Dict, Sequence, List

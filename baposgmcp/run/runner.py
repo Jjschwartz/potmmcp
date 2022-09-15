@@ -1,10 +1,7 @@
 import time
-import random
 import logging
 from typing import Sequence, Optional, Iterable, NamedTuple
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-
-import numpy as np
 
 import posggym
 import posggym.model as M
@@ -26,15 +23,6 @@ class EpisodeLoopStep(NamedTuple):
     actions: Optional[M.JointAction]
     policies: Sequence[BasePolicy]
     done: bool
-
-
-class RunConfig(NamedTuple):
-    """Configuration options for running simulations."""
-    seed: Optional[int] = None
-    num_episodes: int = 100
-    episode_step_limit: Optional[int] = None
-    time_limit: Optional[int] = None
-    use_checkpointing: bool = False
 
 
 def get_run_args(parser: Optional[ArgumentParser] = None) -> ArgumentParser:
@@ -117,39 +105,38 @@ def run_episode_loop(env: posggym.Env,
 
 
 # pylint: disable=[unused-argument]
-def run_sims(env: posggym.Env,
-             policies: Sequence[BasePolicy],
-             trackers: Iterable[stats_lib.Tracker],
-             renderers: Iterable[render_lib.Renderer],
-             run_config: RunConfig,
-             logger: Optional[logging.Logger] = None,
-             writer: Optional[writer_lib.Writer] = None
-             ) -> stats_lib.AgentStatisticsMap:
-    """Run Episode simulations for given env and policies."""
+def run_episodes(env: posggym.Env,
+                 policies: Sequence[BasePolicy],
+                 num_episodes: int,
+                 trackers: Iterable[stats_lib.Tracker],
+                 renderers: Iterable[render_lib.Renderer],
+                 time_limit: Optional[int] = None,
+                 episode_step_limit: Optional[int] = None,
+                 logger: Optional[logging.Logger] = None,
+                 writer: Optional[writer_lib.Writer] = None,
+                 use_checkpointing: bool = True
+                 ) -> stats_lib.AgentStatisticsMap:
+    """Run Episodes for given env and policies."""
     logger = logging.getLogger() if logger is None else logger
     writer = writer_lib.NullWriter() if writer is None else writer
 
     logger.info(
         "%s\nRunning %d episodes with Time Limit = %s s\n%s",
         MAJOR_LINE_BREAK,
-        run_config.num_episodes,
-        str(run_config.time_limit),
+        num_episodes,
+        str(time_limit),
         MAJOR_LINE_BREAK
     )
 
-    if run_config.seed is not None:
-        random.seed(run_config.seed)
-        np.random.seed(run_config.seed)
-
     episode_num = 0
-    progress_display_freq = max(1, run_config.num_episodes // 10)
+    progress_display_freq = max(1, num_episodes // 10)
     time_limit_reached = False
     run_start_time = time.time()
 
     for tracker in trackers:
         tracker.reset()
 
-    while episode_num < run_config.num_episodes and not time_limit_reached:
+    while episode_num < num_episodes and not time_limit_reached:
         logger.log(
             logging.INFO - 1,
             "%s\nEpisode %d Start\n%s",
@@ -165,7 +152,7 @@ def run_sims(env: posggym.Env,
             policy.reset()
 
         timestep_sequence = run_episode_loop(
-            env, policies, run_config.episode_step_limit
+            env, policies, episode_step_limit
         )
         for t, loop_step in enumerate(timestep_sequence):
             for tracker in trackers:
@@ -185,26 +172,26 @@ def run_sims(env: posggym.Env,
             logger.info(
                 "Episode %d / %d complete",
                 episode_num + 1,
-                run_config.num_episodes
+                num_episodes
             )
 
         writer.write_episode(episode_statistics)
 
-        if run_config.use_checkpointing:
+        if use_checkpointing:
             statistics = stats_lib.generate_statistics(trackers)
             writer.write(statistics)
 
         episode_num += 1
 
         if (
-            run_config.time_limit is not None
-            and time.time()-run_start_time > run_config.time_limit
+            time_limit is not None
+            and time.time()-run_start_time > time_limit
         ):
             time_limit_reached = True
             logger.info(
                 "%s\nTime limit of %d s reached after %d episodes",
                 MAJOR_LINE_BREAK,
-                run_config.time_limit,
+                time_limit,
                 episode_num
             )
 
@@ -218,33 +205,3 @@ def run_sims(env: posggym.Env,
     )
 
     return statistics
-
-
-def run_sims_from_args(env: posggym.Env,
-                       policies: Sequence[BasePolicy],
-                       args) -> stats_lib.AgentStatisticsMap:
-    """Run episode sims for given env and policies.
-
-    This function handles generating trackers, renderers, loggers from an
-    arguments object.
-    """
-    trackers = stats_lib.get_default_trackers(policies)
-    renderers = render_lib.get_renderers(
-        render_mode=args.render_mode,
-        pause_each_step=args.pause_each_step,
-        show_pi=args.show_pi,
-        show_belief=args.show_belief,
-        show_tree=args.show_tree
-    )
-
-    run_config = RunConfig(
-        seed=args.seed,
-        num_episodes=args.num_episodes,
-        episode_step_limit=args.episode_step_limit,
-        time_limit=args.time_limit
-    )
-
-    logging.basicConfig(level=args.log_level, format='%(message)s')
-    logger = logging.getLogger()
-
-    return run_sims(env, policies, trackers, renderers, run_config, logger)

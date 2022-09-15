@@ -3,7 +3,6 @@ from typing import Callable, List
 
 import posggym.model as M
 
-from baposgmcp import parts
 import baposgmcp.tree.belief as B
 from baposgmcp.tree.hps import HistoryPolicyState
 
@@ -13,7 +12,7 @@ class BeliefReinvigorator(abc.ABC):
 
     @abc.abstractmethod
     def reinvigorate(self,
-                     agent_id: parts.AgentID,
+                     agent_id: M.AgentID,
                      belief: B.ParticleBelief,
                      action: M.Action,
                      obs: M.Observation,

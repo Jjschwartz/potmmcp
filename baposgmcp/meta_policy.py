@@ -7,7 +7,6 @@ import gym
 import posggym.model as M
 
 import baposgmcp.policy as P
-from baposgmcp.parts import AgentID
 
 
 class MetaPolicy(abc.ABC):
@@ -19,7 +18,7 @@ class MetaPolicy(abc.ABC):
 
     def __init__(self,
                  model: M.POSGModel,
-                 ego_agent: AgentID,
+                 ego_agent: M.AgentID,
                  ego_policies: P.PolicyMap):
         self.model = model
         self.ego_agent = ego_agent
@@ -94,7 +93,7 @@ class SingleMetaPolicy(MetaPolicy):
 
     def __init__(self,
                  model: M.POSGModel,
-                 ego_agent: AgentID,
+                 ego_agent: M.AgentID,
                  ego_policies: P.PolicyMap):
         super().__init__(model, ego_agent, ego_policies)
         assert len(ego_policies) == 0
@@ -115,7 +114,7 @@ class DictMetaPolicy(MetaPolicy):
 
     def __init__(self,
                  model: M.POSGModel,
-                 ego_agent: AgentID,
+                 ego_agent: M.AgentID,
                  ego_policies: P.PolicyMap,
                  meta_policy_dict: Dict[P.PolicyState, P.PolicyDist]):
         super().__init__(model, ego_agent, ego_policies)

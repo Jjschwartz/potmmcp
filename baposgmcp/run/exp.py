@@ -12,8 +12,7 @@ from pprint import pformat
 import multiprocessing as mp
 from datetime import datetime
 from typing import (
-    List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple,
-
+    List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple
 )
 
 import ray
@@ -48,20 +47,21 @@ def _init_lock(lck):
 class PolicyParams(NamedTuple):
     """Params for a policy in a single experiment run.
 
-    `init` should be a function which takes arguments
-    [model: posggym.POSGModel, agent_id: M.AgentID, gamma: float, kwargs]
-    and return a policy. The experiment logger will be added to the kwargs to
-    handle logging to the correct log file.
+    `entry_point` should be a function which takes arguments
+    [model: posggym.POSGModel, agent_id: M.AgentID, kwargs]
+    and return a policy.
 
     `info` is an optional dictionary whose contents will be saved to the
     results file. It can be used to add additional information alongside the
     policy, such as additional identifying info like the env trained on,
     nesting level, population ID, etc.
+
+    add "logger" to kwargs with None if you want experiment logger to be added
+    to kwargs
     """
-    name: str
-    gamma: float
+    id: str
     kwargs: Dict[str, Any]
-    init: Callable[..., P.BasePolicy]
+    entry_point: Callable[..., P.BasePolicy]
     info: Optional[Dict[str, Any]] = None
 
 
@@ -70,25 +70,22 @@ class ExpParams(NamedTuple):
     exp_id: int
     env_name: str
     policy_params_list: List[PolicyParams]
-    run_config: runner.RunConfig
-    tracker_fn: Optional[
-        Callable[
-            [List[P.BasePolicy], Dict[str, Any]],
-            Sequence[stats_lib.Tracker]
-        ]
-    ] = None
-    tracker_kwargs: Optional[Dict[str, Any]] = None
-    renderer_fn: Optional[
-        Callable[[Dict[str, Any]], Sequence[render_lib.Renderer]]
-    ] = None
-    renderer_kwargs: Optional[Dict[str, Any]] = None
-    stream_log_level: int = logging.INFO
-    file_log_level: int = logging.DEBUG
-    setup_fn: Optional[Callable] = None
-    cleanup_fn: Optional[Callable] = None
+    # Used for tracking discounted return
+    discount: float
+    seed: int
+    num_episodes: int
+    episode_step_limit: Optional[int] = None
+    time_limit: Optional[int] = None
+    tracker_fn: Optional[Callable[[], Sequence[stats_lib.Tracker]]] = None
+    renderer_fn: Optional[Sequence[render_lib.Renderer]] = None
     record_env: bool = False
     # If None then uses the default cubic frequency
     record_env_freq: Optional[int] = None
+    # Whether to write results to file after each episode rather than just
+    # at the end of the experiment
+    use_checkpointing: bool = True
+    stream_log_level: int = logging.INFO
+    file_log_level: int = logging.DEBUG
 
 
 def get_exp_parser() -> argparse.ArgumentParser:
@@ -103,6 +100,13 @@ def get_exp_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--log_level", type=int, default=21,
         help="Experiment log level."
+    )
+    parser.add_argument(
+        "--using_ray", action="store_true",
+        help=(
+            "Whether experiment is using ray. This should be set for all "
+            "experiments that use ray."
+        )
     )
     parser.add_argument(
         "--root_save_dir", type=str, default=None,
@@ -122,7 +126,7 @@ def make_exp_result_dir(exp_name: str,
     time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
     if root_save_dir is None:
         root_save_dir = os.path.join(BASE_RESULTS_DIR, env_name, "results")
-    pathlib.Path(root_save_dir).mkdir(exist_ok=True)
+    pathlib.Path(root_save_dir).mkdir(parents=True, exist_ok=True)
     result_dir = tempfile.mkdtemp(
         prefix=f"{exp_name}_{time_str}", dir=root_save_dir
     )
@@ -135,19 +139,8 @@ def _log_exp_start(params: ExpParams,
     LOCK.acquire()
     try:
         logger.info(LINE_BREAK)
-        logger.info(f"Running exp num {params.exp_id} with:")
-        logger.info(f"Env = {params.env_name}")
-
-        for i, pi_params in enumerate(params.policy_params_list):
-            logger.info(f"Agent = {i} Policy class = {pi_params.name}")
-            logger.info("Policy kwargs:")
-            logger.info(pformat(pi_params.kwargs))
-            if pi_params.info:
-                logger.info("Policy info:")
-                logger.info(pformat(pi_params.info))
-
-        logger.info("Run Config:")
-        logger.info(pformat(params.run_config))
+        logger.info("Running with:")
+        logger.info(pformat(params))
         logger.info(f"Result dir = {result_dir}")
         logger.info(LINE_BREAK)
     finally:
@@ -222,12 +215,16 @@ def _get_param_statistics(params: ExpParams
             "exp_id": params.exp_id,
             "agent_id": i,
             "env_name": params.env_name,
+            "exp_seed": params.seed,
+            "num_episodes": params.num_episodes,
+            "time_limit": params.time_limit if params.time_limit else "None",
+            "episode_step_limit": (
+                params.episode_step_limit
+                if params.episode_step_limit else "None"
+            )
         }
-        # pylint: disable=[protected-access]
-        _add_dict(stats[i], params.run_config._asdict())
-
         pi_params = params.policy_params_list[i]
-        stats[i]["policy_name"] = pi_params.name
+        stats[i]["policy_id"] = pi_params.id
         _add_dict(stats[i], pi_params.kwargs)
         policy_headers.update(pi_params.kwargs)
 
@@ -243,54 +240,12 @@ def _get_param_statistics(params: ExpParams
     return stats
 
 
-def _get_exp_trackers(params: ExpParams,
-                      policies: List[P.BasePolicy]
-                      ) -> Sequence[stats_lib.Tracker]:
-    if params.tracker_fn:
-        tracker_kwargs = params.tracker_kwargs if params.tracker_kwargs else {}
-        trackers = params.tracker_fn(policies, tracker_kwargs)
-    else:
-        trackers = stats_lib.get_default_trackers(policies)
-    return trackers
-
-
-def _get_exp_renderers(params: ExpParams) -> Sequence[render_lib.Renderer]:
-    if params.renderer_fn:
-        renderer_kwargs = {}
-        if params.renderer_kwargs:
-            renderer_kwargs = params.renderer_kwargs
-        renderers = params.renderer_fn(renderer_kwargs)
-    else:
-        renderers = []
-    return renderers
-
-
 def _get_linear_episode_trigger(freq: int) -> Callable[[int], bool]:
     return lambda t: t % freq == 0
 
 
-def run_single_experiment(args: Tuple[ExpParams, str]):
-    """Run a single experiment and write results to a file."""
-    params, result_dir = args
-    exp_start_time = time.time()
-
-    if params.setup_fn is not None:
-        params.setup_fn(params)
-
-    exp_logger = get_exp_run_logger(
-        params.exp_id,
-        result_dir,
-        params.stream_log_level,
-        params.file_log_level
-    )
-    _log_exp_start(params, result_dir, exp_logger)
-
-    seed = params.run_config.seed
-    if seed is not None:
-        random.seed(seed)
-        np.random.seed(seed)
-
-    env = posggym.make(params.env_name, **{"seed": params.run_config.seed})
+def _make_env(params: ExpParams, result_dir: str) -> posggym.Env:
+    env = posggym.make(params.env_name, **{"seed": params.seed})
     if params.record_env:
         video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
         if params.record_env_freq:
@@ -300,29 +255,61 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         else:
             episode_trigger = None
         env = wrappers.RecordVideo(env, video_folder, episode_trigger)
+    return env
+
+
+def run_single_experiment(args: Tuple[ExpParams, str]):
+    """Run a single experiment and write results to a file."""
+    params, result_dir = args
+    exp_start_time = time.time()
+
+    exp_logger = get_exp_run_logger(
+        params.exp_id,
+        result_dir,
+        params.stream_log_level,
+        params.file_log_level
+    )
+    _log_exp_start(params, result_dir, exp_logger)
+
+    seed = params.seed
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+
+    env = _make_env(params, result_dir)
 
     policies: List[P.BasePolicy] = []
     for i, pi_params in enumerate(params.policy_params_list):
         kwargs = copy.copy(pi_params.kwargs)
-        kwargs["logger"] = exp_logger
-        pi = pi_params.init(env.model, i, pi_params.gamma, **pi_params.kwargs)
+        if "logger" in kwargs:
+            kwargs["logger"] = exp_logger
+        pi = pi_params.entry_point(env.model, i, pi_params.kwargs)
         policies.append(pi)
 
-    trackers = _get_exp_trackers(params, policies)
-    renderers = _get_exp_renderers(params)
+    if params.tracker_fn:
+        trackers = params.tracker_fn()
+    else:
+        trackers = stats_lib.get_default_trackers(
+            env.n_agents, params.discount
+        )
+
+    renderers = params.renderer_fn() if params.renderer_fn else []
     writer = writer_lib.ExperimentWriter(
         params.exp_id, result_dir, _get_param_statistics(params)
     )
 
     try:
-        statistics = runner.run_sims(
+        statistics = runner.run_episodes(
             env,
             policies,
+            params.num_episodes,
             trackers,
             renderers,
-            params.run_config,
+            time_limit=params.time_limit,
+            episode_step_limit=params.episode_step_limit,
             logger=exp_logger,
-            writer=writer
+            writer=writer,
+            use_checkpointing=params.use_checkpointing
         )
         writer.write(statistics)
 
@@ -331,8 +318,6 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         exp_logger.error(pformat(locals()))
         raise ex
     finally:
-        if params.cleanup_fn is not None:
-            params.cleanup_fn(params)
         _log_exp_end(
             params, result_dir, exp_logger, time.time() - exp_start_time
         )
@@ -342,6 +327,7 @@ def run_experiments(exp_name: str,
                     exp_params_list: List[ExpParams],
                     exp_log_level: int = logging.INFO+1,
                     n_procs: Optional[int] = None,
+                    using_ray: bool = False,
                     exp_args: Optional[Dict] = None,
                     root_save_dir: Optional[str] = None) -> str:
     """Run series of experiments.
@@ -375,9 +361,10 @@ def run_experiments(exp_name: str,
     def _initializer(init_args):
         proc_lock = init_args
         _init_lock(proc_lock)
-        # limit ray to using only a single CPU per experiment process
-        logging.log(exp_log_level, "Initializing ray")
-        ray.init(num_cpus=1, include_dashboard=False)
+        if using_ray:
+            # limit ray to using only a single CPU per experiment process
+            logging.log(exp_log_level, "Initializing ray")
+            ray.init(num_cpus=1, include_dashboard=False)
 
     if n_procs == 1:
         _initializer(mp_lock)
@@ -405,6 +392,16 @@ def run_experiments(exp_name: str,
 def write_experiment_arguments(args: Dict[str, Any], result_dir: str) -> str:
     """Write experiment arguments to file."""
     arg_file = os.path.join(result_dir, EXP_ARG_FILE_NAME)
+    args = _convert_keys_to_str(args)
     with open(arg_file, "w", encoding="utf-8") as fout:
         json.dump(args, fout)
     return arg_file
+
+
+def _convert_keys_to_str(x: Dict) -> Dict:
+    y = {}
+    for k, v in x.items():
+        if isinstance(v, dict):
+            v = _convert_keys_to_str(v)
+        y[str(k)] = v
+    return y

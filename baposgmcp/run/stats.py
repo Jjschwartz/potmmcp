@@ -1,18 +1,18 @@
 import abc
 import time
 from collections import ChainMap
-from typing import Mapping, Any, List, Sequence, Iterable, Dict, Optional
+from typing import (
+    Mapping, Any, List, Sequence, Iterable, Dict, Optional, Union
+)
 
 import numpy as np
-
-from scipy import stats
+from scipy.stats import wasserstein_distance
 
 import posggym
 import posggym.model as M
 
 import baposgmcp.policy as P
 import baposgmcp.tree as tree_lib
-from baposgmcp.parts import AgentID
 
 
 AgentStatisticsMap = Mapping[M.AgentID, Mapping[str, Any]]
@@ -59,18 +59,17 @@ def get_action_dist_distance(dist1: P.ActionDist,
         probs1.append(dist1.get(a, 0.0))
         probs2.append(dist2.get(a, 0.0))
 
-    return stats.wasserstein_distance(actions, actions, probs1, probs2)
+    return wasserstein_distance(actions, actions, probs1, probs2)
 
 
-def get_default_trackers(policies: Sequence[P.BasePolicy]) -> List['Tracker']:
+def get_default_trackers(num_agents: int,
+                         discounts: Union[List[float], float]
+                         ) -> List['Tracker']:
     """Get the default set of Trackers."""
-    num_agents = len(policies)
-    gammas = [pi.gamma for pi in policies]
-    trackers = [
-        EpisodeTracker(num_agents, gammas),
+    return [
+        EpisodeTracker(num_agents, discounts),
         SearchTimeTracker(num_agents),
     ]
-    return trackers
 
 
 class Tracker(abc.ABC):
@@ -106,8 +105,13 @@ class Tracker(abc.ABC):
 class EpisodeTracker(Tracker):
     """Tracks episode return and other statistics."""
 
-    def __init__(self, num_agents: int, discounts: List[float]):
+    def __init__(self,
+                 num_agents: int,
+                 discounts: Union[float, List[float]]):
+        if isinstance(discounts, float):
+            discounts = [discounts] * num_agents
         assert len(discounts) == num_agents
+
         self._num_agents = num_agents
         self._discounts = np.array(discounts)
 
@@ -252,10 +256,10 @@ class SearchTimeTracker(Tracker):
 
         self._num_episodes = 0
         self._current_episode_steps = 0
-        self._current_episode_times: Dict[AgentID, Dict[str, List[float]]] = {}
+        self._current_episode_times: Dict[M.AgentID, Dict[str, List[float]]] = {}
 
         self._steps: List[int] = []
-        self._times: Dict[AgentID, Dict[str, List[float]]] = {}
+        self._times: Dict[M.AgentID, Dict[str, List[float]]] = {}
 
         self.reset()
 
@@ -272,6 +276,9 @@ class SearchTimeTracker(Tracker):
         self._current_episode_steps += 1
 
         for i in range(self._num_agents):
+            if not isinstance(policies[i], tree_lib.BAPOSGMCP):
+                continue
+
             statistics = policies[i].statistics
             for time_key in self.TIME_KEYS:
                 self._current_episode_times[i][time_key].append(
@@ -282,9 +289,13 @@ class SearchTimeTracker(Tracker):
             self._num_episodes += 1
             self._steps.append(self._current_episode_steps)
             for i in range(self._num_agents):
-                for k in self.TIME_KEYS:
-                    key_step_times = self._current_episode_times[i][k]
-                    self._times[i][k].append(np.mean(key_step_times))
+                if not isinstance(policies[i], tree_lib.BAPOSGMCP):
+                    for k in self.TIME_KEYS:
+                        self._times[i][k].append(np.nan)
+                else:
+                    for k in self.TIME_KEYS:
+                        key_step_times = self._current_episode_times[i][k]
+                        self._times[i][k].append(np.mean(key_step_times))
 
     def reset(self):
         self.reset_episode()
@@ -344,11 +355,11 @@ class BayesAccuracyTracker(Tracker):
 
         self._num_episodes = 0
         self._episode_steps = 0
-        self._episode_acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
+        self._episode_acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
 
         self._steps: List[int] = []
-        self._acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
-        self._step_acc: Dict[AgentID, Dict[AgentID, List[List[float]]]] = {}
+        self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
+        self._step_acc: Dict[M.AgentID, Dict[M.AgentID, List[List[float]]]] = {}
 
         self.reset()
 
@@ -488,11 +499,11 @@ class BeliefStateAccuracyTracker(Tracker):
         self._num_episodes = 0
         self._episode_steps = 0
         self._prev_state: M.State = None
-        self._episode_acc: Dict[AgentID, List[float]] = {}
+        self._episode_acc: Dict[M.AgentID, List[float]] = {}
 
         self._steps: List[int] = []
-        self._acc: Dict[AgentID, List[float]] = {}
-        self._step_acc: Dict[AgentID, List[List[float]]] = {}
+        self._acc: Dict[M.AgentID, List[float]] = {}
+        self._step_acc: Dict[M.AgentID, List[List[float]]] = {}
 
         self.reset()
 
@@ -615,11 +626,11 @@ class BeliefHistoryAccuracyTracker(Tracker):
 
         self._num_episodes = 0
         self._episode_steps = 0
-        self._episode_acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
+        self._episode_acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
 
         self._steps: List[int] = []
-        self._acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
-        self._step_acc: Dict[AgentID, Dict[AgentID, List[List[float]]]] = {}
+        self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
+        self._step_acc: Dict[M.AgentID, Dict[M.AgentID, List[List[float]]]] = {}
 
         self.reset()
 
@@ -766,11 +777,13 @@ class ActionDistributionDistanceTracker(Tracker):
 
         self._num_episodes = 0
         self._episode_steps = 0
-        self._episode_acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
+        self._episode_acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
 
         self._steps: List[int] = []
-        self._acc: Dict[AgentID, Dict[AgentID, List[float]]] = {}
-        self._step_acc: Dict[AgentID, Dict[AgentID, List[List[float]]]] = {}
+        self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
+        self._step_acc: Dict[
+            M.AgentID, Dict[M.AgentID, List[List[float]]]
+        ] = {}
 
         self.reset()
 

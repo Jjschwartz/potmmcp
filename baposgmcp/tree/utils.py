@@ -1,15 +1,13 @@
-from argparse import ArgumentParser
 from typing import Optional, Dict
 
 import posggym.model as M
+from posggym.utils.history import AgentHistory
 
-from baposgmcp import parts
 import baposgmcp.policy as P
-from baposgmcp.history import AgentHistory
 from baposgmcp.tree.policy import BAPOSGMCP
 
 
-def get_state_belief(tree: BAPOSGMCP) -> Optional[parts.StateDist]:
+def get_state_belief(tree: BAPOSGMCP) -> Optional[Dict[M.State, float]]:
     """Get tree's root node distribution over states.
 
     May return distribution over only states with p(s) > 0 as opposed to all
@@ -65,7 +63,7 @@ def get_other_pis_belief(tree: BAPOSGMCP) -> Optional[P.AgentPolicyDist]:
 
 def get_other_history_belief(tree: BAPOSGMCP
                              ) -> Optional[
-                                 Dict[parts.AgentID, Dict[AgentHistory, float]]
+                                 Dict[M.AgentID, Dict[AgentHistory, float]]
                              ]:
     """Get tree's root node belief over history of other agents.
 
@@ -76,7 +74,7 @@ def get_other_history_belief(tree: BAPOSGMCP
     if tree.root.belief.size() == 0:
         return None
 
-    history_belief: Dict[parts.AgentID, Dict[AgentHistory, float]] = {}
+    history_belief: Dict[M.AgentID, Dict[AgentHistory, float]] = {}
     for i in range(tree.num_agents):
         if i == tree.ego_agent:
             continue
@@ -96,7 +94,7 @@ def get_other_history_belief(tree: BAPOSGMCP
 
 def get_other_agent_action_dist(tree: BAPOSGMCP
                                 ) -> Optional[
-                                    Dict[parts.AgentID, P.ActionDist]
+                                    Dict[M.AgentID, P.ActionDist]
                                 ]:
     """Get tree's root node belief over action dists of other agents.
 

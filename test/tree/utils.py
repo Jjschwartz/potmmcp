@@ -8,14 +8,21 @@ from baposgmcp.meta_policy import DictMetaPolicy
 from baposgmcp.policy_prior import UniformPolicyPrior
 
 
-def run_sims(env, policies, trackers, run_config, render=False):    # noqa
+def run_sims(env,
+             policies,
+             num_episodes,
+             trackers,
+             render=False,
+             **kwargs):    # noqa
     logging.basicConfig(level=logging.INFO-2, format='%(message)s')
 
     renderers = []
     if render:
         renderers.append(run_lib.EpisodeRenderer())
 
-    run_lib.run_sims(env, policies, trackers, renderers, run_config)
+    run_lib.run_episodes(
+        env, policies, num_episodes, trackers, renderers, **kwargs
+    )
 
 
 def get_deterministic_policies(env, agent_id):  # noqa

@@ -5,11 +5,11 @@ from typing import Optional, Dict, Tuple
 
 import gym
 import posggym.model as M
+from posggym.utils.history import JointHistory, AgentHistory
 
 import baposgmcp.policy as P
 from baposgmcp.meta_policy import MetaPolicy
 from baposgmcp.policy_prior import PolicyPrior
-from baposgmcp.history import JointHistory, AgentHistory
 
 import baposgmcp.tree.belief as B
 from baposgmcp.tree.hps import HistoryPolicyState
@@ -22,8 +22,8 @@ class BAPOSGMCP(P.BasePolicy):
 
     def __init__(self,
                  model: M.POSGModel,
-                 ego_agent: int,
-                 gamma: float,
+                 agent_id: M.AgentID,
+                 discount: float,
                  num_sims: int,
                  other_policy_prior: PolicyPrior,
                  meta_policy: MetaPolicy,
@@ -37,17 +37,17 @@ class BAPOSGMCP(P.BasePolicy):
                  **kwargs):
         super().__init__(
             model,
-            ego_agent,
-            gamma,
-            policy_id=kwargs.pop("policy_id", f"baposgmcp_{ego_agent}"),
+            agent_id,
+            discount,
+            policy_id=kwargs.pop("policy_id", f"baposgmcp_{agent_id}"),
             **kwargs
         )
 
         self.num_agents = model.n_agents
         self.num_sims = num_sims
 
-        assert isinstance(model.action_spaces[ego_agent], gym.spaces.Discrete)
-        num_actions = model.action_spaces[ego_agent].n
+        assert isinstance(model.action_spaces[agent_id], gym.spaces.Discrete)
+        num_actions = model.action_spaces[agent_id].n
         self.action_space = list(range(num_actions))
 
         self._meta_policy = meta_policy
@@ -60,10 +60,12 @@ class BAPOSGMCP(P.BasePolicy):
         self._step_limit = step_limit
         self._epsilon = epsilon
 
-        if gamma == 0.0:
+        if discount == 0.0:
             self._depth_limit = 0
         else:
-            self._depth_limit = math.ceil(math.log(epsilon) / math.log(gamma))
+            self._depth_limit = math.ceil(
+                math.log(epsilon) / math.log(discount)
+            )
 
         # a belief is a dist over (state, joint history, other pi) tuples
         self._initial_belief = self._init_belief()
@@ -196,7 +198,7 @@ class BAPOSGMCP(P.BasePolicy):
         )
 
         try:
-            b_0 = self.model.get_agent_initial_belief(self.ego_agent, init_obs)
+            b_0 = self.model.get_agent_initial_belief(self.agent_id, init_obs)
             rejection_sample = False
         except NotImplementedError:
             b_0 = self.model.initial_belief
@@ -210,7 +212,7 @@ class BAPOSGMCP(P.BasePolicy):
             state = b_0.sample()
             joint_obs = self.model.sample_initial_obs(state)
 
-            if rejection_sample and joint_obs[self.ego_agent] != init_obs:
+            if rejection_sample and joint_obs[self.agent_id] != init_obs:
                 continue
 
             joint_history = JointHistory.get_init_history(
@@ -290,7 +292,7 @@ class BAPOSGMCP(P.BasePolicy):
         for i in range(self.num_agents):
             a_i = None
             o_i = joint_obs[i]
-            if i == self.ego_agent:
+            if i == self.agent_id:
                 # Don't store any hidden state for ego agent
                 h_0 = None
             else:
@@ -373,7 +375,7 @@ class BAPOSGMCP(P.BasePolicy):
 
         if len(obs_node.children) == 0:
             # lead node reached
-            agent_history = hp_state.history.get_agent_history(self.ego_agent)
+            agent_history = hp_state.history.get_agent_history(self.agent_id)
             self._expand(obs_node, agent_history)
             leaf_node_value = self._evaluate(
                 hp_state,
@@ -389,8 +391,8 @@ class BAPOSGMCP(P.BasePolicy):
         joint_step = self.model.step(hp_state.state, joint_action)
         joint_obs = joint_step.observations
 
-        ego_obs = joint_obs[self.ego_agent]
-        ego_return = joint_step.rewards[self.ego_agent]
+        ego_obs = joint_obs[self.agent_id]
+        ego_return = joint_step.rewards[self.agent_id]
 
         new_history = hp_state.history.extend(joint_action, joint_obs)
         next_pi_state = hp_state.policy_state
@@ -408,7 +410,7 @@ class BAPOSGMCP(P.BasePolicy):
         if action_node.has_child(ego_obs):
             child_obs_node = action_node.get_child(ego_obs)
             self._update_obs_node(child_obs_node, rollout_policy)
-            if not joint_step.dones[self.ego_agent]:
+            if not joint_step.dones[self.agent_id]:
                 child_obs_node.is_absorbing = False
         else:
             child_obs_node = self._add_obs_node(
@@ -417,18 +419,18 @@ class BAPOSGMCP(P.BasePolicy):
                 {rollout_policy.policy_id: 1.0},
                 init_visits=1
             )
-            child_obs_node.is_absorbing = joint_step.dones[self.ego_agent]
+            child_obs_node.is_absorbing = joint_step.dones[self.agent_id]
         child_obs_node.belief.add_particle(next_hp_state)
 
         max_depth = depth
-        if not joint_step.dones[self.ego_agent]:
+        if not joint_step.dones[self.agent_id]:
             future_return, max_depth = self._simulate(
                 next_hp_state,
                 child_obs_node,
                 depth+1,
                 rollout_policy
             )
-            ego_return += self.gamma * future_return
+            ego_return += self.discount * future_return
 
         action_node.update(ego_return)
         return ego_return, max_depth
@@ -455,9 +457,9 @@ class BAPOSGMCP(P.BasePolicy):
 
         joint_step = self.model.step(hp_state.state, joint_action)
         joint_obs = joint_step.observations
-        reward = joint_step.rewards[self.ego_agent]
+        reward = joint_step.rewards[self.agent_id]
 
-        if joint_step.dones[self.ego_agent]:
+        if joint_step.dones[self.agent_id]:
             return reward
 
         new_history = hp_state.history.extend(joint_action, joint_obs)
@@ -473,8 +475,8 @@ class BAPOSGMCP(P.BasePolicy):
         )
 
         next_rollout_state = self._update_policy_hidden_state(
-            joint_action[self.ego_agent],
-            joint_obs[self.ego_agent],
+            joint_action[self.agent_id],
+            joint_obs[self.agent_id],
             rollout_policy,
             rollout_state
         )
@@ -482,7 +484,7 @@ class BAPOSGMCP(P.BasePolicy):
         future_return = self._rollout(
             next_hp_state, depth+1, rollout_policy, next_rollout_state
         )
-        return reward + self.gamma * future_return
+        return reward + self.discount * future_return
 
     def _search_depth_limit_reached(self, depth: int) -> bool:
         return (
@@ -520,7 +522,7 @@ class BAPOSGMCP(P.BasePolicy):
             a_i = joint_action[i]
             o_i = joint_obs[i]
 
-            if i == self.ego_agent:
+            if i == self.agent_id:
                 h_t = None
             else:
                 pi = other_policies[i]
@@ -542,7 +544,11 @@ class BAPOSGMCP(P.BasePolicy):
         else uses PUCT action selection.
         """
         if obs_node.visits == 0:
-            return P.sample_action_dist(obs_node.policy)
+            return random.choices(
+                list(obs_node.policy.keys()),
+                weights=list(obs_node.policy.values()),
+                k=1
+            )[0]
 
         sqrt_n = math.sqrt(obs_node.visits)
         exploration_rate = self._c_init
@@ -577,7 +583,7 @@ class BAPOSGMCP(P.BasePolicy):
         pi_state, hidden_states = hp_state.policy_state, hp_state.hidden_states
         policies = self._other_policy_prior.get_policy_objs(pi_state)
         for i in range(self.num_agents):
-            if i == self.ego_agent:
+            if i == self.agent_id:
                 a_i = ego_action
             else:
                 a_i = policies[i].get_action_by_hidden_state(hidden_states[i])
@@ -620,7 +626,7 @@ class BAPOSGMCP(P.BasePolicy):
         policies = self._other_policy_prior.get_policy_objs(pi_state)
         action_dists = {}
         for i in range(self.num_agents):
-            if i == self.ego_agent:
+            if i == self.agent_id:
                 continue
             dist = policies[i].get_pi_from_hidden_state(hidden_states[i])
             action_dists[i] = dist
@@ -774,7 +780,7 @@ class BAPOSGMCP(P.BasePolicy):
         assert parent_obs_node is not None
 
         self._reinvigorator.reinvigorate(
-            self.ego_agent,
+            self.agent_id,
             obs_node.belief,
             action,
             obs,
@@ -811,7 +817,7 @@ class BAPOSGMCP(P.BasePolicy):
     #######################################################
 
     def _format_msg(self, msg: str):
-        return f"i={self.ego_agent} {msg}"
+        return f"i={self.agent_id} {msg}"
 
     def __str__(self):
         return f"{self.__class__.__name__}"

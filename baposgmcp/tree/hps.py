@@ -1,9 +1,9 @@
 from typing import Optional
 
 import posggym.model as M
+from posggym.utils.history import JointHistory
 
 import baposgmcp.policy as P
-import baposgmcp.history as H
 
 
 class HistoryPolicyState:
@@ -24,7 +24,7 @@ class HistoryPolicyState:
 
     def __init__(self,
                  state: M.State,
-                 history: H.JointHistory,
+                 history: JointHistory,
                  policy_state: P.PolicyState,
                  hidden_states: Optional[P.PolicyHiddenStates] = None):
         super().__init__()

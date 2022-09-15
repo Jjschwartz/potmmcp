@@ -115,6 +115,6 @@ class MapPolicyPrior(PolicyPrior):
             policy_state = list(pt[0] for pt in policy_tuples)
             policy_state.insert(self.ego_agent, -1)
             policy_state_prob = math.prod(pt[1] for pt in policy_tuples)
-            prior[policy_state] = policy_state_prob
+            prior[tuple(policy_state)] = policy_state_prob
 
         return prior
