@@ -16,6 +16,7 @@ We also look at the expected performance of each fixed policy against the prior
 over policies. This gives a baseline of how well any individual policy does
 given the other agent's policy is unknown and only the prior is known.
 
+
 ## Prior + Meta Policy
 
 This baseline selects the fixed policy according to the Policy-Prior and
@@ -26,6 +27,7 @@ Meta-Policy.
 This provides baseline performance of BAPOSGMCP without using online planning
 (beliefs + search).
 
+
 ## PO-Meta
 
 This baseline maintains a belief over the history-policy-state and uses this
@@ -35,12 +37,28 @@ Meta-Policy w.r.t the belief over policy-states.
 This provides baseline performance of BAPOSGMCP using beliefs and the
 meta-policy but without search.
 
+
 ## PO-MetaRollout
 
 This baseline maintains a belief over the history-policy-state similar to
 PO-Meta and BAPOSGMCP. Each step it runs N rollouts from the root node using
-the meta-policy for rollouts and PUCB for selecting the actions to explore from
-the root node.
+the meta-policy for rollouts and different methods for selecting the actions
+to explore from the root node.
 
-This provides baseline performance of BAPOSGMCP using beliefs, the
-meta-policy and simple monte-carlo search.
+This provides baseline performance of BAPOSGMCP using beliefs and the
+meta-policy and one-step lookahead search.
+
+*Action Selection*
+
+1. PUCB
+2. UCB
+3. Uniform
+
+
+## BAPOSGMCP - UCB
+
+This baseline is the same as POSGMCP except uses UCB action selection instead
+of PUCB.
+
+This provides comparison for seeing the benefit of PUCB over UCB action
+selection in this problem.

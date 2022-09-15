@@ -31,15 +31,16 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                  c_base: float,
                  truncated: bool,
                  reinvigorator: BeliefReinvigorator,
+                 action_selection: str = "pucb",
                  extra_particles_prop: float = 1.0 / 16,
                  step_limit: Optional[int] = None,
                  epsilon: float = 0.01,
                  **kwargs):
-        print(kwargs)
+        policy_id = kwargs.pop("policy_id", f"baposgmcp_{action_selection}"),
         super().__init__(
             model,
             agent_id,
-            policy_id=kwargs.pop("policy_id", f"baposgmcp_{agent_id}"),
+            policy_id=policy_id,
             discount=discount,
             **kwargs
         )
@@ -66,6 +67,19 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         else:
             self._depth_limit = math.ceil(
                 math.log(epsilon) / math.log(discount)
+            )
+
+        action_selection = action_selection.lower()
+        self._action_selection_mode = action_selection
+        if action_selection == "pucb":
+            self._action_selection = self.pucb_action_selection
+        elif action_selection == "ucb":
+            self._action_selection = self.ucb_action_selection
+        elif action_selection == "uniform":
+            self._action_selection = self.min_visit_action_selection
+        else:
+            raise ValueError(
+                f"Invalid action selection mode '{action_selection}'"
             )
 
         # a belief is a dist over (state, joint history, other pi) tuples
@@ -386,7 +400,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             )
             return leaf_node_value, depth
 
-        ego_action = self._get_action_from_node(obs_node, False)
+        ego_action = self._action_selection(obs_node)
         joint_action = self._get_joint_action(hp_state, ego_action)
 
         joint_step = self.model.step(hp_state.state, joint_action)
@@ -536,15 +550,10 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
     # ACTION SELECTION
     #######################################################
 
-    def _get_action_from_node(self,
-                              obs_node: ObsNode,
-                              greedy: bool = False) -> M.Action:
-        """Get action from given node in policy tree.
-
-        If greedy then selects action with highest value
-        else uses PUCT action selection.
-        """
+    def pucb_action_selection(self, obs_node: ObsNode) -> M.Action:
+        """Select action from node using PUCB."""
         if obs_node.visits == 0:
+            # sample action using prior policy
             return random.choices(
                 list(obs_node.policy.keys()),
                 weights=list(obs_node.policy.values()),
@@ -561,21 +570,59 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         max_action = obs_node.children[0].action
         for action_node in obs_node.children:
             action_v = action_node.value
-            if not greedy:
-                if action_node.visits == 0:
-                    return action_node.action
-                # add exploration bonus based on visit count and policy prior
-                action_v += (
-                    # set min prob > 0 so all actions have a chance to be
-                    # visited during search
-                    max(obs_node.policy[action_node.action], 0.01)
-                    * (sqrt_n / (1 + action_node.visits))
-                    * exploration_rate
-                )
+            # add exploration bonus based on visit count and policy prior
+            action_v += (
+                # set min prob > 0 so all actions have a chance to be
+                # visited during search
+                max(obs_node.policy[action_node.action], 0.01)
+                * (sqrt_n / (1 + action_node.visits))
+                * exploration_rate
+            )
             if action_v > max_v:
                 max_v = action_v
                 max_action = action_node.action
         return max_action
+
+    def ucb_action_selection(self, obs_node: ObsNode) -> M.Action:
+        """Select action from node using UCB."""
+        if obs_node.visits == 0:
+            return random.choice(self.action_space)
+
+        sqrt_n = math.sqrt(obs_node.visits)
+        exploration_rate = self._c_init
+        exploration_rate += math.log(
+            (1 + obs_node.visits + self._c_base) / self._c_base
+        )
+
+        max_v = -float('inf')
+        max_action = obs_node.children[0].action
+        for action_node in obs_node.children:
+            action_v = action_node.value
+            # add exploration bonus based on visit count
+            action_v += (
+                (sqrt_n / (1 + action_node.visits))
+                * exploration_rate
+            )
+            if action_v > max_v:
+                max_v = action_v
+                max_action = action_node.action
+        return max_action
+
+    def min_visit_action_selection(self, obs_node: ObsNode) -> M.Action:
+        """Select action from node with least visits.
+
+        Note this guarantees all actions are visited equally +/- 1
+        """
+        if obs_node.visits == 0:
+            return random.choice(self.action_space)
+
+        min_n = obs_node.visits + 1
+        next_action = obs_node.children[0].action
+        for action_node in obs_node.children:
+            if action_node.visits < min_n:
+                min_n = action_node.visits
+                next_action = action_node.action
+        return next_action
 
     def _get_joint_action(self,
                           hp_state: HistoryPolicyState,

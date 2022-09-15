@@ -1,4 +1,6 @@
 """Run BAPOSGMCP experiment in LBF env with heuristic policies."""
+import math
+import copy
 from pprint import pprint
 
 import posggym_agents
@@ -46,6 +48,7 @@ BAPOSGMCP_KWARGS = {
     "c_init": 1.25,
     "c_base": 20000,
     "truncated": False,
+    "action_selection": "pucb",
     "extra_particles_prop": 1.0 / 16,
     "step_limit": 50,
     "epsilon": 0.01
@@ -58,6 +61,51 @@ def get_entry_point(policy_id: str):   # noqa
         return posggym_agents.make(policy_id, model, agent_id, **kwargs)
 
     return entry_point
+
+
+def get_baselines(args):   # noqa
+    # Meta Baseline Policy
+    baseline_params = [
+        PolicyParams(
+            id="metabaseline",
+            entry_point=MetaBaselinePolicy.posggym_agents_entry_point,
+            kwargs={
+                "other_policy_dist": POLICY_PRIOR_MAP,
+                "meta_policy_dict": META_POLICY_MAP
+            }
+        )
+    ]
+
+    # PO-Meta for different number of simulations
+    for n in args.num_sims:
+        baseline_params.append(PolicyParams(
+            id="POMeta",
+            entry_point=POMeta.posggym_agents_entry_point,
+            kwargs={
+                "belief_size": n,
+                "other_policy_dist": POLICY_PRIOR_MAP,
+                "meta_policy_dict": META_POLICY_MAP,
+                # make this the same as BAPOSGMCP so it's fair
+                "extra_particles_prop": 1.0 / 16,
+            }
+        ))
+
+    # BAPOSGMCP using UCB action selection
+    kwargs = copy.deepcopy(BAPOSGMCP_KWARGS)
+    kwargs["action_selection"] = "ucb"
+    kwargs["policy_id"] = "baposgmcp_ucb"
+    baposgmcp_ucb_params = load_baposgmcp_params(
+        ENV_NAME,
+        agent_id=0,
+        discount=DISCOUNT,
+        num_sims=args.num_sims,
+        baposgmcp_kwargs=BAPOSGMCP_KWARGS,
+        other_policy_dist=POLICY_PRIOR_MAP,
+        meta_policy_dict=META_POLICY_MAP
+    )
+    baseline_params.extend(baposgmcp_ucb_params)
+
+    return baseline_params
 
 
 def main(args):   # noqa
@@ -94,35 +142,18 @@ def main(args):   # noqa
         **vars(args)
     )
     # TODO remove
-    exp_params_list = []
+    # exp_params_list = []
 
     if args.run_baselines:
-        baseline_params = [
-            # PolicyParams(
-            #     id="metabaseline",
-            #     entry_point=MetaBaselinePolicy.posggym_agents_entry_point,
-            #     kwargs={
-            #         "other_policy_dist": POLICY_PRIOR_MAP,
-            #         "meta_policy_dict": META_POLICY_MAP
-            #     }
-            # ),
-            PolicyParams(
-                id="POMeta",
-                entry_point=POMeta.posggym_agents_entry_point,
-                kwargs={
-                    "belief_size": 1000,
-                    "other_policy_dist": POLICY_PRIOR_MAP,
-                    "meta_policy_dict": META_POLICY_MAP,
-                }
-            )
-        ]
+        baseline_params = get_baselines(args)
+
         baseline_exp_params_list = get_pairwise_exp_params(
             ENV_NAME,
             [baseline_params, other_params],
             discount=DISCOUNT,
+            exp_id_init=exp_params_list[-1].exp_id,
             # TODO change this
-            # exp_id_init=exp_params_list[-1].exp_id,
-            exp_id_init=0,
+            # exp_id_init=0,
             tracker_fn=None,
             renderer_fn=(lambda: [EpisodeRenderer()]) if args.render else None,
             **vars(args)

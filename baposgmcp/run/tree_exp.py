@@ -95,10 +95,10 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
     other_policy_prior = MapPolicyPrior.load_posggym_agents_prior(
         model,
         agent_id,
-        other_policy_dist=kwargs.pop("other_policy_dist")
+        policy_dist_map=kwargs.pop("other_policy_dist")
     )
 
-    meta_policy = DictMetaPolicy(
+    meta_policy = DictMetaPolicy.load_possgym_agents_meta_policy(
         model,
         agent_id,
         meta_policy_dict=kwargs.pop("meta_policy_dict")
@@ -126,11 +126,13 @@ def load_baposgmcp_params(env_name: str,
     env = posggym.make(env_name)
 
     base_kwargs.update({
-        "policy_id": "pi_baposgmcp",
         "discount": discount,
         "other_policy_dist": other_policy_dist,
         "meta_policy_dict": meta_policy_dict
     })
+
+    if "policy_id" not in base_kwargs:
+        base_kwargs["policy_id"] = "baposgmcp"
 
     policy_params = []
     for n in num_sims:
@@ -138,9 +140,10 @@ def load_baposgmcp_params(env_name: str,
         kwargs = copy.deepcopy(base_kwargs)
         kwargs["reinvigorator"] = tree_lib.BABeliefRejectionSampler(env.model)
         kwargs["num_sims"] = n
+        kwargs["policy_id"] = f"{kwargs['policy_id']}_{n}"
 
         baposgmcp_params = PolicyParams(
-            id=f"BAPOSGMCP_{agent_id}",
+            id=f"BAPOSGMCP_{n}",
             kwargs=kwargs,
             entry_point=baposgmcp_init_fn,
             info={}

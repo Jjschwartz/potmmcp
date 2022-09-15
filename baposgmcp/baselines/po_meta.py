@@ -42,8 +42,6 @@ class POMeta(BAPOSGMCP):
             c_base=20000,
             truncated=True,
             reinvigorator=reinvigorator,
-            # no extra particles so belief_size == num_sims
-            extra_particles_prop=0,
             step_limit=None,
             epsilon=0.01,
             policy_id=kwargs.pop("policy_id", "POMeta"),
