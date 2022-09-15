@@ -381,7 +381,7 @@ def get_pairwise_values(plot_df,
             y = np.mean(ys)
         pw_values[row_policy_idx][col_policy_idx] = y
 
-    return pw_values
+    return pw_values, policies
 
 
 def plot_pairwise_comparison(plot_df,
@@ -414,9 +414,6 @@ def plot_pairwise_comparison(plot_df,
         else:
             print("Not averaging duplicates. FYI.")
 
-    policies = plot_df[policy_key].unique().tolist()
-    policies.sort()
-
     if valfmt is None:
         valfmt = "{x:.2f}"
 
@@ -425,7 +422,7 @@ def plot_pairwise_comparison(plot_df,
         nrows=1, ncols=ncols, figsize=figsize, squeeze=False
     )
 
-    pw_values = get_pairwise_values(
+    pw_values, policies = get_pairwise_values(
         plot_df,
         y_key,
         policy_key,
@@ -443,7 +440,7 @@ def plot_pairwise_comparison(plot_df,
     )
 
     if y_err_key:
-        pw_err_values = get_pairwise_values(
+        pw_err_values, _ = get_pairwise_values(
             plot_df,
             y_err_key,
             policy_key,

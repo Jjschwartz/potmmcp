@@ -5,7 +5,9 @@ from typing import Optional, Dict, Mapping, Any, Tuple
 
 import posggym.model as M
 from posggym.utils.history import AgentHistory
-from posggym_agents.policy import BasePolicy, PolicyID, PolicyHiddenState
+from posggym_agents.policy import (
+    BasePolicy, BaseHiddenStatePolicy, PolicyID, PolicyHiddenState
+)
 
 # Convenient type definitions
 ActionDist = Dict[M.Action, float]
@@ -19,7 +21,7 @@ AgentPolicyMap = Dict[M.AgentID, PolicyMap]
 AgentPolicyDist = Dict[M.AgentID, PolicyDist]
 
 
-class BAPOSGMCPBasePolicy(BasePolicy, abc.ABC):
+class BAPOSGMCPBasePolicy(BaseHiddenStatePolicy, abc.ABC):
     """Base policy for BAPOSGMCP.
 
     Adds some attributes to the posggym_agents.BasePolicy class.
