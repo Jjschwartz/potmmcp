@@ -1,13 +1,12 @@
 """Run BAPOSGMCP experiment in LBF env with heuristic policies."""
-import math
 import copy
 from pprint import pprint
+from itertools import product
 
 import posggym_agents
 
-from baposgmcp.baselines.po_meta import POMeta
+import baposgmcp.baselines as baseline_lib
 from baposgmcp.run.render import EpisodeRenderer
-from baposgmcp.baselines.meta import MetaBaselinePolicy
 from baposgmcp.run.tree_exp import load_baposgmcp_params
 from baposgmcp.run.tree_exp import get_baposgmcp_exp_params
 from baposgmcp.run.exp import (
@@ -45,6 +44,7 @@ META_POLICY_MAP = {
     }
 }
 BAPOSGMCP_KWARGS = {
+    "discount": DISCOUNT,
     "c_init": 1.25,
     "c_base": 20000,
     "truncated": False,
@@ -64,42 +64,21 @@ def get_entry_point(policy_id: str):   # noqa
 
 
 def get_baselines(args):   # noqa
-    # Meta Baseline Policy
-    baseline_params = [
-        PolicyParams(
-            id="metabaseline",
-            entry_point=MetaBaselinePolicy.posggym_agents_entry_point,
-            kwargs={
-                "other_policy_dist": POLICY_PRIOR_MAP,
-                "meta_policy_dict": META_POLICY_MAP
-            }
-        )
-    ]
-
-    # PO-Meta for different number of simulations
-    for n in args.num_sims:
-        baseline_params.append(PolicyParams(
-            id="POMeta",
-            entry_point=POMeta.posggym_agents_entry_point,
-            kwargs={
-                "belief_size": n,
-                "other_policy_dist": POLICY_PRIOR_MAP,
-                "meta_policy_dict": META_POLICY_MAP,
-                # make this the same as BAPOSGMCP so it's fair
-                "extra_particles_prop": 1.0 / 16,
-            }
-        ))
+    baseline_params = baseline_lib.load_all_baselines(
+        num_sims=args.num_sims,
+        action_selection=('pucb', 'ucb', 'uniform'),
+        baposgmcp_kwargs=BAPOSGMCP_KWARGS,
+        other_policy_dist=POLICY_PRIOR_MAP,
+        meta_policy_dict=META_POLICY_MAP
+    )
 
     # BAPOSGMCP using UCB action selection
     kwargs = copy.deepcopy(BAPOSGMCP_KWARGS)
     kwargs["action_selection"] = "ucb"
     kwargs["policy_id"] = "baposgmcp_ucb"
     baposgmcp_ucb_params = load_baposgmcp_params(
-        ENV_NAME,
-        agent_id=0,
-        discount=DISCOUNT,
         num_sims=args.num_sims,
-        baposgmcp_kwargs=BAPOSGMCP_KWARGS,
+        baposgmcp_kwargs=kwargs,
         other_policy_dist=POLICY_PRIOR_MAP,
         meta_policy_dict=META_POLICY_MAP
     )
@@ -114,9 +93,6 @@ def main(args):   # noqa
 
     print("== Creating Experiments ==")
     baposgmcp_params = load_baposgmcp_params(
-        ENV_NAME,
-        agent_id=0,
-        discount=DISCOUNT,
         num_sims=args.num_sims,
         baposgmcp_kwargs=BAPOSGMCP_KWARGS,
         other_policy_dist=POLICY_PRIOR_MAP,

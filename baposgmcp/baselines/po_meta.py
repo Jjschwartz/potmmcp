@@ -1,9 +1,12 @@
 import copy
 import time
 import random
+from typing import List, Dict
 
 import posggym.model as M
 
+import baposgmcp.policy as P
+from baposgmcp.run.exp import PolicyParams
 from baposgmcp.meta_policy import MetaPolicy, DictMetaPolicy
 from baposgmcp.policy_prior import PolicyPrior, MapPolicyPrior
 
@@ -11,6 +14,35 @@ from baposgmcp.tree.policy import BAPOSGMCP
 from baposgmcp.tree.reinvigorate import (
     BeliefReinvigorator, BABeliefRejectionSampler
 )
+
+
+def load_pometa_params(num_sims: List[int],
+                       other_policy_dist: P.AgentPolicyDist,
+                       meta_policy_dict: Dict[P.PolicyState, P.PolicyDist],
+                       kwargs: Dict,
+                       ) -> List[PolicyParams]:
+    """Load list of policy params for POMeta.
+
+    Returns policy params for each number of sims.
+
+    """
+    policy_params = []
+    for n in num_sims:
+        kwargs_n = copy.deepcopy(kwargs)
+        kwargs_n.update({
+            "policy_id": f"POMeta_{n}",
+            "belief_size": n,
+            "other_policy_dist": other_policy_dist,
+            "meta_policy_dict": meta_policy_dict,
+        })
+        params = PolicyParams(
+            id=f"POMeta_{n}",
+            entry_point=POMeta.posggym_agents_entry_point,
+            kwargs=kwargs_n
+        )
+        policy_params.append(params)
+
+    return policy_params
 
 
 class POMeta(BAPOSGMCP):
@@ -33,17 +65,17 @@ class POMeta(BAPOSGMCP):
         super().__init__(
             model,
             agent_id,
-            discount=0.99,
+            discount=kwargs.pop("discount", 0.99),
             # belief size is based on num_sims
             num_sims=belief_size,
             other_policy_prior=other_policy_prior,
             meta_policy=meta_policy,
-            c_init=1.25,
-            c_base=20000,
-            truncated=True,
+            c_init=kwargs.pop("c_init", 1.25),
+            c_base=kwargs.pop("c_base", 1.25),
+            truncated=kwargs.pop("truncated", True),
             reinvigorator=reinvigorator,
-            step_limit=None,
-            epsilon=0.01,
+            step_limit=kwargs.pop("step_limit", None),
+            epsilon=kwargs.pop("epsilon", 0.01),
             policy_id=kwargs.pop("policy_id", "POMeta"),
             **kwargs
         )

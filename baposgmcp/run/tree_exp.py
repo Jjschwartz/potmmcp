@@ -87,6 +87,9 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
     other_policy_prior : P.AgentPolicyDist
     meta_policy_dict : Dict[P.PolicyState, P.PolicyDist]
 
+    Plus any other arguments required by BAPOSMGPCP.__init__ (excluding
+    for model, agent_id, other_policy_prior and meta_policy)
+
     """
     # need to do copy as kwargs is modified
     # and may be reused in a different experiment if done on the same CPU
@@ -104,6 +107,9 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
         meta_policy_dict=kwargs.pop("meta_policy_dict")
     )
 
+    if "reinvigorator" not in kwargs:
+        kwargs["reinvigorator"] = tree_lib.BABeliefRejectionSampler(model)
+
     return tree_lib.BAPOSGMCP(
         model,
         agent_id,
@@ -113,20 +119,16 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
     )
 
 
-def load_baposgmcp_params(env_name: str,
-                          agent_id: M.AgentID,
-                          discount: float,
-                          num_sims: List[int],
+def load_baposgmcp_params(num_sims: List[int],
                           baposgmcp_kwargs: Dict,
                           other_policy_dist: P.AgentPolicyDist,
                           meta_policy_dict: Dict[P.PolicyState, P.PolicyDist]
                           ) -> List[PolicyParams]:
-    """Load list of policy params for BAPOSGMCP policy."""
+    """Load list of policy params for BAPOSGMCP with different num sims."""
+    # copy
     base_kwargs = dict(baposgmcp_kwargs)
-    env = posggym.make(env_name)
 
     base_kwargs.update({
-        "discount": discount,
         "other_policy_dist": other_policy_dist,
         "meta_policy_dict": meta_policy_dict
     })
@@ -138,7 +140,6 @@ def load_baposgmcp_params(env_name: str,
     for n in num_sims:
         # need to do copy as kwargs is modified in baposgmcp init fn
         kwargs = copy.deepcopy(base_kwargs)
-        kwargs["reinvigorator"] = tree_lib.BABeliefRejectionSampler(env.model)
         kwargs["num_sims"] = n
         kwargs["policy_id"] = f"{kwargs['policy_id']}_{n}"
 

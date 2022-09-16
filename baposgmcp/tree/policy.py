@@ -18,7 +18,13 @@ from baposgmcp.tree.reinvigorate import BeliefReinvigorator
 
 
 class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
-    """Bayes Adaptive POSGMCP."""
+    """Bayes Adaptive POSGMCP.
+
+    Different action selection strategies can be used via the
+    `action_selection` parameter in the __init__ method.
+
+    `pucb` `ucb` `uniform`
+    """
 
     def __init__(self,
                  model: M.POSGModel,
@@ -81,6 +87,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             raise ValueError(
                 f"Invalid action selection mode '{action_selection}'"
             )
+        self._log_info1("Using {action_selection=}")
 
         # a belief is a dist over (state, joint history, other pi) tuples
         self._initial_belief = self._init_belief()
