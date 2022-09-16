@@ -1,16 +1,10 @@
 """Run BAPOSGMCP experiment in LBF env with heuristic policies."""
+import copy
 from pprint import pprint
 
-import posggym_agents
-
-from baposgmcp.baselines.po_meta import POMeta
+import baposgmcp.run as run_lib
+import baposgmcp.baselines as baseline_lib
 from baposgmcp.run.render import EpisodeRenderer
-from baposgmcp.baselines.meta import MetaBaselinePolicy
-from baposgmcp.run.tree_exp import load_baposgmcp_params
-from baposgmcp.run.tree_exp import get_baposgmcp_exp_params
-from baposgmcp.run.exp import (
-    run_experiments, PolicyParams, get_exp_parser, get_pairwise_exp_params
-)
 
 ENV_NAME = "LBF10x10-n2-f7-static-v2"
 DISCOUNT = 0.99
@@ -43,6 +37,7 @@ META_POLICY_MAP = {
     }
 }
 BAPOSGMCP_KWARGS = {
+    "discount": DISCOUNT,
     "c_init": 1.25,
     "c_base": 20000,
     "truncated": False,
@@ -52,12 +47,28 @@ BAPOSGMCP_KWARGS = {
 }
 
 
-def get_entry_point(policy_id: str):   # noqa
+def get_baselines(args):   # noqa
+    baseline_params = baseline_lib.load_all_baselines(
+        num_sims=args.num_sims,
+        action_selection=('pucb', 'ucb', 'uniform'),
+        baposgmcp_kwargs=BAPOSGMCP_KWARGS,
+        other_policy_dist=POLICY_PRIOR_MAP,
+        meta_policy_dict=META_POLICY_MAP
+    )
 
-    def entry_point(model, agent_id, kwargs):
-        return posggym_agents.make(policy_id, model, agent_id, **kwargs)
+    # BAPOSGMCP using UCB action selection
+    kwargs = copy.deepcopy(BAPOSGMCP_KWARGS)
+    kwargs["action_selection"] = "ucb"
+    kwargs["policy_id"] = "baposgmcp_ucb"
+    baposgmcp_ucb_params = run_lib.load_baposgmcp_params(
+        num_sims=args.num_sims,
+        baposgmcp_kwargs=kwargs,
+        other_policy_dist=POLICY_PRIOR_MAP,
+        meta_policy_dict=META_POLICY_MAP
+    )
+    baseline_params.extend(baposgmcp_ucb_params)
 
-    return entry_point
+    return baseline_params
 
 
 def main(args):   # noqa
@@ -65,7 +76,7 @@ def main(args):   # noqa
     pprint(vars(args))
 
     print("== Creating Experiments ==")
-    baposgmcp_params = load_baposgmcp_params(
+    baposgmcp_params = run_lib.load_baposgmcp_params(
         ENV_NAME,
         agent_id=0,
         discount=DISCOUNT,
@@ -75,17 +86,9 @@ def main(args):   # noqa
         meta_policy_dict=META_POLICY_MAP
     )
 
-    other_params = [
-        PolicyParams(
-            id=policy_id,
-            entry_point=get_entry_point(policy_id),
-            kwargs={},
-            info=None
-        )
-        for policy_id in POLICY_IDS
-    ]
+    other_params = run_lib.load_posggym_agent_params(POLICY_IDS)
 
-    exp_params_list = get_baposgmcp_exp_params(
+    exp_params_list = run_lib.get_baposgmcp_exp_params(
         ENV_NAME,
         baposgmcp_params,
         [other_params],
@@ -96,31 +99,13 @@ def main(args):   # noqa
     exp_params_list = []
 
     if args.run_baselines:
-        baseline_params = [
-            PolicyParams(
-                id="metabaseline",
-                entry_point=MetaBaselinePolicy.posggym_agents_entry_point,
-                kwargs={
-                    "other_policy_dist": POLICY_PRIOR_MAP,
-                    "meta_policy_dict": META_POLICY_MAP
-                }
-            ),
-            PolicyParams(
-                id="POMeta",
-                entry_point=POMeta.posggym_agents_entry_point,
-                kwargs={
-                    "belief_size": 1000,
-                    "other_policy_dist": POLICY_PRIOR_MAP,
-                    "meta_policy_dict": META_POLICY_MAP,
-                }
-            )
-        ]
-        baseline_exp_params_list = get_pairwise_exp_params(
+        baseline_params = get_baselines(args)
+
+        baseline_exp_params_list = run_lib.get_pairwise_exp_params(
             ENV_NAME,
             [baseline_params, other_params],
             discount=DISCOUNT,
-            # exp_id_init=exp_params_list[-1].exp_id,
-            exp_id_init=0,
+            exp_id_init=exp_params_list[-1].exp_id,
             tracker_fn=None,
             renderer_fn=(lambda: [EpisodeRenderer()]) if args.render else None,
             **vars(args)
@@ -140,7 +125,7 @@ def main(args):   # noqa
 
     print(f"== Running {len(exp_params_list)} Experiments ==")
     print(f"== Using {args.n_procs} CPUs ==")
-    run_experiments(
+    run_lib.run_experiments(
         exp_name,
         exp_params_list=exp_params_list,
         exp_log_level=args.log_level,
@@ -153,7 +138,7 @@ def main(args):   # noqa
 
 
 if __name__ == "__main__":
-    parser = get_exp_parser()
+    parser = run_lib.get_exp_parser()
     parser.add_argument(
         "--init_seed", type=int, default=0,
         help="Experiment start seed."

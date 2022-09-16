@@ -1,7 +1,6 @@
 """Functions and data structures for running experiments."""
 import os
 import copy
-import json
 import time
 import random
 import logging
@@ -11,7 +10,6 @@ import tempfile
 from pprint import pformat
 import multiprocessing as mp
 from datetime import datetime
-from itertools import product
 from typing import (
     List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple
 )
@@ -351,7 +349,10 @@ def run_experiments(exp_name: str,
     logging.log(exp_log_level, "Saving results to dir=%s", result_dir)
 
     if exp_args:
-        write_experiment_arguments(exp_args, result_dir)
+        writer_lib.write_dict(
+            exp_args,
+            os.path.join(result_dir, EXP_ARG_FILE_NAME)
+        )
 
     if n_procs is None:
         n_procs = os.cpu_count()
@@ -388,69 +389,3 @@ def run_experiments(exp_name: str,
     )
 
     return result_dir
-
-
-def write_experiment_arguments(args: Dict[str, Any], result_dir: str) -> str:
-    """Write experiment arguments to file."""
-    arg_file = os.path.join(result_dir, EXP_ARG_FILE_NAME)
-    args = _convert_keys_to_str(args)
-    with open(arg_file, "w", encoding="utf-8") as fout:
-        json.dump(args, fout)
-    return arg_file
-
-
-def _convert_keys_to_str(x: Dict) -> Dict:
-    y = {}
-    for k, v in x.items():
-        if isinstance(v, dict):
-            v = _convert_keys_to_str(v)
-        y[str(k)] = v
-    return y
-
-
-def get_pairwise_exp_params(env_name: str,
-                            policy_params: List[List[PolicyParams]],
-                            init_seed: int,
-                            num_seeds: int,
-                            num_episodes: int,
-                            discount: float,
-                            time_limit: Optional[int] = None,
-                            exp_id_init: int = 0,
-                            tracker_fn: Optional = None,
-                            renderer_fn: Optional = None,
-                            record_env: bool = True,
-                            **kwargs) -> List[ExpParams]:
-    """Get params for individual experiments from high level parameters.
-
-    - Assumes that the environment is symmetric.
-    - Will create an experiment for every possible pairing of policies.
-    """
-    assert isinstance(policy_params[0], list)
-    env = posggym.make(env_name)
-    episode_step_limit = env.spec.max_episode_steps
-
-    exp_params_list = []
-    for i, (exp_seed, *policies) in enumerate(product(
-            range(num_seeds),
-            *policy_params,
-    )):
-        policies = [*policies]
-
-        exp_params = ExpParams(
-            exp_id=exp_id_init+i,
-            env_name=env_name,
-            policy_params_list=policies,
-            discount=discount,
-            seed=init_seed + exp_seed,
-            num_episodes=num_episodes,
-            episode_step_limit=episode_step_limit,
-            time_limit=time_limit,
-            tracker_fn=tracker_fn,
-            renderer_fn=renderer_fn,
-            record_env=record_env,
-            record_env_freq=max(1, num_episodes // 10),
-            use_checkpointing=True,
-        )
-        exp_params_list.append(exp_params)
-
-    return exp_params_list

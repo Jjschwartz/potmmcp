@@ -1,7 +1,6 @@
 import time
 import logging
 from typing import Sequence, Optional, Iterable, NamedTuple
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 import posggym
 import posggym.model as M
@@ -23,43 +22,6 @@ class EpisodeLoopStep(NamedTuple):
     actions: Optional[M.JointAction]
     policies: Sequence[BasePolicy]
     done: bool
-
-
-def get_run_args(parser: Optional[ArgumentParser] = None) -> ArgumentParser:
-    """Get command line arguments for running episodes."""
-    if parser is None:
-        parser = ArgumentParser(
-            conflict_handler='resolve',
-            formatter_class=ArgumentDefaultsHelpFormatter
-        )
-
-    parser.add_argument("--seed", type=int, default=None, help="RNG seed")
-    parser.add_argument(
-        "--num_episodes", type=int, default=100,
-        help="The number of episodes to run"
-    )
-    parser.add_argument(
-        "--episode_step_limit", type=int, default=20,
-        help="Max number of steps per episode"
-    )
-    parser.add_argument(
-        "--time_limit", type=int, default=None,
-        help="Time limit (s) for running all simulations"
-    )
-    parser.add_argument(
-        "--render_mode", type=str, default=None,
-        help="Render mode for rendering episodes"
-    )
-    parser.add_argument(
-        "--pause_each_step", action="store_true",
-        help="Pause after each step is executed"
-    )
-    parser.add_argument(
-        "--log_level", type=str, default='INFO',
-        help="Logging level"
-    )
-
-    return parser
 
 
 def run_episode_loop(env: posggym.Env,
@@ -104,7 +66,6 @@ def run_episode_loop(env: posggym.Env,
         )
 
 
-# pylint: disable=[unused-argument]
 def run_episodes(env: posggym.Env,
                  policies: Sequence[BasePolicy],
                  num_episodes: int,

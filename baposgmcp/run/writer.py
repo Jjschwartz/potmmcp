@@ -1,24 +1,15 @@
 import os
 import abc
 import csv
-import pathlib
-from datetime import datetime
-from typing import Sequence, Optional, Any, List
+import json
+from typing import Sequence, Optional, Any, List, Dict
 
 import pandas as pd
 from prettytable import PrettyTable
 
-from baposgmcp.config import BASE_RESULTS_DIR
 from baposgmcp.run.stats import AgentStatisticsMap, combine_statistics
 
 COMPILED_RESULTS_FNAME = "compiled_results.csv"
-
-
-def make_dir(exp_name: str) -> str:
-    """Make a new experiment results directory at."""
-    result_dir = os.path.join(BASE_RESULTS_DIR, f"{exp_name}_{datetime.now()}")
-    pathlib.Path(result_dir).mkdir(exist_ok=True)
-    return result_dir
 
 
 def format_as_table(values: AgentStatisticsMap) -> str:
@@ -96,6 +87,23 @@ def compile_results(result_dir: str,
         result_dir, result_filepaths, extra_output_dir
     )
     return concat_resultspath
+
+
+def write_dict(args: Dict[str, Any], output_file: str):
+    """Write dictionary to file."""
+    args = _convert_keys_to_str(args)
+    with open(output_file, "w", encoding="utf-8") as fout:
+        json.dump(args, fout)
+    return output_file
+
+
+def _convert_keys_to_str(x: Dict) -> Dict:
+    y = {}
+    for k, v in x.items():
+        if isinstance(v, dict):
+            v = _convert_keys_to_str(v)
+        y[str(k)] = v
+    return y
 
 
 class Writer(abc.ABC):
