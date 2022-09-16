@@ -52,7 +52,7 @@ BAPOSGMCP_KWARGS = {
 def get_baselines(args):   # noqa
     baseline_params = baseline_lib.load_all_baselines(
         num_sims=args.num_sims,
-        action_selection=('pucb', 'ucb', 'uniform'),
+        action_selection=['pucb', 'ucb', 'uniform'],
         baposgmcp_kwargs=BAPOSGMCP_KWARGS,
         other_policy_dist=POLICY_PRIOR_MAP,
         meta_policy_dict=META_POLICY_MAP

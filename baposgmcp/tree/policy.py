@@ -78,11 +78,14 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         action_selection = action_selection.lower()
         self._action_selection_mode = action_selection
         if action_selection == "pucb":
-            self._action_selection = self.pucb_action_selection
+            self._search_action_selection = self.pucb_action_selection
+            self._final_action_selection = self.max_visit_action_selection
         elif action_selection == "ucb":
-            self._action_selection = self.ucb_action_selection
+            self._search_action_selection = self.ucb_action_selection
+            self._final_action_selection = self.max_visit_action_selection
         elif action_selection == "uniform":
-            self._action_selection = self.min_visit_action_selection
+            self._search_action_selection = self.min_visit_action_selection
+            self._final_action_selection = self.max_value_action_selection
         else:
             raise ValueError(
                 f"Invalid action selection mode '{action_selection}'"
@@ -375,17 +378,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             f"{max_search_depth=}"
         )
 
-        # select action with most visits
-        max_actions = []
-        max_visits = 0
-        for a_node in self.root.children:
-            if a_node.visits == max_visits:
-                max_actions.append(a_node.action)
-            elif a_node.visits > max_visits:
-                max_visits = a_node.visits
-                max_actions = [a_node.action]
-
-        return random.choice(max_actions)
+        return self._final_action_selection(self.root)
 
     def _simulate(self,
                   hp_state: HistoryPolicyState,
@@ -407,7 +400,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             )
             return leaf_node_value, depth
 
-        ego_action = self._action_selection(obs_node)
+        ego_action = self._search_action_selection(obs_node)
         joint_action = self._get_joint_action(hp_state, ego_action)
 
         joint_step = self.model.step(hp_state.state, joint_action)
@@ -618,7 +611,8 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
     def min_visit_action_selection(self, obs_node: ObsNode) -> M.Action:
         """Select action from node with least visits.
 
-        Note this guarantees all actions are visited equally +/- 1
+        Note this guarantees all actions are visited equally +/- 1 when used
+        during search.
         """
         if obs_node.visits == 0:
             return random.choice(self.action_space)
@@ -630,6 +624,43 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                 min_n = action_node.visits
                 next_action = action_node.action
         return next_action
+
+    def max_visit_action_selection(self, obs_node: ObsNode) -> M.Action:
+        """Select action from node with most visits.
+
+        Breaks ties randomly.
+        """
+        if obs_node.visits == 0:
+            return random.choice(self.action_space)
+
+        max_actions = []
+        max_visits = 0
+        for a_node in obs_node.children:
+            if a_node.visits == max_visits:
+                max_actions.append(a_node.action)
+            elif a_node.visits > max_visits:
+                max_visits = a_node.visits
+                max_actions = [a_node.action]
+        return random.choice(max_actions)
+
+    def max_value_action_selection(self, obs_node: ObsNode) -> M.Action:
+        """Select action from node with maximum value.
+
+        Breaks ties randomly.
+        """
+        if len(obs_node.children) == 0:
+            # Node not expanded so select random action
+            return random.choice(self.action_space)
+
+        max_actions = []
+        max_value = 0
+        for a_node in obs_node.children:
+            if a_node.value == max_value:
+                max_actions.append(a_node.action)
+            elif a_node.value > max_value:
+                max_value = a_node.value
+                max_actions = [a_node.action]
+        return random.choice(max_actions)
 
     def _get_joint_action(self,
                           hp_state: HistoryPolicyState,

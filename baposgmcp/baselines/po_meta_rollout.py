@@ -89,7 +89,7 @@ class POMetaRollout(BAPOSGMCP):
             )
             return leaf_node_value, depth
 
-        ego_action = self._action_selection(obs_node)
+        ego_action = self._search_action_selection(obs_node)
         joint_action = self._get_joint_action(hp_state, ego_action)
 
         joint_step = self.model.step(hp_state.state, joint_action)

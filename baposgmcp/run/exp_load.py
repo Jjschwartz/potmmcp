@@ -1,3 +1,4 @@
+import copy
 from itertools import product
 from typing import List, Optional, Dict
 
@@ -63,6 +64,7 @@ def posggym_agent_entry_point(model, agent_id, kwargs):
     ---------------
     policy_id: str
     """
+    kwargs = copy.deepcopy(kwargs)
     policy_id = kwargs.pop("policy_id")
     return posggym_agents.make(policy_id, model, agent_id, **kwargs)
 
