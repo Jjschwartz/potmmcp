@@ -103,8 +103,9 @@ def main(args):   # noqa
             ENV_NAME,
             [baseline_params, other_params],
             discount=DISCOUNT,
-            exp_id_init=exp_params_list[-1].exp_id,
+            exp_id_init=exp_params_list[-1].exp_id+1,
             tracker_fn=None,
+            tracker_fn_kwargs=None,
             renderer_fn=(lambda: [EpisodeRenderer()]) if args.render else None,
             **vars(args)
         )
@@ -121,6 +122,9 @@ def main(args):   # noqa
     exp_args["discount"] = DISCOUNT
     exp_args["baposgmcp_kwargs"] = BAPOSGMCP_KWARGS
 
+    if args.run_exp_id is not None:
+        exp_params_list = [exp_params_list[args.run_exp_id]]
+
     print(f"== Running {len(exp_params_list)} Experiments ==")
     print(f"== Using {args.n_procs} CPUs ==")
     run_lib.run_experiments(
@@ -129,7 +133,8 @@ def main(args):   # noqa
         exp_log_level=args.log_level,
         n_procs=args.n_procs,
         using_ray=False,
-        exp_args=vars(args)
+        exp_args=vars(args),
+        root_save_dir=args.root_save_dir
     )
 
     print("== All done ==")
@@ -168,5 +173,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--run_baselines", action="store_true",
         help="Run baseline policies as well."
+    )
+    parser.add_argument(
+        "--run_exp_id", type=int, default=None,
+        help="Run only exp with specific ID. If None will run all exps."
     )
     main(parser.parse_args())

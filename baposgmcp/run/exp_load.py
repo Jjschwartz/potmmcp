@@ -1,5 +1,5 @@
 from itertools import product
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import posggym
 import posggym_agents
@@ -16,6 +16,7 @@ def get_pairwise_exp_params(env_name: str,
                             time_limit: Optional[int] = None,
                             exp_id_init: int = 0,
                             tracker_fn: Optional = None,
+                            tracker_fn_kwargs: Optional[Dict] = None,
                             renderer_fn: Optional = None,
                             record_env: bool = True,
                             **kwargs) -> List[ExpParams]:
@@ -30,8 +31,7 @@ def get_pairwise_exp_params(env_name: str,
 
     exp_params_list = []
     for i, (exp_seed, *policies) in enumerate(product(
-            range(num_seeds),
-            *policy_params,
+            range(num_seeds), *policy_params
     )):
         policies = [*policies]
 
@@ -45,6 +45,7 @@ def get_pairwise_exp_params(env_name: str,
             episode_step_limit=episode_step_limit,
             time_limit=time_limit,
             tracker_fn=tracker_fn,
+            tracker_fn_kwargs=tracker_fn_kwargs,
             renderer_fn=renderer_fn,
             record_env=record_env,
             record_env_freq=max(1, num_episodes // 10),

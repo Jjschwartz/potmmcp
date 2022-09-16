@@ -75,8 +75,11 @@ class ExpParams(NamedTuple):
     num_episodes: int
     episode_step_limit: Optional[int] = None
     time_limit: Optional[int] = None
-    tracker_fn: Optional[Callable[[], Sequence[stats_lib.Tracker]]] = None
-    renderer_fn: Optional[Sequence[render_lib.Renderer]] = None
+    tracker_fn: Optional[
+        Callable[[Dict[str, Any]], Sequence[stats_lib.Tracker]]
+    ] = None
+    tracker_fn_kwargs: Optional[Dict[str, Any]] = None
+    renderer_fn: Optional[Callable[[], Sequence[render_lib.Renderer]]] = None
     record_env: bool = False
     # If None then uses the default cubic frequency
     record_env_freq: Optional[int] = None
@@ -286,7 +289,10 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         policies.append(pi)
 
     if params.tracker_fn:
-        trackers = params.tracker_fn()
+        tracker_fn_kwargs = params.tracker_fn_kwargs
+        if not tracker_fn_kwargs:
+            tracker_fn_kwargs = {}
+        trackers = params.tracker_fn(tracker_fn_kwargs)
     else:
         trackers = stats_lib.get_default_trackers(
             env.n_agents, params.discount

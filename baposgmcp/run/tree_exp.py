@@ -1,7 +1,7 @@
 import copy
 import argparse
 from itertools import product
-from typing import List, Sequence, Optional, Dict, Callable
+from typing import List, Sequence, Optional, Dict
 
 import posggym
 import posggym.model as M
@@ -161,32 +161,30 @@ def _renderer_fn() -> Sequence[Renderer]:
     ]
 
 
-def get_baposgmcp_tracker_fn(num_agents: int,
-                             discount: float,
-                             step_limit: int
-                             ) -> Callable[[], Sequence[stats_lib.Tracker]]:
-    """Get tracker generator function for BAPOSGMCP experiment."""
-    def tracker_fn():
-        trackers = stats_lib.get_default_trackers(num_agents, discount)
+def baposgmcp_tracker_fn(kwargs) -> Sequence[stats_lib.Tracker]:
+    """Get trackers for BAPOSGMCP experiment."""
+    num_agents = kwargs["num_agents"]
+    discount = kwargs["discount"]
 
-        # disbling for now while I test some things
-        # tracker_kwargs = {
-        #     "num_agents": num_agents,
-        #     "track_per_step": True,
-        #     "step_limit": step_limit
-        # }
-        # trackers.append(stats_lib.BayesAccuracyTracker(**tracker_kwargs))
-        # trackers.append(
-        #     stats_lib.ActionDistributionDistanceTracker(**tracker_kwargs)
-        # )
-        # trackers.append(
-        #     stats_lib.BeliefHistoryAccuracyTracker(**tracker_kwargs)
-        # )
-        # trackers.append(
-        #     stats_lib.BeliefStateAccuracyTracker(**tracker_kwargs)
-        # )
-        return trackers
-    return tracker_fn
+    trackers = stats_lib.get_default_trackers(num_agents, discount)
+
+    # disbling for now while I test some things
+    # tracker_kwargs = {
+    #     "num_agents": num_agents,
+    #     "track_per_step": True,
+    #     "step_limit": kwargs["step_limit"]
+    # }
+    # trackers.append(stats_lib.BayesAccuracyTracker(**tracker_kwargs))
+    # trackers.append(
+    #     stats_lib.ActionDistributionDistanceTracker(**tracker_kwargs)
+    # )
+    # trackers.append(
+    #     stats_lib.BeliefHistoryAccuracyTracker(**tracker_kwargs)
+    # )
+    # trackers.append(
+    #     stats_lib.BeliefStateAccuracyTracker(**tracker_kwargs)
+    # )
+    return trackers
 
 
 def get_baposgmcp_exp_params(env_name: str,
@@ -229,9 +227,12 @@ def get_baposgmcp_exp_params(env_name: str,
             num_episodes=num_episodes,
             episode_step_limit=episode_step_limit,
             time_limit=time_limit,
-            tracker_fn=get_baposgmcp_tracker_fn(
-                env.n_agents, discount, episode_step_limit
-            ),
+            tracker_fn=baposgmcp_tracker_fn,
+            tracker_fn_kwargs={
+                "num_agents": env.n_agents,
+                "discount": discount,
+                "episode_step_limit": episode_step_limit
+            },
             renderer_fn=_renderer_fn if render else None,
             record_env=record_env,
             record_env_freq=max(1, num_episodes // 10),
