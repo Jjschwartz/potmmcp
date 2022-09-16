@@ -121,7 +121,13 @@ def main(args):   # noqa
     exp_args["baposgmcp_kwargs"] = BAPOSGMCP_KWARGS
 
     if args.run_exp_id is not None:
+        print(
+            f"== Running Experiment {args.run_exp_id} of "
+            f"{len(exp_params_list)} Experiments =="
+        )
         exp_params_list = [exp_params_list[args.run_exp_id]]
+    else:
+        print(f"== Running {len(exp_params_list)} Experiments ==")
 
     print(f"== Running {len(exp_params_list)} Experiments ==")
     print(f"== Using {args.n_procs} CPUs ==")
