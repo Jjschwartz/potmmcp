@@ -155,9 +155,10 @@ def load_baposgmcp_params(num_sims: List[int],
 
 
 def _renderer_fn() -> Sequence[Renderer]:
+    # from baposgmcp.run.render import SearchTreeRenderer
     return [
         EpisodeRenderer(),
-        # run_lib.SearchTreeRenderer(2)
+        # SearchTreeRenderer(2)
     ]
 
 

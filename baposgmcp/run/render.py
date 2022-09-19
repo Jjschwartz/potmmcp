@@ -144,7 +144,7 @@ class PolicyBeliefRenderer(Renderer):
             ax.set_title(f"agent={i}")
 
         self._fig.suptitle(
-            f"t={baposgmcp.history.t} ego_agent={baposgmcp.ego_agent}"
+            f"t={baposgmcp.history.t} ego_agent={baposgmcp.agent_id}"
         )
         self._fig.tight_layout()
 
@@ -181,10 +181,10 @@ class SearchTreeRenderer(Renderer):
                      baposgmcp: tree_lib.BAPOSGMCP,
                      action: M.Action,
                      reward: float) -> None:
-        if self._fig is None:
-            self._fig, self._ax = plt.subplots(
-                nrows=1, ncols=1, squeeze=True, figsize=(9, 9)
-            )
+        # if self._fig is None:
+        self._fig, self._ax = plt.subplots(
+            nrows=1, ncols=1, squeeze=True, figsize=(9, 9)
+        )
 
         root_node = baposgmcp.root
 
@@ -206,7 +206,7 @@ class SearchTreeRenderer(Renderer):
         nx.draw(graph, pos, self._ax, node_color=node_colors, with_labels=True)
 
         self._fig.suptitle(
-            f"Agent {baposgmcp.ego_agent} t={baposgmcp.history.t}\n"
+            f"Agent {baposgmcp.agent_id} t={baposgmcp.history.t}\n"
             f"{action=}\n"
             f"{reward=:}"
         )

@@ -4,6 +4,9 @@ import random
 from typing import Optional, Dict, Tuple
 
 import gym
+import numpy as np
+from scipy.stats import dirichlet
+
 import posggym.model as M
 from posggym.utils.history import JointHistory, AgentHistory
 
@@ -38,6 +41,8 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                  truncated: bool,
                  reinvigorator: BeliefReinvigorator,
                  action_selection: str = "pucb",
+                 dirichlet_alpha: Optional[float] = None,
+                 root_exploration_fraction: float = 0.25,
                  extra_particles_prop: float = 1.0 / 16,
                  step_limit: Optional[int] = None,
                  epsilon: float = 0.01,
@@ -75,6 +80,11 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                 math.log(epsilon) / math.log(discount)
             )
 
+        if dirichlet_alpha is None:
+            dirichlet_alpha = num_actions / 10
+        self._dirichlet_alpha = dirichlet_alpha
+        self._root_exploration_fraction = root_exploration_fraction
+
         action_selection = action_selection.lower()
         self._action_selection_mode = action_selection
         if action_selection == "pucb":
@@ -90,7 +100,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             raise ValueError(
                 f"Invalid action selection mode '{action_selection}'"
             )
-        self._log_info1("Using {action_selection=}")
+        self._log_info1(f"Using {action_selection=}")
 
         # a belief is a dist over (state, joint history, other pi) tuples
         self._initial_belief = self._init_belief()
@@ -378,6 +388,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             f"{search_time=:.2f} {search_time_per_sim=:.5f} "
             f"{max_search_depth=}"
         )
+        self._log_info1(f"Root node policy prior = {self.root.policy_str()}")
 
         return self._final_action_selection(self.root)
 
@@ -573,13 +584,14 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
 
         max_v = -float('inf')
         max_action = obs_node.children[0].action
+        prior = self._get_exploration_prior(obs_node.policy)
         for action_node in obs_node.children:
             action_v = action_node.value
             # add exploration bonus based on visit count and policy prior
             action_v += (
                 # set min prob > 0 so all actions have a chance to be
                 # visited during search
-                max(obs_node.policy[action_node.action], 0.01)
+                prior[action_node.action]
                 * (sqrt_n / (1 + action_node.visits))
                 * exploration_rate
             )
@@ -754,6 +766,27 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                 continue
             self._add_action_node(obs_node, action)
 
+    def _add_exploration_noise(self, node: ObsNode):
+        noise = np.random.dirichlet(
+            [self._dirichlet_alpha] * len(self.action_space)
+        )
+        frac = self._root_exploration_fraction
+        new_prior = []
+        for a, (child_node, n) in enumerate(zip(node.children, noise)):
+            new_prior.append(node.policy[a] * (1 - frac) + n * frac)
+            node.policy[a] = new_prior
+            child_node.prob = new_prior
+
+    def _get_exploration_prior(self, policy: P.ActionDist) -> P.ActionDist:
+        mean_noise = dirichlet(
+            [self._dirichlet_alpha] * len(self.action_space)
+        ).mean()
+        frac = self._root_exploration_fraction
+        new_prior = {}
+        for i, a in enumerate(self.action_space):
+            new_prior[a] = policy[a] * (1 - frac) + mean_noise[i] * frac
+        return new_prior
+
     def _add_obs_node(self,
                       parent: ActionNode,
                       obs: M.Observation,
@@ -794,6 +827,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             init_visits=init_visits
         )
         parent.children.append(obs_node)
+
         return obs_node
 
     def _update_obs_node(self,
