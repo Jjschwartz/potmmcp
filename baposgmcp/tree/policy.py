@@ -189,6 +189,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             "search_time": 0.0,
             "update_time": 0.0,
             "reinvigoration_time": 0.0,
+            "evaluation_time": 0.0,
             "policy_calls": 0,
             "inference_time": 0.0,
             "search_depth": 0
@@ -455,9 +456,13 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                   depth: int,
                   rollout_policy: P.BasePolicy,
                   rollout_state: P.PolicyHiddenState) -> float:
+        start_time = time.time()
         if self._truncated:
-            return rollout_policy.get_value_by_hidden_state(rollout_state)
-        return self._rollout(hp_state, depth, rollout_policy, rollout_state)
+            v = rollout_policy.get_value_by_hidden_state(rollout_state)
+        else:
+            v = self._rollout(hp_state, depth, rollout_policy, rollout_state)
+        self._statistics["evaluation_time"] += time.time() - start_time
+        return v
 
     def _rollout(self,
                  hp_state: HistoryPolicyState,

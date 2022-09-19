@@ -246,6 +246,7 @@ class SearchTimeTracker(Tracker):
         "search_time",
         "update_time",
         "reinvigoration_time",
+        "evaluation_time",
         "policy_calls",
         "inference_time",
         "search_depth"
@@ -256,7 +257,9 @@ class SearchTimeTracker(Tracker):
 
         self._num_episodes = 0
         self._current_episode_steps = 0
-        self._current_episode_times: Dict[M.AgentID, Dict[str, List[float]]] = {}
+        self._current_episode_times: Dict[
+            M.AgentID, Dict[str, List[float]]
+        ] = {}
 
         self._steps: List[int] = []
         self._times: Dict[M.AgentID, Dict[str, List[float]]] = {}
