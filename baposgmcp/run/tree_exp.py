@@ -162,22 +162,30 @@ def _renderer_fn() -> Sequence[Renderer]:
 
 
 def baposgmcp_tracker_fn(kwargs) -> Sequence[stats_lib.Tracker]:
-    """Get trackers for BAPOSGMCP experiment."""
+    """Get trackers for BAPOSGMCP experiment.
+
+    Required kwargs
+    ---------------
+    num_agents : int
+    discount : float
+    step_limit : int
+
+    """
     num_agents = kwargs["num_agents"]
     discount = kwargs["discount"]
 
     trackers = stats_lib.get_default_trackers(num_agents, discount)
 
-    # disbling for now while I test some things
-    # tracker_kwargs = {
-    #     "num_agents": num_agents,
-    #     "track_per_step": True,
-    #     "step_limit": kwargs["step_limit"]
-    # }
-    # trackers.append(stats_lib.BayesAccuracyTracker(**tracker_kwargs))
-    # trackers.append(
-    #     stats_lib.ActionDistributionDistanceTracker(**tracker_kwargs)
-    # )
+    tracker_kwargs = {
+        "num_agents": num_agents,
+        # only track per step if step limit is provided
+        "track_per_step": kwargs["step_limit"] is not None,
+        "step_limit": kwargs["step_limit"]
+    }
+    trackers.append(stats_lib.BayesAccuracyTracker(**tracker_kwargs))
+    trackers.append(
+        stats_lib.ActionDistributionDistanceTracker(**tracker_kwargs)
+    )
     # trackers.append(
     #     stats_lib.BeliefHistoryAccuracyTracker(**tracker_kwargs)
     # )
@@ -231,7 +239,7 @@ def get_baposgmcp_exp_params(env_name: str,
             tracker_fn_kwargs={
                 "num_agents": env.n_agents,
                 "discount": discount,
-                "episode_step_limit": episode_step_limit
+                "step_limit": episode_step_limit
             },
             renderer_fn=_renderer_fn if render else None,
             record_env=record_env,

@@ -46,14 +46,14 @@ def get_other_pis_belief(tree: BAPOSGMCP) -> Optional[P.AgentPolicyDist]:
     # pylint: disable=[protected-access]
     other_policies = tree._other_policy_prior.policies
     for i in range(tree.num_agents):
-        if i == tree.ego_agent:
+        if i == tree.agent_id:
             continue
         pi_belief[i] = {pi_id: 0.0 for pi_id in other_policies[i]}
 
     for hp_state, prob in tree.root.belief.get_dist().items():
         pi_state = hp_state.policy_state   # type: ignore
         for i in range(tree.num_agents):
-            if i == tree.ego_agent:
+            if i == tree.agent_id:
                 continue
             pi_id = pi_state[i]
             pi_belief[i][pi_id] += prob
@@ -76,14 +76,14 @@ def get_other_history_belief(tree: BAPOSGMCP
 
     history_belief: Dict[M.AgentID, Dict[AgentHistory, float]] = {}
     for i in range(tree.num_agents):
-        if i == tree.ego_agent:
+        if i == tree.agent_id:
             continue
         history_belief[i] = {}
 
     for hp_state, prob in tree.root.belief.get_dist().items():
         h = hp_state.history    # type: ignore
         for i in range(tree.num_agents):
-            if i == tree.ego_agent:
+            if i == tree.agent_id:
                 continue
             h_i = h.get_agent_history(i)
             if h_i not in history_belief[i]:
@@ -107,7 +107,7 @@ def get_other_agent_action_dist(tree: BAPOSGMCP
 
     action_belief: Dict[M.AgentID, Dict[M.Action, float]] = {}
     for i in range(tree.num_agents):
-        if i == tree.ego_agent:
+        if i == tree.agent_id:
             continue
         action_space_i = list(range(tree.model.action_spaces[i].n))
         action_belief[i] = {a: 0.0 for a in action_space_i}
@@ -115,7 +115,7 @@ def get_other_agent_action_dist(tree: BAPOSGMCP
     for hp_state, prob in tree.root.belief.get_dist().items():
         other_pis = tree.get_other_agent_pis(hp_state)
         for i in range(tree.num_agents):
-            if i == tree.ego_agent:
+            if i == tree.agent_id:
                 continue
             pi_i = other_pis[i]
             for a_i in action_belief[i]:
