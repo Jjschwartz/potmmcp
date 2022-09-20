@@ -1,5 +1,5 @@
 """Baseline policies for BAPOSGMCP experiments."""
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import baposgmcp.policy as P
 from baposgmcp.run.exp import PolicyParams
@@ -17,7 +17,9 @@ def load_all_baselines(num_sims: List[int],
                        other_policy_dist: P.AgentPolicyDist,
                        meta_policy_dict: Dict[
                            P.PolicyState, P.PolicyDist
-                       ]) -> List[PolicyParams]:
+                       ],
+                       policy_id_suffix: Optional[str] = None
+                       ) -> List[PolicyParams]:
     """Load all baseline policy params."""
     baseline_params = []
 
@@ -37,7 +39,8 @@ def load_all_baselines(num_sims: List[int],
         num_sims,
         other_policy_dist=other_policy_dist,
         meta_policy_dict=meta_policy_dict,
-        kwargs=baposgmcp_kwargs
+        kwargs=baposgmcp_kwargs,
+        policy_id_suffix=policy_id_suffix
     )
     baseline_params.extend(pometa_params)
 
@@ -47,7 +50,8 @@ def load_all_baselines(num_sims: List[int],
         action_selection=action_selection,
         baposgmcp_kwargs=baposgmcp_kwargs,
         other_policy_dist=other_policy_dist,
-        meta_policy_dict=meta_policy_dict
+        meta_policy_dict=meta_policy_dict,
+        policy_id_suffix=policy_id_suffix
     )
     baseline_params.extend(pometarollout_params)
 

@@ -140,11 +140,12 @@ def load_baposgmcp_params(num_sims: List[int],
     for n in num_sims:
         # need to do copy as kwargs is modified in baposgmcp init fn
         kwargs = copy.deepcopy(base_kwargs)
+        policy_id = f"{kwargs['policy_id']}_{n}"
         kwargs["num_sims"] = n
-        kwargs["policy_id"] = f"{kwargs['policy_id']}_{n}"
+        kwargs["policy_id"] = policy_id
 
         baposgmcp_params = PolicyParams(
-            id=f"BAPOSGMCP_{n}",
+            id=policy_id,
             kwargs=kwargs,
             entry_point=baposgmcp_init_fn,
             info={}

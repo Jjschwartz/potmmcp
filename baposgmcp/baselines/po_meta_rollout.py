@@ -1,6 +1,6 @@
 import copy
 from itertools import product
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional
 
 import posggym.model as M
 
@@ -21,13 +21,20 @@ def load_pometarollout_params(num_sims: List[int],
                               other_policy_dist: P.AgentPolicyDist,
                               meta_policy_dict: Dict[
                                   P.PolicyState, P.PolicyDist
-                              ]) -> List[PolicyParams]:
+                              ],
+                              policy_id_suffix: Optional[str] = None
+                              ) -> List[PolicyParams]:
     """Load list of policy params for POMetaRollout.
 
     Returns policy params for pairwise combinations of num sims and
     action selection.
 
     """
+    if not policy_id_suffix:
+        policy_id_suffix = ""
+    elif not policy_id_suffix.startswith("_"):
+        policy_id_suffix = f"_{policy_id_suffix}"
+
     base_kwargs = dict(baposgmcp_kwargs)
 
     base_kwargs.update({
@@ -44,7 +51,7 @@ def load_pometarollout_params(num_sims: List[int],
         kwargs = copy.deepcopy(base_kwargs)
         kwargs["num_sims"] = n
         kwargs["action_selection"] = act_sel
-        policy_id = f"{kwargs['policy_id']}_{act_sel}_{n}"
+        policy_id = f"{kwargs['policy_id']}_{act_sel}_{policy_id_suffix}{n}"
         kwargs["policy_id"] = policy_id
         params = PolicyParams(
             id=policy_id,

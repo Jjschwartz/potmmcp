@@ -1,6 +1,7 @@
 import abc
+import math
 import random
-from typing import Dict
+from typing import Dict, List, Sequence
 
 import gym
 
@@ -104,6 +105,13 @@ class SingleMetaPolicy(MetaPolicy):
         return {self._policy_id: 1.0}
 
 
+class UniformMetaPolicy(MetaPolicy):
+    """A Meta-Policy which selects policies uniformly."""
+
+    def get_policy_dist(self, policy_state: P.PolicyState) -> P.PolicyDist:
+        return self.get_uniform_policy_dist()
+
+
 class DictMetaPolicy(MetaPolicy):
     """A Meta-Policy defined using a dictionary.
 
@@ -146,3 +154,56 @@ class DictMetaPolicy(MetaPolicy):
         return DictMetaPolicy(
             model, agent_id, policies, meta_policy_dict
         )
+
+
+def get_greedy_policy_dict(pairwise_returns: Dict[
+                               P.PolicyState, Dict[P.PolicyID, float]]
+                           ) -> [Dict[P.PolicyState, P.PolicyDist]]:
+    """Get Greedy Meta-Policy Dict from pairwise returns."""
+    greedy_policy = {}
+    for pi_state, policy_returns in pairwise_returns.items():
+        max_policies = []
+        max_return = -float('inf')
+        for pi_id, ret in policy_returns.items():
+            if ret > max_return:
+                max_return = ret
+                max_policies = [pi_id]
+            elif ret == max_return:
+                max_policies.append(pi_id)
+
+        greedy_policy[pi_state] = {
+            pi_id: 1.0/len(max_policies) for pi_id in max_policies
+        }
+    return greedy_policy
+
+
+def softmax(values: Sequence[float], temperature: float) -> List[float]:
+    """Get softmax of array of values."""
+    sum_e = sum(math.e**(z/temperature) for z in values)
+    return [(math.e**(z/temperature)) / sum_e for z in values]
+
+
+def get_softmax_policy_dict(pairwise_returns: Dict[
+                                P.PolicyState, Dict[P.PolicyID, float]],
+                            temperature: float
+                            ) -> [Dict[P.PolicyState, P.PolicyDist]]:
+    """Get Softmax Meta-Policy Dict from pairwise returns."""
+    softmax_policy = {}
+    for pi_state, policy_returns in pairwise_returns.items():
+        softmax_dist = softmax(policy_returns.values(), temperature)
+        softmax_policy[pi_state] = {
+            pi_id: p for pi_id, p in zip(policy_returns, softmax_dist)
+        }
+    return softmax_policy
+
+
+def get_uniform_policy_dict(pairwise_returns: Dict[
+                                P.PolicyState, Dict[P.PolicyID, float]],
+                            ) -> [Dict[P.PolicyState, P.PolicyDist]]:
+    """Get Uniform Meta-Policy Dict from pairwise returns."""
+    uniform_policy = {}
+    for pi_state, policy_returns in pairwise_returns.items():
+        uniform_policy[pi_state] = {
+            pi_id: 1.0 / len(policy_returns) for pi_id in policy_returns
+        }
+    return uniform_policy

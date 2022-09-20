@@ -1,7 +1,7 @@
 import copy
 import time
 import random
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import posggym.model as M
 
@@ -20,23 +20,30 @@ def load_pometa_params(num_sims: List[int],
                        other_policy_dist: P.AgentPolicyDist,
                        meta_policy_dict: Dict[P.PolicyState, P.PolicyDist],
                        kwargs: Dict,
+                       policy_id_suffix: Optional[str] = None
                        ) -> List[PolicyParams]:
     """Load list of policy params for POMeta.
 
     Returns policy params for each number of sims.
 
     """
+    if not policy_id_suffix:
+        policy_id_suffix = ""
+    elif not policy_id_suffix.startswith("_"):
+        policy_id_suffix = f"_{policy_id_suffix}"
+
     policy_params = []
     for n in num_sims:
         kwargs_n = copy.deepcopy(kwargs)
+        policy_id = f"POMeta_{policy_id_suffix}{n}"
         kwargs_n.update({
-            "policy_id": f"POMeta_{n}",
+            "policy_id": policy_id,
             "belief_size": n,
             "other_policy_dist": other_policy_dist,
             "meta_policy_dict": meta_policy_dict,
         })
         params = PolicyParams(
-            id=f"POMeta_{n}",
+            id=policy_id,
             entry_point=POMeta.posggym_agents_entry_point,
             kwargs=kwargs_n
         )

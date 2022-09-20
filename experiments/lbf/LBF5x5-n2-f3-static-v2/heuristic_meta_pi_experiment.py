@@ -1,4 +1,7 @@
-"""Run BAPOSGMCP experiment in LBF env with heuristic policies."""
+"""Run BAPOSGMCP experiment in LBF env with heuristic policies.
+
+This experiment compares performance using different Meta Policies.
+"""
 import copy
 from pprint import pprint
 
@@ -74,27 +77,39 @@ BAPOSGMCP_KWARGS = {
 
 
 def get_baselines(args):   # noqa
-    baseline_params = baseline_lib.load_all_baselines(
-        num_sims=args.num_sims,
-        action_selection=['pucb', 'ucb', 'uniform'],
-        baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-        other_policy_dist=POLICY_PRIOR_MAP,
-        meta_policy_dict=GREEDY_META_POLICY_MAP
-    )
-
-    # BAPOSGMCP using UCB action selection
-    kwargs = copy.deepcopy(BAPOSGMCP_KWARGS)
-    kwargs["action_selection"] = "ucb"
-    kwargs["policy_id"] = "baposgmcp_ucb"
-    baposgmcp_ucb_params = run_lib.load_baposgmcp_params(
-        num_sims=args.num_sims,
-        baposgmcp_kwargs=kwargs,
-        other_policy_dist=POLICY_PRIOR_MAP,
-        meta_policy_dict=GREEDY_META_POLICY_MAP
-    )
-    baseline_params.extend(baposgmcp_ucb_params)
-
+    baseline_params = []
+    for (name, meta_policy_map) in [
+            ("greedy", GREEDY_META_POLICY_MAP),
+            ("softmax", SOFTMAX_META_POLICY_MAP),
+            ("uniform", UNIFORM_META_POLICY_MAP)
+    ]:
+        baseline_params.extend(baseline_lib.load_all_baselines(
+            num_sims=args.num_sims,
+            action_selection=['pucb'],
+            baposgmcp_kwargs=BAPOSGMCP_KWARGS,
+            other_policy_dist=POLICY_PRIOR_MAP,
+            meta_policy_dict=meta_policy_map,
+            policy_id_suffix=name
+        ))
     return baseline_params
+
+
+def get_baposgmcps(args):   # noqa
+    baposgmcp_params = []
+    for (name, meta_policy_map) in [
+            ("greedy", GREEDY_META_POLICY_MAP),
+            ("softmax", SOFTMAX_META_POLICY_MAP),
+            ("uniform", UNIFORM_META_POLICY_MAP)
+    ]:
+        kwargs = copy.deepcopy(BAPOSGMCP_KWARGS)
+        kwargs["policy_id"] = f"baposgmcp_{name}"
+        baposgmcp_params.extend(run_lib.load_baposgmcp_params(
+            num_sims=args.num_sims,
+            baposgmcp_kwargs=kwargs,
+            other_policy_dist=POLICY_PRIOR_MAP,
+            meta_policy_dict=meta_policy_map
+        ))
+    return baposgmcp_params
 
 
 def main(args):   # noqa
@@ -102,12 +117,7 @@ def main(args):   # noqa
     pprint(vars(args))
 
     print("== Creating Experiments ==")
-    baposgmcp_params = run_lib.load_baposgmcp_params(
-        num_sims=args.num_sims,
-        baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-        other_policy_dist=POLICY_PRIOR_MAP,
-        meta_policy_dict=GREEDY_META_POLICY_MAP
-    )
+    baposgmcp_params = get_baposgmcps(args)
 
     other_params = run_lib.load_posggym_agent_params(POLICY_IDS)
 
