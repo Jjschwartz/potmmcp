@@ -24,10 +24,17 @@ def load_all_baselines(num_sims: List[int],
     baseline_params = []
 
     # Meta Baseline Policy
+    policy_id = "metabaseline"
+    if policy_id_suffix:
+        if not policy_id_suffix.startswith("_"):
+            policy_id = f"{policy_id}_{policy_id_suffix}"
+        else:
+            policy_id = f"{policy_id}{policy_id_suffix}"
     policy_params = PolicyParams(
-        id="metabaseline",
+        id=policy_id,
         entry_point=MetaBaselinePolicy.posggym_agents_entry_point,
         kwargs={
+            "policy_id": policy_id,
             "other_policy_dist": other_policy_dist,
             "meta_policy_dict": meta_policy_dict
         }

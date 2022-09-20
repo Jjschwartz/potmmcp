@@ -35,7 +35,7 @@ def load_pometa_params(num_sims: List[int],
     policy_params = []
     for n in num_sims:
         kwargs_n = copy.deepcopy(kwargs)
-        policy_id = f"POMeta_{policy_id_suffix}{n}"
+        policy_id = f"POMeta{policy_id_suffix}_{n}"
         kwargs_n.update({
             "policy_id": policy_id,
             "belief_size": n,

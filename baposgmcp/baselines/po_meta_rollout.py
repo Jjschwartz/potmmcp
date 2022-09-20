@@ -51,7 +51,7 @@ def load_pometarollout_params(num_sims: List[int],
         kwargs = copy.deepcopy(base_kwargs)
         kwargs["num_sims"] = n
         kwargs["action_selection"] = act_sel
-        policy_id = f"{kwargs['policy_id']}_{act_sel}_{policy_id_suffix}{n}"
+        policy_id = f"{kwargs['policy_id']}_{act_sel}{policy_id_suffix}_{n}"
         kwargs["policy_id"] = policy_id
         params = PolicyParams(
             id=policy_id,
