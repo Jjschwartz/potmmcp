@@ -155,10 +155,14 @@ def load_baposgmcp_params(num_sims: List[int],
 
 
 def _renderer_fn() -> Sequence[Renderer]:
-    # from baposgmcp.run.render import SearchTreeRenderer
+    return [EpisodeRenderer()]
+
+
+def _renderer_tree_fn() -> Sequence[Renderer]:
+    from baposgmcp.run.render import SearchTreeRenderer
     return [
         EpisodeRenderer(),
-        # SearchTreeRenderer(2)
+        SearchTreeRenderer(1)
     ]
 
 
@@ -206,6 +210,7 @@ def get_baposgmcp_exp_params(env_name: str,
                              time_limit: Optional[int] = None,
                              exp_id_init: int = 0,
                              render: bool = False,
+                             render_tree: bool = False,
                              record_env: bool = True,
                              baposgmcp_agent_id: M.AgentID = 0,
                              **kwargs) -> List[ExpParams]:
@@ -217,6 +222,13 @@ def get_baposgmcp_exp_params(env_name: str,
     assert isinstance(other_policy_params[0], list)
     env = posggym.make(env_name)
     episode_step_limit = env.spec.max_episode_steps
+
+    if not render:
+        renderer_fn = None
+    elif render_tree:
+        renderer_fn = _renderer_tree_fn
+    else:
+        renderer_fn = _renderer_fn
 
     exp_params_list = []
     for i, (exp_seed, baposgmcp_policy, *other_policies) in enumerate(product(
@@ -242,7 +254,7 @@ def get_baposgmcp_exp_params(env_name: str,
                 "discount": discount,
                 "step_limit": episode_step_limit
             },
-            renderer_fn=_renderer_fn if render else None,
+            renderer_fn=renderer_fn,
             record_env=record_env,
             record_env_freq=max(1, num_episodes // 10),
             use_checkpointing=True,

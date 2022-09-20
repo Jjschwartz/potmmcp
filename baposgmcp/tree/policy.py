@@ -17,6 +17,7 @@ from baposgmcp.policy_prior import PolicyPrior
 import baposgmcp.tree.belief as B
 from baposgmcp.tree.hps import HistoryPolicyState
 from baposgmcp.tree.node import ObsNode, ActionNode
+from baposgmcp.tree.stats import MinMaxStats, KnownBounds
 from baposgmcp.tree.reinvigorate import BeliefReinvigorator
 
 
@@ -43,6 +44,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                  action_selection: str = "pucb",
                  dirichlet_alpha: Optional[float] = None,
                  root_exploration_fraction: float = 0.25,
+                 known_bounds: Optional[KnownBounds] = None,
                  extra_particles_prop: float = 1.0 / 16,
                  step_limit: Optional[int] = None,
                  epsilon: float = 0.01,
@@ -67,6 +69,8 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         self._other_policy_prior = other_policy_prior
         self._c_init = c_init
         self._c_base = c_base
+        self._known_bounds = known_bounds
+        self._min_max_stats = MinMaxStats(known_bounds)
         self._truncated = truncated
         self._reinvigorator = reinvigorator
         self._extra_particles = math.ceil(num_sims * extra_particles_prop)
@@ -181,6 +185,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
     def reset(self) -> None:
         self._log_info1("Reset")
         self._step_num = 0
+        self._min_max_stats = MinMaxStats(self._known_bounds)
         self._reset_step_statistics()
         self.history = AgentHistory.get_init_history()
         self._last_action = None
@@ -202,7 +207,9 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             "evaluation_time": 0.0,
             "policy_calls": 0,
             "inference_time": 0.0,
-            "search_depth": 0
+            "search_depth": 0,
+            "min_value": self._min_max_stats.minimum,
+            "max_value": self._min_max_stats.maximum
         }
 
     #######################################################
@@ -384,10 +391,17 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         search_time_per_sim = search_time / self.num_sims
         self._statistics["search_time"] = search_time
         self._statistics["search_depth"] = max_search_depth
+        self._statistics["min_value"] = self._min_max_stats.minimum
+        self._statistics["max_value"] = self._min_max_stats.maximum
         self._log_info1(
             f"{search_time=:.2f} {search_time_per_sim=:.5f} "
             f"{max_search_depth=}"
         )
+        if self._known_bounds is None:
+            self._log_info1(
+                f"{self._min_max_stats.minimum=:.2f} "
+                f"{self._min_max_stats.maximum=:.2f}"
+            )
         self._log_info1(f"Root node policy prior = {self.root.policy_str()}")
 
         return self._final_action_selection(self.root)
@@ -460,6 +474,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             ego_return += self.discount * future_return
 
         action_node.update(ego_return)
+        self._min_max_stats.update(action_node.value)
         return ego_return, max_depth
 
     def _evaluate(self,
@@ -586,15 +601,13 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         max_action = obs_node.children[0].action
         prior = self._get_exploration_prior(obs_node.policy)
         for action_node in obs_node.children:
-            action_v = action_node.value
-            # add exploration bonus based on visit count and policy prior
-            action_v += (
-                # set min prob > 0 so all actions have a chance to be
-                # visited during search
-                prior[action_node.action]
-                * (sqrt_n / (1 + action_node.visits))
-                * exploration_rate
-            )
+            pucb_c = (sqrt_n / (1 + action_node.visits)) * exploration_rate
+            prior_score = prior[action_node.action] * pucb_c
+            if action_node.visits > 0:
+                action_v = self._min_max_stats.normalize(action_node.value)
+            else:
+                action_v = 0
+            action_v = action_v + prior_score
             if action_v > max_v:
                 max_v = action_v
                 max_action = action_node.action
@@ -614,12 +627,12 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         max_v = -float('inf')
         max_action = obs_node.children[0].action
         for action_node in obs_node.children:
-            action_v = action_node.value
-            # add exploration bonus based on visit count
-            action_v += (
-                (sqrt_n / (1 + action_node.visits))
-                * exploration_rate
-            )
+            ucb_c = (sqrt_n / (1 + action_node.visits)) * exploration_rate
+            if action_node.visits > 0:
+                action_v = self._min_max_stats.normalize(action_node.value)
+            else:
+                action_v = 0
+            action_v = action_v + ucb_c
             if action_v > max_v:
                 max_v = action_v
                 max_action = action_node.action

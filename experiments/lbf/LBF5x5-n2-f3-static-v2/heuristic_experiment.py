@@ -37,12 +37,44 @@ META_POLICY_MAP = {
         f"{ENV_NAME}/heuristic1-v0": 1.0
     }
 }
+
+META_POLICY_MAP = {
+    (-1, f"{ENV_NAME}/heuristic1-v0"): {
+        f"{ENV_NAME}/heuristic1-v0": 1/4,
+        f"{ENV_NAME}/heuristic2-v0": 1/4,
+        f"{ENV_NAME}/heuristic3-v0": 1/4,
+        f"{ENV_NAME}/heuristic4-v0": 1/4
+    },
+    (-1, f"{ENV_NAME}/heuristic2-v0"): {
+        f"{ENV_NAME}/heuristic1-v0": 1/4,
+        f"{ENV_NAME}/heuristic2-v0": 1/4,
+        f"{ENV_NAME}/heuristic3-v0": 1/4,
+        f"{ENV_NAME}/heuristic4-v0": 1/4
+    },
+    (-1, f"{ENV_NAME}/heuristic3-v0"): {
+        f"{ENV_NAME}/heuristic1-v0": 1/4,
+        f"{ENV_NAME}/heuristic2-v0": 1/4,
+        f"{ENV_NAME}/heuristic3-v0": 1/4,
+        f"{ENV_NAME}/heuristic4-v0": 1/4
+    },
+    (-1, f"{ENV_NAME}/heuristic4-v0"): {
+        f"{ENV_NAME}/heuristic1-v0": 1/4,
+        f"{ENV_NAME}/heuristic2-v0": 1/4,
+        f"{ENV_NAME}/heuristic3-v0": 1/4,
+        f"{ENV_NAME}/heuristic4-v0": 1/4
+    }
+}
+
+
 BAPOSGMCP_KWARGS = {
     "discount": DISCOUNT,
     "c_init": 1.25,
     "c_base": 20000,
     "truncated": False,
     "action_selection": "pucb",
+    "dirichlet_alpha": 0.6,
+    "root_exploration_fraction": 0.5,
+    "known_bounds": None,
     "extra_particles_prop": 1.0 / 16,
     "step_limit": 50,
     "epsilon": 0.01
@@ -174,6 +206,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--record_env", action="store_true",
         help="Record renderings of experiment episodes."
+    )
+    parser.add_argument(
+        "--render_tree", action="store_true",
+        help="Render BAPOSGMCP search tree during experiment episodes."
     )
     parser.add_argument(
         "--run_baselines", action="store_true",

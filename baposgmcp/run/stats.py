@@ -249,7 +249,9 @@ class SearchTimeTracker(Tracker):
         "evaluation_time",
         "policy_calls",
         "inference_time",
-        "search_depth"
+        "search_depth",
+        "min_value",
+        "max_value"
     ]
 
     def __init__(self, num_agents: int):
