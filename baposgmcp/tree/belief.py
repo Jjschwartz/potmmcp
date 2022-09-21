@@ -192,30 +192,25 @@ class HPSParticleBelief(BaseParticleBelief):
                 particles.clear()
 
     def get_dist(self) -> Dict[HistoryPolicyState, float]:
-        unique_particles = list(set(self._particles))
         dist = {}
-        prob_sum = 0.0
-        for particle in unique_particles:
-            count = self._particles.count(particle)
-            prob = count / self.size()
-            dist[particle] = prob
-            prob_sum += prob
+        for particle in self._particles:
+            dist[particle] = dist.get(particle, 0) + 1
 
-        if prob_sum < 1.0:
-            for state, prob in dist.items():
-                dist[state] = prob / prob_sum
+        num_particles = len(self._particles)
+        for particle in dist:
+            dist[particle] /= num_particles
+
         return dist
 
     def get_policy_state_dist(self) -> Dict[PolicyState, float]:
         """Get belief's distribution over policy states."""
         dist = {}
         for particle in self._particles:
-            if particle.policy_state not in dist:
-                dist[particle.policy_state] = 1
-            else:
-                dist[particle.policy_state] += 1
+            pi_state = particle.policy_state
+            dist[pi_state] = dist.get(pi_state, 0) + 1
 
+        num_particles = len(self._particles)
         for policy_state in dist:
-            dist[policy_state] /= len(self._particles)
+            dist[policy_state] /= num_particles
 
         return dist

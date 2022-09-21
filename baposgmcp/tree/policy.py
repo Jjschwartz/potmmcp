@@ -4,7 +4,6 @@ import random
 from typing import Optional, Dict, Tuple
 
 import gym
-import numpy as np
 from scipy.stats import dirichlet
 
 import posggym.model as M
@@ -88,6 +87,10 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             dirichlet_alpha = num_actions / 10
         self._dirichlet_alpha = dirichlet_alpha
         self._root_exploration_fraction = root_exploration_fraction
+        # compute once and reuse
+        self._mean_exploration_noise = dirichlet(
+            [self._dirichlet_alpha] * len(self.action_space)
+        ).mean()
 
         action_selection = action_selection.lower()
         self._action_selection_mode = action_selection
@@ -779,21 +782,8 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                 continue
             self._add_action_node(obs_node, action)
 
-    def _add_exploration_noise(self, node: ObsNode):
-        noise = np.random.dirichlet(
-            [self._dirichlet_alpha] * len(self.action_space)
-        )
-        frac = self._root_exploration_fraction
-        new_prior = []
-        for a, (child_node, n) in enumerate(zip(node.children, noise)):
-            new_prior.append(node.policy[a] * (1 - frac) + n * frac)
-            node.policy[a] = new_prior
-            child_node.prob = new_prior
-
     def _get_exploration_prior(self, policy: P.ActionDist) -> P.ActionDist:
-        mean_noise = dirichlet(
-            [self._dirichlet_alpha] * len(self.action_space)
-        ).mean()
+        mean_noise = self._mean_exploration_noise
         frac = self._root_exploration_fraction
         new_prior = {}
         for i, a in enumerate(self.action_space):

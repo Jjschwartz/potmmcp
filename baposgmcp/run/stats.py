@@ -637,7 +637,9 @@ class BeliefHistoryAccuracyTracker(Tracker):
 
         self._steps: List[int] = []
         self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
-        self._step_acc: Dict[M.AgentID, Dict[M.AgentID, List[List[float]]]] = {}
+        self._step_acc: Dict[
+            M.AgentID, Dict[M.AgentID, List[List[float]]]
+        ] = {}
 
         self.reset()
 

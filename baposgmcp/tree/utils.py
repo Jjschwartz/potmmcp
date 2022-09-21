@@ -50,8 +50,7 @@ def get_other_pis_belief(tree: BAPOSGMCP) -> Optional[P.AgentPolicyDist]:
             continue
         pi_belief[i] = {pi_id: 0.0 for pi_id in other_policies[i]}
 
-    for hp_state, prob in tree.root.belief.get_dist().items():
-        pi_state = hp_state.policy_state   # type: ignore
+    for pi_state, prob in tree.root.belief.get_policy_state_dist().items():
         for i in range(tree.num_agents):
             if i == tree.agent_id:
                 continue
