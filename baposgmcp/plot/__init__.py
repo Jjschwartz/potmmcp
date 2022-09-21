@@ -9,5 +9,6 @@ from baposgmcp.plot.pairwise import plot_pairwise_comparison
 from baposgmcp.plot.pairwise import plot_pairwise_population_comparison
 from baposgmcp.plot.utils import filter_by
 from baposgmcp.plot.utils import filter_exps_by
+from baposgmcp.plot.utils import add_coplayer_policy_id
 from baposgmcp.plot.utils import import_results
 from baposgmcp.plot.utils import plot_environment

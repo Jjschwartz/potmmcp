@@ -11,7 +11,7 @@ def get_expected_values_by_prior(plot_df,
                                  policy_prior,
                                  other_agent_id: int = 1):
     """Get expected value w.r.t policy prior for each policy."""
-    pw_values, policy_ids = get_pairwise_values(
+    pw_values, (row_policy_ids, col_policy_ids) = get_pairwise_values(
         plot_df,
         y_key=y_key,
         policy_key=policy_key,
@@ -26,19 +26,19 @@ def get_expected_values_by_prior(plot_df,
         duplicate_warning=False
     )
 
-    expected_values = np.zeros(len(policy_ids))
-    expected_err_values = np.zeros(len(policy_ids))
-    for i, policy_id in enumerate(policy_ids):
+    expected_values = np.zeros(len(row_policy_ids))
+    expected_err_values = np.zeros(len(row_policy_ids))
+    for i, policy_id in enumerate(row_policy_ids):
         value = 0.0
         err_value = 0.0
         for coplayer_policy_id, prob in policy_prior[other_agent_id].items():
-            coplayer_idx = policy_ids.index(coplayer_policy_id)
+            coplayer_idx = col_policy_ids.index(coplayer_policy_id)
             value += pw_values[i][coplayer_idx] * prob
             err_value += pw_err_values[i][coplayer_idx] * prob
         expected_values[i] = value
         expected_err_values[i] = err_value
 
-    return expected_values, expected_err_values, policy_ids
+    return expected_values, expected_err_values, row_policy_ids
 
 
 def plot_expected_values_by_num_sims(y_key: str,

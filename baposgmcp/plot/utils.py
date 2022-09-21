@@ -59,6 +59,25 @@ def clean_df_policy_ids(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def add_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
+    """Add co-player policy ID to dataframe."""
+    assert len(df["agent_id"].unique().tolist()) == 2
+
+    df_0 = df[df["agent_id"] == 0]
+    df_1 = df[df["agent_id"] == 1]
+    # disable warning
+    pd.options.mode.chained_assignment = None
+    df_0["coplayer_policy_id"] = df_0["exp_id"].map(
+        df_1.set_index("exp_id")["policy_id"].to_dict()
+    )
+    df_1["coplayer_policy_id"] = df_1["exp_id"].map(
+        df_0.set_index("exp_id")["policy_id"].to_dict()
+    )
+    # enable warning
+    pd.options.mode.chained_assignment = 'warn'
+    return pd.concat([df_0, df_1]).reset_index(drop=True)
+
+
 def import_results(result_file: str,
                    columns_to_drop: Optional[List[str]] = None,
                    clean_policy_id: bool = True
