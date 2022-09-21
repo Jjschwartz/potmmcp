@@ -115,7 +115,7 @@ def get_exp_parser() -> argparse.ArgumentParser:
         help=(
             "Optional directory to save results in. If supplied then it must "
             "be an existing directory. If None uses default "
-            "~/baposgmcp_results/<env_name>/results/ dir as root results dir."
+            "~/baposgmcp_results/<env_name>/ dir as root results dir."
         )
     )
     return parser
@@ -127,7 +127,7 @@ def make_exp_result_dir(exp_name: str,
     """Make a directory for experiment results."""
     time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
     if root_save_dir is None:
-        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_name, "results")
+        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_name)
     pathlib.Path(root_save_dir).mkdir(parents=True, exist_ok=True)
     result_dir = tempfile.mkdtemp(
         prefix=f"{exp_name}_{time_str}", dir=root_save_dir
@@ -142,7 +142,8 @@ def _log_exp_start(params: ExpParams,
     try:
         logger.info(LINE_BREAK)
         logger.info("Running with:")
-        logger.info(pformat(params))
+        # use as dict so we pformat includes newlines
+        logger.info(pformat(params._asdict()))
         logger.info(f"Result dir = {result_dir}")
         logger.info(LINE_BREAK)
     finally:
