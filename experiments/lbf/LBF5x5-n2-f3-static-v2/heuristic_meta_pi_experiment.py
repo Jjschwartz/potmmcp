@@ -94,6 +94,26 @@ def get_baselines(args):   # noqa
     return baseline_params
 
 
+def get_baselines2(args):   # noqa
+    # Delete this after running this experiment
+    # Only need baselines for POMetaRollout which didn't complete 1000 episodes
+    baseline_params = []
+    for (name, meta_policy_map) in [
+            ("greedy", GREEDY_META_POLICY_MAP),
+            ("softmax", SOFTMAX_META_POLICY_MAP),
+            ("uniform", UNIFORM_META_POLICY_MAP)
+    ]:
+        baseline_params.extend(baseline_lib.load_pometarollout_params(
+            num_sims=[2500],
+            action_selection=['pucb'],
+            baposgmcp_kwargs=BAPOSGMCP_KWARGS,
+            other_policy_dist=POLICY_PRIOR_MAP,
+            meta_policy_dict=meta_policy_map,
+            policy_id_suffix=name
+        ))
+    return baseline_params
+
+
 def get_baposgmcps(args):   # noqa
     baposgmcp_params = []
     for (name, meta_policy_map) in [
@@ -131,7 +151,9 @@ def main(args):   # noqa
     )
 
     if args.run_baselines:
-        baseline_params = get_baselines(args)
+        # TODO change this back
+        # baseline_params = get_baselines(args)
+        baseline_params = get_baselines2(args)
 
         baseline_exp_params_list = run_lib.get_pairwise_exp_params(
             ENV_NAME,
