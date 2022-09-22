@@ -194,7 +194,6 @@ class EpisodeTracker(Tracker):
                 "episode_done": self._dones[-1],
                 "episode_time": self._times[-1]
             }
-
         return stats
 
     def get(self) -> AgentStatisticsMap:
@@ -209,31 +208,31 @@ class EpisodeTracker(Tracker):
         for i in range(self._num_agents):
             stats[i] = {
                 "num_episodes": self._num_episodes,
-                "episode_returns_mean": np.mean(self._returns, axis=0)[i],
-                "episode_returns_std": np.std(self._returns, axis=0)[i],
-                "episode_returns_max": np.max(self._returns, axis=0)[i],
-                "episode_returns_min": np.min(self._returns, axis=0)[i],
-                "episode_discounted_returns_mean": (
+                "episode_return_mean": np.mean(self._returns, axis=0)[i],
+                "episode_return_std": np.std(self._returns, axis=0)[i],
+                "episode_return_max": np.max(self._returns, axis=0)[i],
+                "episode_return_min": np.min(self._returns, axis=0)[i],
+                "episode_discounted_return_mean": (
                     np.mean(self._discounted_returns, axis=0)[i]
                 ),
-                "episode_discounted_returns_std": (
+                "episode_discounted_return_std": (
                     np.std(self._discounted_returns, axis=0)[i]
                 ),
-                "episode_discounted_returns_max": (
+                "episode_discounted_return_max": (
                     np.max(self._discounted_returns, axis=0)[i]
                 ),
-                "episode_discounted_returns_min": (
+                "episode_discounted_return_min": (
                     np.min(self._discounted_returns, axis=0)[i]
                 ),
                 "episode_steps_mean": np.mean(self._steps),
                 "episode_steps_std": np.std(self._steps),
-                "episode_times_mean": np.mean(self._times),
-                "episode_times_std": np.std(self._times),
-                "episode_dones": np.mean(self._dones)
+                "episode_time_mean": np.mean(self._times),
+                "episode_time_std": np.std(self._times),
+                "num_episode_done": np.sum(self._dones)
             }
 
             for outcome, counts in outcome_counts.items():
-                stats[i][f"num_outcome_{outcome}"] = counts[i]
+                stats[i][f"num_{outcome}"] = counts[i]
 
         return stats
 

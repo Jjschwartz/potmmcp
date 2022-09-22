@@ -35,10 +35,10 @@ def add_outcome_proportions(df: pd.DataFrame) -> pd.DataFrame:
         return total / n
 
     columns = [
-        'num_outcome_LOSS',
-        'num_outcome_DRAW',
-        'num_outcome_WIN',
-        'num_outcome_NA'
+        'num_LOSS',
+        'num_DRAW',
+        'num_WIN',
+        'num_NA'
     ]
     new_column_names = ["prop_LOSS", "prop_DRAW", "prop_WIN", "prop_NA"]
     for col_name, new_name in zip(columns, new_column_names):
@@ -59,7 +59,7 @@ def clean_df_policy_ids(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def add_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
+def add_df_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
     """Add co-player policy ID to dataframe."""
     assert len(df["agent_id"].unique().tolist()) == 2
 
@@ -80,7 +80,8 @@ def add_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
 
 def import_results(result_file: str,
                    columns_to_drop: Optional[List[str]] = None,
-                   clean_policy_id: bool = True
+                   clean_policy_id: bool = True,
+                   add_coplayer_policy_id: bool = True,
                    ) -> pd.DataFrame:
     """Import experiment results.
 
@@ -92,11 +93,22 @@ def import_results(result_file: str,
     if columns_to_drop:
         df = df.drop(columns_to_drop, axis=1, errors='ignore')
 
+    # rename
+    df.rename(columns={
+        'num_outcome_LOSS': "num_LOSS",
+        'num_outcome_DRAW': "num_DRAW",
+        'num_outcome_WIN': "num_WIN",
+        'num_outcome_NA': "num_NA"
+    })
+
     df = add_95CI(df)
     df = add_outcome_proportions(df)
 
     if clean_policy_id:
         df = clean_df_policy_ids(df)
+
+    if add_coplayer_policy_id:
+        df = add_df_coplayer_policy_id(df)
 
     return df
 

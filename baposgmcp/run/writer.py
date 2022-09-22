@@ -36,9 +36,13 @@ def format_as_table(values: AgentStatisticsMap) -> str:
 
 def compile_result_files(save_dir: str,
                          result_filepaths: List[str],
-                         extra_output_dir: Optional[str] = None) -> str:
+                         extra_output_dir: Optional[str] = None,
+                         compiled_results_filename: Optional[str] = None
+                         ) -> str:
     """Compile list of results files into a single file."""
-    concat_resultspath = os.path.join(save_dir, COMPILED_RESULTS_FNAME)
+    if not compiled_results_filename:
+        compiled_results_filename = COMPILED_RESULTS_FNAME
+    concat_resultspath = os.path.join(save_dir, compiled_results_filename)
 
     dfs = list(map(pd.read_csv, result_filepaths))
 
