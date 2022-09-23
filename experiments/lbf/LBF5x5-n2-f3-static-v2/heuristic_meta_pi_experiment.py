@@ -168,7 +168,8 @@ def main(args):   # noqa
         exp_params_list.extend(baseline_exp_params_list)
 
     seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
-    exp_name = f"baposgmcp_heuristic_meta_pi_{seed_str}"
+    exp_str = "" if args.run_exp_id is None else f"_exp{args.run_exp_id}"
+    exp_name = f"baposgmcp_heuristic_meta_pi{exp_str}_{seed_str}"
 
     exp_args = vars(args)
     exp_args["env_name"] = ENV_NAME

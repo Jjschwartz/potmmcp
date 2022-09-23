@@ -18,6 +18,8 @@ def plot_expected_belief_stat_by_step(plot_df,
                                       other_agent_id: int = 1,
                                       policy_key: str = "policy_id",
                                       coplayer_policy_key="coplayer_policy_id",
+                                      y_suffix: str = "mean",
+                                      y_err_suffix: str = "CI",
                                       figsize: Tuple[int, int] = (9, 9)):
     """Plot expected value of a belief stat w.r.t policy prior by ep step."""
     fig, axs = plt.subplots(
@@ -37,8 +39,8 @@ def plot_expected_belief_stat_by_step(plot_df,
                     & (plot_df[coplayer_policy_key] == cp_policy_id)
                 ]
                 for t in range(step_limit):
-                    y_t = sub_df[f"{y_keys[t]}_mean"]
-                    y_err_t = sub_df[f"{y_keys[t]}_CI"]
+                    y_t = sub_df[f"{y_keys[t]}_{y_suffix}"]
+                    y_err_t = sub_df[f"{y_keys[t]}_{y_err_suffix}"]
                     if len(y_t):
                         y[t] += y_t * prob
                         y_err[t] += y_err_t * prob

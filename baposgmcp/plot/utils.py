@@ -12,7 +12,11 @@ def add_95CI(df: pd.DataFrame) -> pd.DataFrame:
 
     def conf_int(row, prefix):
         std = row[f"{prefix}_std"]
-        n = row["num_episodes"]
+        if f"{prefix}_n" in row:
+            # belief stat
+            n = row[f"{prefix}_n"]
+        else:
+            n = row["num_episodes"]
         return 1.96 * (std / np.sqrt(n))
 
     prefix = ""
