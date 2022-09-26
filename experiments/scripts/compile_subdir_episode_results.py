@@ -9,18 +9,11 @@ def _main(args):
     parent_dir = args.parent_dirpath
     print(f"Compiling results from subdirectories of {parent_dir=}")
 
-    child_dirpaths = [
-        os.path.join(parent_dir, d) for d in os.listdir(parent_dir)
-        if os.path.isdir(os.path.join(parent_dir, d))
-    ]
-    print(f"Compiling results from {len(child_dirpaths)} subdirectories.")
-
     result_filepaths = []
-    for child_dir in child_dirpaths:
-        for file_name in os.listdir(child_dir):
-            if file_name.endswith("episodes.csv"):
-                child_resultpath = os.path.join(child_dir, file_name)
-                result_filepaths.append(child_resultpath)
+    for dirpath, dirnames, filenames in os.walk(parent_dir):
+        for fname in filenames:
+            if fname.endswith("episodes.csv"):
+                result_filepaths.append(os.path.join(dirpath, fname))
 
     print(f"Compiling results from {len(result_filepaths)} results files.")
     result_filepath = compile_result_files(

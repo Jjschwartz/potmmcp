@@ -165,6 +165,7 @@ def main(args):   # noqa
         exp_params_list = [exp_params_list[args.run_exp_id]]
     else:
         print(f"== Running {len(exp_params_list)} Experiments ==")
+        return
 
     print(f"== Using {args.n_procs} CPUs ==")
     run_lib.run_experiments(
