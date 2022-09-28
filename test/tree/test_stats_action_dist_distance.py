@@ -7,16 +7,23 @@ import utils as test_utils
 RENDER = False
 
 
-def _run_sims(env, policies, run_config):
-    trackers = run_lib.get_default_trackers(policies)
+def _run_sims(env, policies, num_episodes, step_limit):
+    trackers = run_lib.get_default_trackers(env.n_agents, 0.9)
     trackers.append(
         run_lib.ActionDistributionDistanceTracker(
             env.n_agents,
             track_per_step=True,
-            step_limit=run_config.episode_step_limit
+            step_limit=step_limit
         )
     )
-    test_utils.run_sims(env, policies, trackers, run_config, RENDER)
+    test_utils.run_sims(
+        env,
+        policies,
+        num_episodes=num_episodes,
+        trackers=trackers,
+        render=RENDER,
+        **{"episode_step_limit": step_limit}
+    )
 
 
 def test_action_dist_distance_single_policy():
@@ -41,12 +48,7 @@ def test_action_dist_distance_single_policy():
     )
 
     policies = [agent_0_policy, agent_1_policy]
-
-    run_config = run_lib.RunConfig(
-        seed=0, num_episodes=5, episode_step_limit=rps_step_limit
-    )
-
-    _run_sims(env, policies, run_config)
+    _run_sims(env, policies, num_episodes=5, step_limit=rps_step_limit)
 
 
 def test_action_dist_distance_rps_deterministic():
@@ -76,12 +78,7 @@ def test_action_dist_distance_rps_deterministic():
     )
 
     policies = [agent_0_policy, agent_1_policy]
-
-    run_config = run_lib.RunConfig(
-        seed=0, num_episodes=5, episode_step_limit=rps_step_limit
-    )
-
-    _run_sims(env, policies, run_config)
+    _run_sims(env, policies, num_episodes=5, step_limit=rps_step_limit)
 
 
 def test_action_dist_distance_rps_stochastic_biased():
@@ -112,12 +109,7 @@ def test_action_dist_distance_rps_stochastic_biased():
     )
 
     policies = [agent_0_policy, agent_1_policy]
-
-    run_config = run_lib.RunConfig(
-        seed=0, num_episodes=1, episode_step_limit=rps_step_limit
-    )
-
-    _run_sims(env, policies, run_config)
+    _run_sims(env, policies, num_episodes=1, step_limit=rps_step_limit)
 
 
 def test_action_dist_distance_rps_stochastic_biased2():
@@ -151,12 +143,7 @@ def test_action_dist_distance_rps_stochastic_biased2():
     )
 
     policies = [agent_0_policy, agent_1_policy]
-
-    run_config = run_lib.RunConfig(
-        seed=0, num_episodes=5, episode_step_limit=rps_step_limit
-    )
-
-    _run_sims(env, policies, run_config)
+    _run_sims(env, policies, num_episodes=5, step_limit=rps_step_limit)
 
 
 if __name__ == "__main__":

@@ -10,13 +10,17 @@ import utils as test_utils
 RENDER = False
 
 
-def _run_sims(env, policies, run_config=None):
-    trackers = run_lib.get_default_trackers(policies)
-
-    if run_config is None:
-        run_config = run_lib.RunConfig(seed=0, num_episodes=10)
-
-    test_utils.run_sims(env, policies, trackers, run_config, RENDER)
+def _run_sims(env, policies, num_episodes=10, step_limit=None):
+    test_utils.run_sims(
+        env,
+        policies,
+        num_episodes=num_episodes,
+        trackers=run_lib.get_default_trackers(env.n_agents, 0.9),
+        render=RENDER,
+        **{
+            "episode_step_limit": step_limit
+        }
+    )
 
 
 def test_with_single_random_policy():
@@ -43,9 +47,6 @@ def test_action_first_with_single_random_policy():
     env_name = "RockPaperScissors-v0"
     env = posggym.make(env_name)
     rps_step_limit = 10
-    run_config = run_lib.RunConfig(
-        seed=0, num_episodes=5, episode_step_limit=rps_step_limit
-    )
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_baposgmcp(
@@ -58,7 +59,7 @@ def test_action_first_with_single_random_policy():
     )
 
     policies = [agent_0_policy, agent_1_policy]
-    _run_sims(env, policies, run_config)
+    _run_sims(env, policies, num_episodes=5, step_limit=rps_step_limit)
 
 
 def test_with_single_random_policy_truncated():

@@ -14,7 +14,7 @@ RENDER = False
 
 def _run_sims(env, policies):
     logging.basicConfig(level=logging.INFO, format='%(message)s')
-    trackers = run_lib.get_default_trackers(policies)
+    trackers = run_lib.get_default_trackers(env.n_agents, 0.9)
 
     renderers = []
     if RENDER:
@@ -24,12 +24,12 @@ def _run_sims(env, policies):
             run_lib.PauseRenderer()
         ]
 
-    run_lib.run_sims(
+    run_lib.run_episodes(
         env,
         policies,
-        trackers,
-        renderers,
-        run_config=run_lib.RunConfig(seed=0, num_episodes=10)
+        num_episodes=10,
+        trackers=trackers,
+        renderers=renderers
     )
 
 

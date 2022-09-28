@@ -1,11 +1,41 @@
 import logging
+from typing import Optional
 from collections import defaultdict
 
-import baposgmcp.policy as P
+import posggym.model as M
+from posggym.utils.history import AgentHistory
+
+from posggym_agents.agents.random import RandomPolicy
+from posggym_agents.agents.random import FixedDistributionPolicy
+from posggym_agents.policy import PolicyHiddenState
+
 import baposgmcp.run as run_lib
 import baposgmcp.tree as tree_lib
 from baposgmcp.meta_policy import DictMetaPolicy
 from baposgmcp.policy_prior import UniformPolicyPrior
+
+
+class RandomPolicyWithValue(RandomPolicy):
+    """Uniform Random Policy with fixed value estimate."""
+
+    def __init__(self,
+                 model: M.POSGModel,
+                 agent_id: M.AgentID,
+                 policy_id: str,
+                 value: float = 1.0):
+        super().__init__(
+            model,
+            agent_id,
+            policy_id,
+        )
+        self.value = value
+
+    def get_value(self, history: Optional[AgentHistory]) -> float:
+        return self.value
+
+    def get_value_by_hidden_state(self,
+                                  hidden_state: PolicyHiddenState) -> float:
+        return self.value
 
 
 def run_sims(env,
@@ -30,12 +60,11 @@ def get_deterministic_policies(env, agent_id):  # noqa
     for pi_a in range(env.action_spaces[agent_id].n):
         dist = {a: 0.0 for a in range(env.action_spaces[agent_id].n)}
         dist[pi_a] = 1.0
-        policies[f"pi_{pi_a}"] = P.FixedDistributionPolicy(
+        policies[f"pi_{pi_a}"] = FixedDistributionPolicy(
             env.model,
-            ego_agent=agent_id,
-            gamma=0.9,
-            dist=dist,
-            policy_id=f"pi_{pi_a}"
+            agent_id=agent_id,
+            policy_id=f"pi_{pi_a}",
+            dist=dist
         )
     return policies
 
@@ -48,18 +77,17 @@ def get_biased_policies(env, agent_id, bias):   # noqa
     for pi_a in range(n_actions):
         dist = {a: p_non_biased for a in range(n_actions)}
         dist[pi_a] = p_bias
-        policies[f"pi_{pi_a}"] = P.FixedDistributionPolicy(
+        policies[f"pi_{pi_a}"] = FixedDistributionPolicy(
             env.model,
-            ego_agent=agent_id,
-            gamma=0.9,
-            dist=dist,
-            policy_id=f"pi_{pi_a}"
+            agent_id=agent_id,
+            policy_id=f"pi_{pi_a}",
+            dist=dist
         )
     return policies
 
 
-def get_random_policy(env, agent_id):   # noqa
-    return P.RandomPolicy(env.model, agent_id, 0.9, "pi_-1")
+def get_random_policy(env, agent_id, value=1.0):   # noqa
+    return RandomPolicyWithValue(env.model, agent_id, "pi_-1", value)
 
 
 def get_deterministic_other_policies(env, ego_agent):  # noqa
@@ -87,7 +115,7 @@ def get_biased_other_policy_prior(env, ego_agent, bias):  # noqa
 
 def get_random_other_policies(env, ego_agent):   # noqa
     return {
-        i: {"pi_-1": P.RandomPolicy(env.model, i, 0.9, "pi_-1")}
+        i: {"pi_-1": get_random_policy(env, i)}
         for i in range(env.n_agents) if i != ego_agent
     }
 
@@ -97,10 +125,8 @@ def get_random_other_policy_prior(env, ego_agent):   # noqa
     return UniformPolicyPrior(env.model, ego_agent, policies)
 
 
-def get_random_meta_policy(env, ego_agent):  # noqa
-    ego_policies = {
-        'pi_-1': P.RandomPolicy(env.model, ego_agent, 0.9, "pi_-1")
-    }
+def get_random_meta_policy(env, ego_agent, value=1.0):  # noqa
+    ego_policies = {'pi_-1': get_random_policy(env, ego_agent, value)}
     meta_policy_dict = defaultdict(lambda: {'pi_-1': 1.0})
     return DictMetaPolicy(
         env.model, ego_agent, ego_policies, meta_policy_dict
@@ -113,17 +139,18 @@ def get_random_baposgmcp(env,
                          meta_policy,
                          truncated,
                          step_limit,
-                         num_sims=64):   # noqa
+                         num_sims=64,
+                         value=1.0):   # noqa
     if other_policy_prior is None:
         other_policy_prior = get_random_other_policy_prior(env, ego_agent)
 
     if meta_policy is None:
-        meta_policy = get_random_meta_policy(env, ego_agent)
+        meta_policy = get_random_meta_policy(env, ego_agent, value)
 
     return tree_lib.BAPOSGMCP(
         env.model,
-        ego_agent=ego_agent,
-        gamma=0.9,
+        agent_id=ego_agent,
+        discount=0.9,
         num_sims=num_sims,
         other_policy_prior=other_policy_prior,
         meta_policy=meta_policy,

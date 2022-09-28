@@ -8,6 +8,21 @@ import utils as test_utils
 RENDER = False
 
 
+def _run_sims(env, policies, num_episodes, step_limit):
+    trackers = run_lib.get_default_trackers(env.n_agents, 0.9)
+    trackers.append(run_lib.BayesAccuracyTracker(
+        2, track_per_step=True, step_limit=step_limit
+    ))
+    test_utils.run_sims(
+        env,
+        policies,
+        num_episodes=num_episodes,
+        trackers=trackers,
+        render=RENDER,
+        **{"episode_step_limit": step_limit}
+    )
+
+
 def test_bayes_accuracy_deterministic():
     """Test bayes accuracy on RPS with deterministic opponent policy.
 
@@ -35,14 +50,7 @@ def test_bayes_accuracy_deterministic():
     )
 
     policies = [agent_0_policy, agent_1_policy]
-
-    trackers = run_lib.get_default_trackers(policies)
-    trackers.append(run_lib.BayesAccuracyTracker(2, track_per_step=True))
-    run_config = run_lib.RunConfig(
-        seed=0, num_episodes=1, episode_step_limit=rps_step_limit
-    )
-
-    test_utils.run_sims(env, policies, trackers, run_config, RENDER)
+    _run_sims(env, policies, num_episodes=1, step_limit=rps_step_limit)
 
 
 def test_bayes_accuracy_stochastic_uniform():
@@ -77,14 +85,7 @@ def test_bayes_accuracy_stochastic_uniform():
     )
 
     policies = [agent_0_policy, agent_1_policy]
-
-    trackers = run_lib.get_default_trackers(policies)
-    trackers.append(run_lib.BayesAccuracyTracker(2, track_per_step=True))
-    run_config = run_lib.RunConfig(
-        seed=0, num_episodes=1, episode_step_limit=rps_step_limit
-    )
-
-    test_utils.run_sims(env, policies, trackers, run_config, RENDER)
+    _run_sims(env, policies, num_episodes=1, step_limit=rps_step_limit)
 
 
 def test_bayes_accuracy_stochastic_biased():
@@ -112,14 +113,7 @@ def test_bayes_accuracy_stochastic_biased():
     )
 
     policies = [agent_0_policy, agent_1_policy]
-
-    trackers = run_lib.get_default_trackers(policies)
-    trackers.append(run_lib.BayesAccuracyTracker(2, track_per_step=True))
-    run_config = run_lib.RunConfig(
-        seed=0, num_episodes=10, episode_step_limit=rps_step_limit
-    )
-
-    test_utils.run_sims(env, policies, trackers, run_config, RENDER)
+    _run_sims(env, policies, num_episodes=1, step_limit=rps_step_limit)
 
 
 if __name__ == "__main__":
