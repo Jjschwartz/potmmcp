@@ -35,8 +35,8 @@ def _run_sims(env, policies):
 
 def test_with_multiple_random_opponent_and_rollout_policies():
     """Test BAPOSGMCP tree with multiple random other agent policies."""
-    env_name = "TwoPaths3x3-v0"
-    env = posggym.make(env_name)
+    env_id = "TwoPaths3x3-v0"
+    env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
 

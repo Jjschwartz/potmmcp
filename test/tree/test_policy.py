@@ -25,8 +25,8 @@ def _run_sims(env, policies, num_episodes=10, step_limit=None):
 
 def test_with_single_random_policy():
     """Test BAPOSGMCP tree with only a single random other agent policy."""
-    env_name = "TwoPaths3x3-v0"
-    env = posggym.make(env_name)
+    env_id = "TwoPaths3x3-v0"
+    env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_baposgmcp(
@@ -44,8 +44,8 @@ def test_with_single_random_policy():
 
 def test_action_first_with_single_random_policy():
     """Test BAPOSGMCP in action first env with a random other agent policy."""
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 10
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
@@ -64,8 +64,8 @@ def test_action_first_with_single_random_policy():
 
 def test_with_single_random_policy_truncated():
     """Test BAPOSGMCP tree with only a single random other agent policy."""
-    env_name = "TwoPaths3x3-v0"
-    env = posggym.make(env_name)
+    env_id = "TwoPaths3x3-v0"
+    env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_baposgmcp(
@@ -84,8 +84,8 @@ def test_with_single_random_policy_truncated():
 
 def test_with_multiple_random_policies():
     """Test BAPOSGMCP tree with multiple random other agent policies."""
-    env_name = "TwoPaths3x3-v0"
-    env = posggym.make(env_name)
+    env_id = "TwoPaths3x3-v0"
+    env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
 
@@ -106,8 +106,8 @@ def test_with_multiple_random_policies():
 
 def test_with_multiple_random_opponent_and_rollout_policies():
     """Test BAPOSGMCP tree with multiple random other agent policies."""
-    env_name = "TwoPaths3x3-v0"
-    env = posggym.make(env_name)
+    env_id = "TwoPaths3x3-v0"
+    env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
 
@@ -134,8 +134,8 @@ def test_with_multiple_random_opponent_and_rollout_policies():
 
 def test_with_three_other_agents():
     """Test BAPOSGMCP tree with multiple random other agent policies."""
-    env_name = "Driving4x4Intersection-n3-v0"
-    env = posggym.make(env_name)
+    env_id = "Driving4x4Intersection-n3-v0"
+    env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_policy(env, 1)

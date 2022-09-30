@@ -29,8 +29,8 @@ def test_state_accuracy_single_state():
 
     The accuracy should be 100%
     """
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 10
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
@@ -50,8 +50,8 @@ def test_state_accuracy_single_state():
 
 def test_state_accuracy_small():
     """Test state accuracy on small environment."""
-    env_name = "TwoPaths4x4-v1"
-    env = posggym.make(env_name)
+    env_id = "TwoPaths4x4-v1"
+    env = posggym.make(env_id)
     rps_step_limit = 10
 
     agent_0_policy = test_utils.get_random_policy(env, 0)

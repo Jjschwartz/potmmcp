@@ -11,47 +11,47 @@ import baposgmcp.baselines as baseline_lib
 from baposgmcp.run.render import EpisodeRenderer
 
 
-ENV_NAME = "LBF10x10-n2-f7-static-v2"
+ENV_ID = "LBF10x10-n2-f7-static-v2"
 DISCOUNT = 0.99
 BAPOSGMCP_AGENT_ID = 0
 OTHER_AGENT_ID = 1
 POLICY_IDS = [
-    f"{ENV_NAME}/heuristic1-v0",
-    f"{ENV_NAME}/heuristic2-v0",
-    f"{ENV_NAME}/heuristic3-v0",
-    f"{ENV_NAME}/heuristic4-v0"
+    f"{ENV_ID}/heuristic1-v0",
+    f"{ENV_ID}/heuristic2-v0",
+    f"{ENV_ID}/heuristic3-v0",
+    f"{ENV_ID}/heuristic4-v0"
 ]
 POLICY_PRIOR_MAP = {OTHER_AGENT_ID: {
-    f"{ENV_NAME}/heuristic1-v0": 1/4,
-    f"{ENV_NAME}/heuristic2-v0": 1/4,
-    f"{ENV_NAME}/heuristic3-v0": 1/4,
-    f"{ENV_NAME}/heuristic4-v0": 1/4
+    f"{ENV_ID}/heuristic1-v0": 1/4,
+    f"{ENV_ID}/heuristic2-v0": 1/4,
+    f"{ENV_ID}/heuristic3-v0": 1/4,
+    f"{ENV_ID}/heuristic4-v0": 1/4
 }}
 
 PAIRWISE_RETURNS = {
-    (-1, f"{ENV_NAME}/heuristic1-v0"): {
-        f"{ENV_NAME}/heuristic1-v0": 0.39,
-        f"{ENV_NAME}/heuristic2-v0": 0.04,
-        f"{ENV_NAME}/heuristic3-v0": 0.28,
-        f"{ENV_NAME}/heuristic4-v0": 0.04
+    (-1, f"{ENV_ID}/heuristic1-v0"): {
+        f"{ENV_ID}/heuristic1-v0": 0.39,
+        f"{ENV_ID}/heuristic2-v0": 0.04,
+        f"{ENV_ID}/heuristic3-v0": 0.28,
+        f"{ENV_ID}/heuristic4-v0": 0.04
     },
-    (-1, f"{ENV_NAME}/heuristic2-v0"): {
-        f"{ENV_NAME}/heuristic1-v0": 0.55,
-        f"{ENV_NAME}/heuristic2-v0": 0.05,
-        f"{ENV_NAME}/heuristic3-v0": 0.47,
-        f"{ENV_NAME}/heuristic4-v0": 0.05
+    (-1, f"{ENV_ID}/heuristic2-v0"): {
+        f"{ENV_ID}/heuristic1-v0": 0.55,
+        f"{ENV_ID}/heuristic2-v0": 0.05,
+        f"{ENV_ID}/heuristic3-v0": 0.47,
+        f"{ENV_ID}/heuristic4-v0": 0.05
     },
-    (-1, f"{ENV_NAME}/heuristic3-v0"): {
-        f"{ENV_NAME}/heuristic1-v0": 0.51,
-        f"{ENV_NAME}/heuristic2-v0": 0.10,
-        f"{ENV_NAME}/heuristic3-v0": 0.40,
-        f"{ENV_NAME}/heuristic4-v0": 0.04
+    (-1, f"{ENV_ID}/heuristic3-v0"): {
+        f"{ENV_ID}/heuristic1-v0": 0.51,
+        f"{ENV_ID}/heuristic2-v0": 0.10,
+        f"{ENV_ID}/heuristic3-v0": 0.40,
+        f"{ENV_ID}/heuristic4-v0": 0.04
     },
-    (-1, f"{ENV_NAME}/heuristic4-v0"): {
-        f"{ENV_NAME}/heuristic1-v0": 0.55,
-        f"{ENV_NAME}/heuristic2-v0": 0.06,
-        f"{ENV_NAME}/heuristic3-v0": 0.60,
-        f"{ENV_NAME}/heuristic4-v0": 0.05
+    (-1, f"{ENV_ID}/heuristic4-v0"): {
+        f"{ENV_ID}/heuristic1-v0": 0.55,
+        f"{ENV_ID}/heuristic2-v0": 0.06,
+        f"{ENV_ID}/heuristic3-v0": 0.60,
+        f"{ENV_ID}/heuristic4-v0": 0.05
     }
 }
 
@@ -122,7 +122,7 @@ def main(args):   # noqa
     other_params = run_lib.load_posggym_agent_params(POLICY_IDS)
 
     exp_params_list = run_lib.get_baposgmcp_exp_params(
-        ENV_NAME,
+        ENV_ID,
         baposgmcp_params,
         [other_params],
         discount=DISCOUNT,
@@ -134,7 +134,7 @@ def main(args):   # noqa
         baseline_params = get_baselines(args)
 
         baseline_exp_params_list = run_lib.get_pairwise_exp_params(
-            ENV_NAME,
+            ENV_ID,
             [baseline_params, other_params],
             discount=DISCOUNT,
             exp_id_init=exp_params_list[-1].exp_id+1,
@@ -150,7 +150,7 @@ def main(args):   # noqa
     exp_name = f"baposgmcp_heuristic_meta_pi{exp_str}_{seed_str}"
 
     exp_args = vars(args)
-    exp_args["env_name"] = ENV_NAME
+    exp_args["env_id"] = ENV_ID
     exp_args["policy_ids"] = POLICY_IDS
     exp_args["policy_prior"] = POLICY_PRIOR_MAP
     exp_args["meta_policy"] = GREEDY_META_POLICY_MAP

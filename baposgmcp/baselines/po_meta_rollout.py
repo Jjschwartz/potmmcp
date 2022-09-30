@@ -15,14 +15,13 @@ from baposgmcp.tree.hps import HistoryPolicyState
 from baposgmcp.tree.reinvigorate import BABeliefRejectionSampler
 
 
-def load_pometarollout_params(num_sims: List[int],
-                              action_selection: List[str],
+def load_pometarollout_params(variable_params: Dict[str, List],
                               baposgmcp_kwargs: Dict,
                               other_policy_dist: P.AgentPolicyDist,
                               meta_policy_dict: Dict[
                                   P.PolicyState, P.PolicyDist
                               ],
-                              policy_id_suffix: Optional[str] = None
+                              base_policy_id: str = "POMetaRollout"
                               ) -> List[PolicyParams]:
     """Load list of policy params for POMetaRollout.
 
@@ -30,11 +29,6 @@ def load_pometarollout_params(num_sims: List[int],
     action selection.
 
     """
-    if not policy_id_suffix:
-        policy_id_suffix = ""
-    elif not policy_id_suffix.startswith("_"):
-        policy_id_suffix = f"_{policy_id_suffix}"
-
     base_kwargs = dict(baposgmcp_kwargs)
 
     base_kwargs.update({
@@ -42,17 +36,19 @@ def load_pometarollout_params(num_sims: List[int],
         "meta_policy_dict": meta_policy_dict
     })
 
-    if "policy_id" not in base_kwargs:
-        base_kwargs["policy_id"] = "POMetaRollout"
-
     policy_params = []
-    for n, act_sel in product(num_sims, action_selection):
+    param_names = list(variable_params)
+    param_value_lists = [variable_params[k] for k in param_names]
+    for values in product(*param_value_lists):
         # need to do copy as kwargs is modified in baposgmcp init fn
         kwargs = copy.deepcopy(base_kwargs)
-        kwargs["num_sims"] = n
-        kwargs["action_selection"] = act_sel
-        policy_id = f"{kwargs['policy_id']}_{act_sel}{policy_id_suffix}_{n}"
+        policy_id = base_policy_id
+        for k, v in zip(param_names, values):
+            kwargs[k] = v
+            # remove _ so it's easier to parse when doing analysis
+            policy_id += f"_{k.replace('_', '')}{v}"
         kwargs["policy_id"] = policy_id
+
         params = PolicyParams(
             id=policy_id,
             entry_point=POMetaRollout.posggym_agents_entry_point,

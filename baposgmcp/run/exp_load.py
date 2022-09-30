@@ -1,14 +1,69 @@
 import copy
+import argparse
 from itertools import product
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Sequence
 
 import posggym
 import posggym_agents
 
 from baposgmcp.run.exp import ExpParams, PolicyParams
+from baposgmcp.run.render import Renderer, EpisodeRenderer
 
 
-def get_pairwise_exp_params(env_name: str,
+def get_exp_parser() -> argparse.ArgumentParser:
+    """Get command line argument parser with default experiment args."""
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "--init_seed", type=int, default=0,
+        help="Experiment start seed."
+    )
+    parser.add_argument(
+        "--num_seeds", type=int, default=1,
+        help="Number of seeds to use."
+    )
+    parser.add_argument(
+        "--num_episodes", type=int, default=1000,
+        help="Number of episodes per experiment."
+    )
+    parser.add_argument(
+        "--time_limit", type=int, default=None,
+        help="Experiment time limit, in seconds."
+    )
+    parser.add_argument(
+        "--run_exp_id", type=int, default=None,
+        help="Run only exp with specific ID. If None will run all exps."
+    )
+    parser.add_argument(
+        "--n_procs", type=int, default=1,
+        help="Number of processors/experiments to run in parallel."
+    )
+    parser.add_argument(
+        "--log_level", type=int, default=21,
+        help="Experiment log level."
+    )
+    parser.add_argument(
+        "--record_env", action="store_true",
+        help="Record renderings of experiment episodes."
+    )
+    parser.add_argument(
+        "--root_save_dir", type=str, default=None,
+        help=(
+            "Optional directory to save results in. If supplied then it must "
+            "be an existing directory. If None uses default "
+            "~/baposgmcp_results/<env_id>/ dir as root results dir."
+        )
+    )
+    return parser
+
+
+def env_renderer_fn() -> Sequence[Renderer]:
+    """Get environment renderer."""
+    return [EpisodeRenderer()]
+
+
+def get_pairwise_exp_params(env_id: str,
                             policy_params: List[List[PolicyParams]],
                             init_seed: int,
                             num_seeds: int,
@@ -19,15 +74,14 @@ def get_pairwise_exp_params(env_name: str,
                             tracker_fn: Optional = None,
                             tracker_fn_kwargs: Optional[Dict] = None,
                             renderer_fn: Optional = None,
-                            record_env: bool = True,
+                            record_env: bool = False,
                             **kwargs) -> List[ExpParams]:
     """Get params for individual experiments from high level parameters.
 
-    - Assumes that the environment is symmetric.
     - Will create an experiment for every possible pairing of policies.
     """
     assert isinstance(policy_params[0], list)
-    env = posggym.make(env_name)
+    env = posggym.make(env_id)
     episode_step_limit = env.spec.max_episode_steps
 
     exp_params_list = []
@@ -38,7 +92,7 @@ def get_pairwise_exp_params(env_name: str,
 
         exp_params = ExpParams(
             exp_id=exp_id_init+i,
-            env_name=env_name,
+            env_id=env_id,
             policy_params_list=policies,
             discount=discount,
             seed=init_seed + exp_seed,

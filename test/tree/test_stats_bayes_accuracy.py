@@ -29,8 +29,8 @@ def test_bayes_accuracy_deterministic():
     The accuracy should go to 100% very fast, given enough simulations are
     used.
     """
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 100
 
     # Opponent always plays first action "ROCK"
@@ -60,8 +60,8 @@ def test_bayes_accuracy_stochastic_uniform():
     then BAPOSMGPC would put all probability in one policy based on the first
     observation.
     """
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 100
 
     # Opponent always plays uniform random
@@ -94,8 +94,8 @@ def test_bayes_accuracy_stochastic_biased():
     Here we give BAPOSGMCP three stochastic policies for the opponent, each
     with a strong bias towards one of the three actions.
     """
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 10
 
     # Opponent always plays biased towards "ROCK" policy

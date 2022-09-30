@@ -7,7 +7,7 @@ import baposgmcp.baselines as baseline_lib
 from baposgmcp.run.render import EpisodeRenderer
 
 
-ENV_NAME = "Driving14x14WideRoundAbout-n2-v0"
+ENV_ID = "Driving14x14WideRoundAbout-n2-v0"
 DISCOUNT = 0.99
 BAPOSGMCP_AGENT_ID = 0
 OTHER_AGENT_ID = 1
@@ -29,7 +29,7 @@ BAPOSGMCP_KWARGS = {
 
 def get_policy_ids(seed: int, min_k: int = 0, max_k: int = 4) -> List[str]:  # noqa
     return [
-        f"{ENV_NAME}/klr_k{k}_seed{seed}-v0" for k in range(min_k, max_k+1)
+        f"{ENV_ID}/klr_k{k}_seed{seed}-v0" for k in range(min_k, max_k+1)
     ]
 
 
@@ -42,8 +42,8 @@ def get_policy_prior(seed: int, max_k: int):   # noqa
 
 def get_meta_policy(seed: int, max_k: int):   # noqa
     return {
-        (-1, f"{ENV_NAME}/klr_k{k}_seed{seed}-v0",): {
-            f"{ENV_NAME}/klr_k{k+1}_seed{seed}-v0": 1.0
+        (-1, f"{ENV_ID}/klr_k{k}_seed{seed}-v0",): {
+            f"{ENV_ID}/klr_k{k+1}_seed{seed}-v0": 1.0
         }
         for k in range(MIN_K, max_k)
     }
@@ -80,7 +80,7 @@ def main(args):   # noqa
     other_params = run_lib.load_posggym_agent_params(other_policy_ids)
 
     exp_params_list = run_lib.get_baposgmcp_exp_params(
-        ENV_NAME,
+        ENV_ID,
         baposgmcp_params,
         [other_params],
         discount=DISCOUNT,
@@ -92,7 +92,7 @@ def main(args):   # noqa
         baseline_params = get_baselines(args, policy_prior, meta_policy_dict)
 
         baseline_exp_params_list = run_lib.get_pairwise_exp_params(
-            ENV_NAME,
+            ENV_ID,
             [baseline_params, other_params],
             discount=DISCOUNT,
             exp_id_init=exp_params_list[-1].exp_id+1,
@@ -108,7 +108,7 @@ def main(args):   # noqa
     exp_name = f"baposgmcp_klr{exp_str}_{seed_str}"
 
     exp_args = vars(args)
-    exp_args["env_name"] = ENV_NAME
+    exp_args["env_id"] = ENV_ID
     exp_args["discount"] = DISCOUNT
     exp_args["policy_prior"] = policy_prior
     exp_args["meta_policy"] = meta_policy_dict

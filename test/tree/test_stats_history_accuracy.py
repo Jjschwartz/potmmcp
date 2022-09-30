@@ -32,8 +32,8 @@ def test_history_accuracy_fully_obs():
     In RPS agents observe each others actions and so the history is fully
     observed, hence the accuracy should be 100%.
     """
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 10
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
@@ -56,8 +56,8 @@ def test_history_accuracy_small():
 
     Here we'd expect the accuracy to decrease over time.
     """
-    env_name = "TwoPaths4x4-v0"
-    env = posggym.make(env_name)
+    env_id = "TwoPaths4x4-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 20
 
     agent_0_policy = test_utils.get_random_policy(env, 0)

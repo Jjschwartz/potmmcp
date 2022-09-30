@@ -32,8 +32,8 @@ def test_action_dist_distance_single_policy():
     In this case the BAPOSGMCP other agent policy matches exactly the true
     other agent policy so the distance should be 0.0 for all steps.
     """
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 10
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
@@ -57,8 +57,8 @@ def test_action_dist_distance_rps_deterministic():
     The distance should go to 0.0 very fast (actually after a single
     observation).
     """
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 20
 
     # Opponent always plays first action "ROCK"
@@ -91,8 +91,8 @@ def test_action_dist_distance_rps_stochastic_biased():
     BAPOSGMCP agent, the distance should drop to 0.0, but it will take more
     steps.
     """
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 100
 
     agent_0_policy = test_utils.get_biased_policies(env, 0, 0.3)["pi_0"]
@@ -123,8 +123,8 @@ def test_action_dist_distance_rps_stochastic_biased2():
     but it should happen slower or not at all.
 
     """
-    env_name = "RockPaperScissors-v0"
-    env = posggym.make(env_name)
+    env_id = "RockPaperScissors-v0"
+    env = posggym.make(env_id)
     rps_step_limit = 10
 
     # Opponent always plays biased towards "ROCK" policy

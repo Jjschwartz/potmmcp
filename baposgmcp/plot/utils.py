@@ -117,7 +117,7 @@ def import_results(result_file: str,
     return df
 
 
-def plot_environment(env_name: str):
+def plot_environment(env_id: str):
     """Display rendering of the environment."""
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(12, 8))
 
@@ -127,7 +127,7 @@ def plot_environment(env_name: str):
     ax.set_xticklabels([])
     ax.set_yticklabels([])
 
-    env = posggym.make(env_name)
+    env = posggym.make(env_id)
     env_img, _ = env.render(mode='rgb_array')
 
     imshow_obj = ax.imshow(
@@ -135,7 +135,7 @@ def plot_environment(env_name: str):
     )
     imshow_obj.set_data(env_img)
 
-    ax.set_title(env_name)
+    ax.set_title(env_id)
 
 
 def filter_by(df: pd.DataFrame,

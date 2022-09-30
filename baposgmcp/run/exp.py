@@ -5,7 +5,6 @@ import time
 import random
 import logging
 import pathlib
-import argparse
 import tempfile
 from pprint import pformat
 import multiprocessing as mp
@@ -67,7 +66,7 @@ class PolicyParams(NamedTuple):
 class ExpParams(NamedTuple):
     """Params for a single experiment run."""
     exp_id: int
-    env_name: str
+    env_id: str
     policy_params_list: List[PolicyParams]
     # Used for tracking discounted return
     discount: float
@@ -90,44 +89,13 @@ class ExpParams(NamedTuple):
     file_log_level: int = logging.DEBUG
 
 
-def get_exp_parser() -> argparse.ArgumentParser:
-    """Get command line argument parser with default experiment args."""
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument(
-        "--n_procs", type=int, default=1,
-        help="Number of processors/experiments to run in parallel."
-    )
-    parser.add_argument(
-        "--log_level", type=int, default=21,
-        help="Experiment log level."
-    )
-    parser.add_argument(
-        "--using_ray", action="store_true",
-        help=(
-            "Whether experiment is using ray. This should be set for all "
-            "experiments that use ray."
-        )
-    )
-    parser.add_argument(
-        "--root_save_dir", type=str, default=None,
-        help=(
-            "Optional directory to save results in. If supplied then it must "
-            "be an existing directory. If None uses default "
-            "~/baposgmcp_results/<env_name>/ dir as root results dir."
-        )
-    )
-    return parser
-
-
 def make_exp_result_dir(exp_name: str,
-                        env_name: str,
+                        env_id: str,
                         root_save_dir: Optional[str] = None) -> str:
     """Make a directory for experiment results."""
     time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
     if root_save_dir is None:
-        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_name)
+        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_id)
     pathlib.Path(root_save_dir).mkdir(parents=True, exist_ok=True)
     result_dir = tempfile.mkdtemp(
         prefix=f"{exp_name}_{time_str}", dir=root_save_dir
@@ -217,7 +185,7 @@ def _get_param_statistics(params: ExpParams
         stats[i] = {
             "exp_id": params.exp_id,
             "agent_id": i,
-            "env_name": params.env_name,
+            "env_id": params.env_id,
             "exp_seed": params.seed,
             "num_episodes": params.num_episodes,
             "time_limit": params.time_limit if params.time_limit else "None",
@@ -248,7 +216,7 @@ def _get_linear_episode_trigger(freq: int) -> Callable[[int], bool]:
 
 
 def _make_env(params: ExpParams, result_dir: str) -> posggym.Env:
-    env = posggym.make(params.env_name, **{"seed": params.seed})
+    env = posggym.make(params.env_id, **{"seed": params.seed})
     if params.record_env:
         video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
         if params.record_env_freq:
@@ -335,7 +303,8 @@ def run_experiments(exp_name: str,
                     n_procs: Optional[int] = None,
                     using_ray: bool = False,
                     exp_args: Optional[Dict] = None,
-                    root_save_dir: Optional[str] = None) -> str:
+                    root_save_dir: Optional[str] = None,
+                    run_exp_id: Optional[int] = None) -> str:
     """Run series of experiments.
 
     If exp_args is not None then will write to file in the result dir.
@@ -348,10 +317,19 @@ def run_experiments(exp_name: str,
     )
 
     num_exps = len(exp_params_list)
-    logging.log(exp_log_level, "Running %d experiments", num_exps)
+    if run_exp_id is not None:
+        logging.log(
+            exp_log_level,
+            "Running experiment %d of %d experiments",
+            run_exp_id,
+            num_exps
+        )
+        exp_params_list = [exp_params_list[run_exp_id]]
+    else:
+        logging.log(exp_log_level, "Running %d experiments", num_exps)
 
     result_dir = make_exp_result_dir(
-        exp_name, exp_params_list[0].env_name, root_save_dir
+        exp_name, exp_params_list[0].env_id, root_save_dir
     )
     logging.log(exp_log_level, "Saving results to dir=%s", result_dir)
 
@@ -363,7 +341,6 @@ def run_experiments(exp_name: str,
 
     if n_procs is None:
         n_procs = os.cpu_count()
-    logging.log(exp_log_level, "Running %d processes", n_procs)
 
     mp_lock = mp.Lock()
 
@@ -375,11 +352,13 @@ def run_experiments(exp_name: str,
             logging.log(exp_log_level, "Initializing ray")
             ray.init(num_cpus=1, include_dashboard=False)
 
-    if n_procs == 1:
+    if n_procs == 1 or run_exp_id is not None or len(exp_params_list) <= 1:
+        logging.log(exp_log_level, "Running on single process")
         _initializer(mp_lock)
         for params in exp_params_list:
             run_single_experiment((params, result_dir))
     else:
+        logging.log(exp_log_level, "Running %d processes", n_procs)
         args_list = [(params, result_dir) for params in exp_params_list]
         with mp.Pool(
                 n_procs, initializer=_initializer, initargs=(mp_lock,)

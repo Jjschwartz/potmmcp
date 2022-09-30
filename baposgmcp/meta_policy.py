@@ -97,12 +97,20 @@ class SingleMetaPolicy(MetaPolicy):
                  ego_agent: M.AgentID,
                  ego_policies: P.PolicyMap):
         super().__init__(model, ego_agent, ego_policies)
-        assert len(ego_policies) == 0
+        assert len(ego_policies) == 1
         self._policy_id = list(ego_policies.keys())[0]
         self._policy = ego_policies[self._policy_id]
 
     def get_policy_dist(self, policy_state: P.PolicyState) -> P.PolicyDist:
         return {self._policy_id: 1.0}
+
+    @staticmethod
+    def load_possgym_agents_meta_policy(model: M.POSGModel,
+                                        agent_id: M.AgentID,
+                                        policy_id: str) -> MetaPolicy:
+        import posggym_agents
+        policies = {policy_id: posggym_agents.make(policy_id, model, agent_id)}
+        return SingleMetaPolicy(model, agent_id, policies)
 
 
 class UniformMetaPolicy(MetaPolicy):
@@ -151,9 +159,7 @@ class DictMetaPolicy(MetaPolicy):
         policies = {
             id: posggym_agents.make(id, model, agent_id) for id in policy_ids
         }
-        return DictMetaPolicy(
-            model, agent_id, policies, meta_policy_dict
-        )
+        return DictMetaPolicy(model, agent_id, policies, meta_policy_dict)
 
 
 def get_greedy_policy_dict(pairwise_returns: Dict[

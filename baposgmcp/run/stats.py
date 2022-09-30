@@ -72,6 +72,39 @@ def get_default_trackers(num_agents: int,
     ]
 
 
+def belief_tracker_fn(kwargs) -> Sequence['Tracker']:
+    """Get trackers for BAPOSGMCP experiment that track beliefs + defaults.
+
+    Only includes tracking of Bayes accuracy (i.e. belief accuracy of other
+    agent policy) and Action Distribution Distance.
+
+    Doesn't track history or state belief accuracy since these can be expensive
+    to compute and typically have low accuracy by default due to their
+    combinatorial nature.
+
+    Required kwargs
+    ---------------
+    num_agents : int
+    discount : float
+    step_limit : int
+
+    """
+    num_agents = kwargs["num_agents"]
+    discount = kwargs["discount"]
+
+    trackers = get_default_trackers(num_agents, discount)
+
+    tracker_kwargs = {
+        "num_agents": num_agents,
+        # only track per step if step limit is provided
+        "track_per_step": kwargs["step_limit"] is not None,
+        "step_limit": kwargs["step_limit"]
+    }
+    trackers.append(BayesAccuracyTracker(**tracker_kwargs))
+    trackers.append(ActionDistributionDistanceTracker(**tracker_kwargs))
+    return trackers
+
+
 class Tracker(abc.ABC):
     """Generic Tracker Base class."""
 
