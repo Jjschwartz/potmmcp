@@ -140,7 +140,8 @@ def get_fixed_baposgmcps():   # noqa
             variable_params=variable_params,
             fixed_policy_ids=POLICY_IDS,
             baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-            other_policy_dist=POLICY_PRIOR_MAP
+            other_policy_dist=POLICY_PRIOR_MAP,
+            base_policy_id="baposgmcp_fixed"
         )
     )
     return baposgmcp_params
