@@ -37,14 +37,19 @@ def format_as_table(values: AgentStatisticsMap) -> str:
 def compile_result_files(save_dir: str,
                          result_filepaths: List[str],
                          extra_output_dir: Optional[str] = None,
-                         compiled_results_filename: Optional[str] = None
+                         compiled_results_filename: Optional[str] = None,
+                         verbose: bool = True
                          ) -> str:
     """Compile list of results files into a single file."""
     if not compiled_results_filename:
         compiled_results_filename = COMPILED_RESULTS_FNAME
     concat_resultspath = os.path.join(save_dir, compiled_results_filename)
 
-    dfs = list(map(pd.read_csv, result_filepaths))
+    num_files = len(result_filepaths)
+    if verbose:
+        print(f"Loading and concatting {num_files} files")
+
+    concat_df = pd.read_csv(result_filepaths[0])
 
     def do_concat_df(df0, df1):
         exp_ids0 = df0["exp_id"].unique().tolist()
@@ -53,9 +58,22 @@ def compile_result_files(save_dir: str,
             df1["exp_id"] += max(exp_ids0) + 1
         return pd.concat([df0, df1], ignore_index=True)
 
-    concat_df = dfs[0]
-    for df_i in dfs[1:]:
-        concat_df = do_concat_df(concat_df, df_i)
+    def read_and_concat(concat_df, filepath):
+        df_new = pd.read_csv(filepath)
+        return do_concat_df(concat_df, df_new)
+
+    for i, p in enumerate(result_filepaths[1:]):
+        concat_df = read_and_concat(concat_df, p)
+
+        if (
+            num_files > 10
+            and verbose
+            and (i > 0 and i % (num_files // 10) == 0)
+        ):
+            print(f"{i}/{num_files} processed")
+
+    if verbose:
+        print(f"Writing compiled results to files: {concat_resultspath}")
 
     concat_df.to_csv(concat_resultspath)
 

@@ -19,7 +19,8 @@ def _main(args):
     result_filepath = compile_result_files(
         parent_dir,
         result_filepaths,
-        compiled_results_filename="compiled_episode_results.csv"
+        compiled_results_filename="compiled_episode_results.csv",
+        verbose=True
     )
     print(f"Results compiled. Results file={result_filepath}")
 
