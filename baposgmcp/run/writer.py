@@ -2,6 +2,8 @@ import os
 import abc
 import csv
 import json
+import math
+import multiprocessing as mp
 from typing import Sequence, Optional, Any, List, Dict
 
 import pandas as pd
@@ -34,11 +36,35 @@ def format_as_table(values: AgentStatisticsMap) -> str:
     return table.get_string()
 
 
+def _do_concat_df(df0, df1):
+    exp_ids0 = df0["exp_id"].unique().tolist()
+    exp_ids1 = df1["exp_id"].unique().tolist()
+    if len(set(exp_ids0).intersection(exp_ids1)) > 0:
+        df1["exp_id"] += max(exp_ids0) + 1
+    return pd.concat([df0, df1], ignore_index=True)
+
+
+def _read_and_concat(concat_df, filepath):
+    df_new = pd.read_csv(filepath)
+    return _do_concat_df(concat_df, df_new)
+
+
+def _read_and_concat_multiple_files(filepaths):
+    num_files = len(filepaths)
+    main_df = pd.read_csv(filepaths[0])
+    for i, p in enumerate(filepaths[1:]):
+        main_df = _read_and_concat(main_df, p)
+        if num_files > 10 and (i > 0 and i % (num_files // 10) == 0):
+            print(f"[pid={os.getpid()}] {i}/{num_files} processed")
+    return main_df
+
+
 def compile_result_files(save_dir: str,
                          result_filepaths: List[str],
                          extra_output_dir: Optional[str] = None,
                          compiled_results_filename: Optional[str] = None,
-                         verbose: bool = True
+                         verbose: bool = True,
+                         n_procs: int = 1,
                          ) -> str:
     """Compile list of results files into a single file."""
     if not compiled_results_filename:
@@ -49,28 +75,26 @@ def compile_result_files(save_dir: str,
     if verbose:
         print(f"Loading and concatting {num_files} files")
 
-    concat_df = pd.read_csv(result_filepaths[0])
+    if n_procs == 1:
+        concat_df = _read_and_concat_multiple_files(result_filepaths)
+    else:
+        if verbose:
+            print(f"Compiling using {n_procs}")
 
-    def do_concat_df(df0, df1):
-        exp_ids0 = df0["exp_id"].unique().tolist()
-        exp_ids1 = df1["exp_id"].unique().tolist()
-        if len(set(exp_ids0).intersection(exp_ids1)) > 0:
-            df1["exp_id"] += max(exp_ids0) + 1
-        return pd.concat([df0, df1], ignore_index=True)
+        chunk_size = math.ceil(num_files / n_procs)
+        chunks = [
+            result_filepaths[i*chunk_size:(i+1)*chunk_size]
+            for i in range(n_procs)
+        ]
+        with mp.Pool(n_procs) as pool:
+            chunk_dfs = pool.map(_read_and_concat_multiple_files, chunks)
 
-    def read_and_concat(concat_df, filepath):
-        df_new = pd.read_csv(filepath)
-        return do_concat_df(concat_df, df_new)
+        if verbose:
+            print("Concatting chunks")
 
-    for i, p in enumerate(result_filepaths[1:]):
-        concat_df = read_and_concat(concat_df, p)
-
-        if (
-            num_files > 10
-            and verbose
-            and (i > 0 and i % (num_files // 10) == 0)
-        ):
-            print(f"{i}/{num_files} processed")
+        concat_df = chunk_dfs[0]
+        for df in chunk_dfs:
+            concat_df = _do_concat_df(concat_df, df)
 
     if verbose:
         print(f"Writing compiled results to files: {concat_resultspath}")

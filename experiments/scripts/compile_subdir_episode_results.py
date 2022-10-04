@@ -20,7 +20,8 @@ def _main(args):
         parent_dir,
         result_filepaths,
         compiled_results_filename="compiled_episode_results.csv",
-        verbose=True
+        verbose=True,
+        n_procs=args.n_procs
     )
     print(f"Results compiled. Results file={result_filepath}")
 
@@ -33,4 +34,5 @@ if __name__ == "__main__":
         "parent_dirpath", type=str,
         help="Path to parent directory."
     )
+    parser.add_argument("--n_procs", type=int, default=1)
     _main(parser.parse_args())
