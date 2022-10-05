@@ -91,7 +91,32 @@ def get_baselines():   # noqa
                 variable_params=variable_params,
                 baposgmcp_kwargs=BAPOSGMCP_KWARGS,
                 other_policy_dist=POLICY_PRIOR_MAP,
-                meta_policy_dict=GREEDY_META_POLICY_MAP,
+                meta_policy_dict=meta_policy_map,
+                policy_id_suffix=name
+            )
+        )
+
+    return baseline_params
+
+
+def get_baselines2():   # noqa
+    # baselines I didn't run last time :(
+    variable_params = {
+        "num_sims": NUM_SIMS,
+        "action_selection": ["pucb", "ucb", "uniform"]
+    }
+
+    baseline_params = []
+    for (name, meta_policy_map) in [
+            ("softmax", SOFTMAX_META_POLICY_MAP),
+            ("uniform", UNIFORM_META_POLICY_MAP)
+    ]:
+        baseline_params.extend(
+            baseline_lib.load_all_baselines(
+                variable_params=variable_params,
+                baposgmcp_kwargs=BAPOSGMCP_KWARGS,
+                other_policy_dist=POLICY_PRIOR_MAP,
+                meta_policy_dict=meta_policy_map,
                 policy_id_suffix=name
             )
         )
