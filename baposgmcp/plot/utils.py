@@ -117,9 +117,9 @@ def import_results(result_file: str,
     return df
 
 
-def plot_environment(env_id: str):
+def plot_environment(env_id: str, figsize=None):
     """Display rendering of the environment."""
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(12, 8))
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize)
 
     # Turn off x/y axis numbering/ticks
     ax.xaxis.set_ticks_position('none')
@@ -128,14 +128,21 @@ def plot_environment(env_id: str):
     ax.set_yticklabels([])
 
     env = posggym.make(env_id)
-    env_img, _ = env.render(mode='rgb_array')
+    env_img = env.render(mode='rgb_array')
+
+    if isinstance(env_img, tuple):
+        # render returns img for each agent
+        # env img is 0th by default
+        env_img = env_img[0]
 
     imshow_obj = ax.imshow(
         env_img, interpolation='bilinear', origin='upper'
     )
     imshow_obj.set_data(env_img)
 
-    ax.set_title(env_id)
+    env.close()
+
+    return fig, ax
 
 
 def filter_by(df: pd.DataFrame,
