@@ -158,7 +158,7 @@ def main(results_filepath):   # noqa
     output_filename = f"aggregated_results_{time_str}.csv"
     output_filepath = osp.join(results_dir, output_filename)
     print(f"Saving aggregated results to file '{output_filepath}'")
-    compiled_df.to_csv(output_filepath)
+    compiled_df.to_csv(output_filepath, index=False)
 
 
 if __name__ == "__main__":
