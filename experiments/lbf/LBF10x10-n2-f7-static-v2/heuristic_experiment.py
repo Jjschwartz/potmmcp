@@ -179,9 +179,10 @@ def main(args):   # noqa
     print("== Creating Experiments ==")
     other_params = run_lib.load_posggym_agent_params(POLICY_IDS)
 
-    policy_params = get_baposgmcps()
-    policy_params.extend(get_baselines())
-    policy_params.extend(get_fixed_baposgmcps())
+    # policy_params = get_baposgmcps()
+    # policy_params.extend(get_baselines())
+    # policy_params.extend(get_fixed_baposgmcps())
+    policy_params = get_baselines2()
 
     exp_params_list = run_lib.get_pairwise_exp_params(
         ENV_ID,
