@@ -1,5 +1,5 @@
-from typing import List, Optional, Tuple
 from itertools import permutations, product
+from typing import List, Optional, Tuple, Dict
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,10 +11,14 @@ from baposgmcp.plot.utils import filter_exps_by, filter_by
 def get_pairwise_values(plot_df,
                         y_key: str,
                         policy_key: str,
+                        policies: Optional[List[str]] = None,
                         coplayer_policies: Optional[List[str]] = None,
                         average_duplicates: bool = True,
                         duplicate_warning: bool = False):
     """Get values for each policy pairing."""
+    if policies:
+        plot_df = plot_df[plot_df["policy_id"].isin(policies)]
+
     policies = plot_df[policy_key].unique().tolist()
     policies.sort()
 
@@ -45,7 +49,9 @@ def plot_pairwise_comparison(plot_df,
                              vrange=None,
                              figsize=(20, 20),
                              valfmt=None,
+                             policies: Optional[List[str]] = None,
                              coplayer_policies: Optional[List[str]] = None,
+                             policy_labels: Optional[Dict[str, str]] = None,
                              average_duplicates: bool = True,
                              duplicate_warning: bool = False):
     """Plot results for each policy pairings.
@@ -81,14 +87,22 @@ def plot_pairwise_comparison(plot_df,
         plot_df,
         y_key,
         policy_key,
+        policies=policies,
         coplayer_policies=coplayer_policies,
         average_duplicates=average_duplicates,
         duplicate_warning=duplicate_warning
     )
 
+    if policy_labels:
+        row_policy_labels = [policy_labels[k] for k in row_policies]
+        col_policy_labels = [policy_labels[k] for k in col_policies]
+    else:
+        row_policy_labels = row_policies
+        col_policy_labels = col_policies
+
     plot_pairwise_heatmap(
         axs[0][0],
-        (row_policies, col_policies),
+        (row_policy_labels, col_policy_labels),
         pw_values,
         title=None,
         vrange=vrange,
@@ -100,6 +114,7 @@ def plot_pairwise_comparison(plot_df,
             plot_df,
             y_err_key,
             policy_key,
+            policies=policies,
             coplayer_policies=coplayer_policies,
             average_duplicates=average_duplicates,
             duplicate_warning=duplicate_warning
@@ -107,13 +122,14 @@ def plot_pairwise_comparison(plot_df,
 
         plot_pairwise_heatmap(
             axs[0][1],
-            (row_policies, col_policies),
+            (row_policy_labels, col_policy_labels),
             pw_err_values,
             title=None,
             vrange=None,
             valfmt=valfmt
         )
         fig.tight_layout()
+    return fig, axs
 
 
 def plot_pairwise_population_comparison(plot_df,
