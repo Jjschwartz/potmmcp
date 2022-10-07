@@ -54,8 +54,8 @@ def _read_and_concat_multiple_files(filepaths):
     main_df = pd.read_csv(filepaths[0])
     for i, p in enumerate(filepaths[1:]):
         main_df = _read_and_concat(main_df, p)
-        if num_files > 10 and (i > 0 and i % (num_files // 10) == 0):
-            print(f"[pid={os.getpid()}] {i}/{num_files} processed")
+        if num_files > 10 and (i+1 > 0 and i % (num_files // 10) == 0):
+            print(f"[pid={os.getpid()}] {i+1}/{num_files} processed")
     return main_df
 
 
@@ -93,7 +93,7 @@ def compile_result_files(save_dir: str,
             print("Concatting chunks")
 
         concat_df = chunk_dfs[0]
-        for df in chunk_dfs:
+        for df in chunk_dfs[1:]:
             concat_df = _do_concat_df(concat_df, df)
 
     if verbose:
