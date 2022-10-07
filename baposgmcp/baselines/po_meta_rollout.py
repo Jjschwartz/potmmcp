@@ -1,6 +1,6 @@
 import copy
 from itertools import product
-from typing import Tuple, List, Dict, Optional
+from typing import Tuple, List, Dict
 
 import posggym.model as M
 

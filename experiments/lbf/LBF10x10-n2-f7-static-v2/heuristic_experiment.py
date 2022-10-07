@@ -69,7 +69,7 @@ BAPOSGMCP_KWARGS = {
     "root_exploration_fraction": 0.5,
     "known_bounds": None,
     "extra_particles_prop": 1.0 / 16,
-    "step_limit": 50,
+    "step_limit": ENV_STEP_LIMIT,
     "epsilon": 0.01
 }
 
@@ -198,7 +198,6 @@ def main(args):   # noqa
         root_save_dir=args.root_save_dir,
         run_exp_id=args.run_exp_id
     )
-
     print("== All done ==")
 
 
