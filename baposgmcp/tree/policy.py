@@ -686,7 +686,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             return random.choice(self.action_space)
 
         max_actions = []
-        max_value = 0
+        max_value = -float("inf")
         for a_node in obs_node.children:
             if a_node.value == max_value:
                 max_actions.append(a_node.action)
