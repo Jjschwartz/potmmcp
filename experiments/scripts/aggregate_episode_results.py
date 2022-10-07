@@ -132,19 +132,19 @@ def main(results_filepath):   # noqa
         if k in columns:
             agg_dict[k] = pd.NamedAgg(column=k, aggfunc="min")
         else:
-            print("fColumnn {k} missing")
+            print(f"Columnn {k} missing")
 
     for k in constants:
         if k in columns:
             agg_dict[k] = pd.NamedAgg(column=k, aggfunc="first")
         else:
-            print("fColumnn {k} missing")
+            print(f"Columnn {k} missing")
 
     for k in sum_keys:
         if k in columns:
             agg_dict[f"num_{k}"] = pd.NamedAgg(column=k, aggfunc="sum")
         else:
-            print("fColumnn {k} missing")
+            print(f"Columnn {k} missing")
 
     for k in mean_keys:
         if k in columns:
@@ -153,7 +153,7 @@ def main(results_filepath):   # noqa
             agg_dict[f"{k}_min"] = pd.NamedAgg(column=k, aggfunc="min")
             agg_dict[f"{k}_max"] = pd.NamedAgg(column=k, aggfunc="max")
         else:
-            print("fColumnn {k} missing")
+            print(f"Columnn {k} missing")
 
     for k in belief_stat_keys:
         if k in columns:
@@ -163,7 +163,7 @@ def main(results_filepath):   # noqa
             # based on step number
             agg_dict[f"{k}_n"] = pd.NamedAgg(column=k, aggfunc="count")
         else:
-            print("fColumnn {k} missing")
+            print(f"Columnn {k} missing")
 
     print("Aggregating data")
     gb_agg = gb.agg(**agg_dict)
