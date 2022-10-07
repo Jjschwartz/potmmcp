@@ -211,7 +211,10 @@ def main(args):   # noqa
     pprint(vars(args))
 
     print("== Creating Experiments ==")
-    other_params = run_lib.load_posggym_agent_params(list(POLICY_PRIOR_MAP))
+    other_params = run_lib.load_posggym_agent_params(
+        list(POLICY_PRIOR_MAP[OTHER_AGENT_ID])
+    )
+    assert len(other_params) == len(POLICY_PRIOR_MAP[OTHER_AGENT_ID])
 
     policy_params = get_baposgmcps()
     policy_params.extend(get_baselines())
