@@ -51,7 +51,6 @@ replaced = [
 
 # take first value in grouped df
 first_keys = [
-    "Unnamed: 0",
     "exp_id",
     "exp_seed",
 ]
@@ -126,29 +125,45 @@ def main(results_filepath):   # noqa
     print("Grouping data")
     # group by and then aggregate
     gb = ep_df.groupby(group_keys)
+    columns = set(list(ep_df.columns))
 
     agg_dict = {}
     for k in first_keys:
-        agg_dict[k] = pd.NamedAgg(column=k, aggfunc="min")
+        if k in columns:
+            agg_dict[k] = pd.NamedAgg(column=k, aggfunc="min")
+        else:
+            print("fColumnn {k} missing")
 
     for k in constants:
-        agg_dict[k] = pd.NamedAgg(column=k, aggfunc="first")
+        if k in columns:
+            agg_dict[k] = pd.NamedAgg(column=k, aggfunc="first")
+        else:
+            print("fColumnn {k} missing")
 
     for k in sum_keys:
-        agg_dict[f"num_{k}"] = pd.NamedAgg(column=k, aggfunc="sum")
+        if k in columns:
+            agg_dict[f"num_{k}"] = pd.NamedAgg(column=k, aggfunc="sum")
+        else:
+            print("fColumnn {k} missing")
 
     for k in mean_keys:
-        agg_dict[f"{k}_mean"] = pd.NamedAgg(column=k, aggfunc="mean")
-        agg_dict[f"{k}_std"] = pd.NamedAgg(column=k, aggfunc="std")
-        agg_dict[f"{k}_min"] = pd.NamedAgg(column=k, aggfunc="min")
-        agg_dict[f"{k}_max"] = pd.NamedAgg(column=k, aggfunc="max")
+        if k in columns:
+            agg_dict[f"{k}_mean"] = pd.NamedAgg(column=k, aggfunc="mean")
+            agg_dict[f"{k}_std"] = pd.NamedAgg(column=k, aggfunc="std")
+            agg_dict[f"{k}_min"] = pd.NamedAgg(column=k, aggfunc="min")
+            agg_dict[f"{k}_max"] = pd.NamedAgg(column=k, aggfunc="max")
+        else:
+            print("fColumnn {k} missing")
 
     for k in belief_stat_keys:
-        agg_dict[f"{k}_mean"] = pd.NamedAgg(column=k, aggfunc="mean")
-        agg_dict[f"{k}_std"] = pd.NamedAgg(column=k, aggfunc="std")
-        # get count of non nan values since this varies for belief stats based
-        # on step number
-        agg_dict[f"{k}_n"] = pd.NamedAgg(column=k, aggfunc="count")
+        if k in columns:
+            agg_dict[f"{k}_mean"] = pd.NamedAgg(column=k, aggfunc="mean")
+            agg_dict[f"{k}_std"] = pd.NamedAgg(column=k, aggfunc="std")
+            # get count of non nan values since this varies for belief stats
+            # based on step number
+            agg_dict[f"{k}_n"] = pd.NamedAgg(column=k, aggfunc="count")
+        else:
+            print("fColumnn {k} missing")
 
     print("Aggregating data")
     gb_agg = gb.agg(**agg_dict)
