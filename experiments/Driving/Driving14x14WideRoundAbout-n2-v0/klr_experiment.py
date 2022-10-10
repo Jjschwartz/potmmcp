@@ -114,15 +114,17 @@ def get_meta_policy(seed: int, max_k: int):   # noqa
 def get_baselines():   # noqa
     variable_params = {
         "num_sims": NUM_SIMS,
-        "action_selection": ["pucb", "ucb", "uniform"],
-        "truncated": [True, False]
+        # "action_selection": ["pucb", "ucb", "uniform"],
+        # "truncated": [True, False]
+        "action_selection": ["pucb"],
+        "truncated": [True]
     }
 
     baseline_params = []
     for (name, meta_policy_map) in [
             ("greedy", GREEDY_META_POLICY_MAP),
-            ("softmax", SOFTMAX_META_POLICY_MAP),
-            ("uniform", UNIFORM_META_POLICY_MAP)
+            # ("softmax", SOFTMAX_META_POLICY_MAP),
+            # ("uniform", UNIFORM_META_POLICY_MAP)
     ]:
         baseline_params.extend(
             baseline_lib.load_all_baselines(
@@ -137,11 +139,20 @@ def get_baselines():   # noqa
     # = |metabaseline| + |POMeta| + |POMetaRollout|
     # = (|Meta|) + (|NUM_SIMS| * |Meta|)
     #   + (|NUM_SIMS| * |ACT SEL| * |Truncated| * |Meta|)
+
+    # with truncated and different action selections
     # = (3) + (5 * 3) + (5 * 3 * 2 * 3)
     # = 3 + 15 + 90
     # = 108
+    # assert (
+    #   len(baseline_params) == (3 + (len(NUM_SIMS)*3) + (len(NUM_SIMS)*3*2*3))
+    # )
+
+    # without truncated options and only pucb and greedy meta-pi
+    # = (1) + (5 * 1) + (5 * 1 * 1 * 1)
+    # = 11
     assert (
-        len(baseline_params) == (3 + (len(NUM_SIMS)*3) + (len(NUM_SIMS)*3*2*3))
+        len(baseline_params) == (1 + (len(NUM_SIMS)*1) + (len(NUM_SIMS)*1*1*1))
     )
     return baseline_params
 
@@ -149,8 +160,10 @@ def get_baselines():   # noqa
 def get_baposgmcps():   # noqa
     variable_params = {
         "num_sims": NUM_SIMS,
-        "action_selection": ["pucb", "ucb", "uniform"],
-        "truncated": [True, False]
+        # "action_selection": ["pucb", "ucb", "uniform"],
+        # "truncated": [True, False]
+        "action_selection": ["pucb"],
+        "truncated": [True]
     }
 
     baposgmcp_params = []
@@ -170,17 +183,26 @@ def get_baposgmcps():   # noqa
         )
     # NUM Exps:
     # = |NUM_SIMS| * |ACT SEL| * |Truncated| * |Meta|
+
+    # With truncated/not and all act selection options
     # = 5 * 3 * 2 * 3
     # = 90
-    assert len(baposgmcp_params) == (len(NUM_SIMS)*3*2*3)
+    # assert len(baposgmcp_params) == (len(NUM_SIMS)*3*2*3)
+
+    # With truncated and PUCB
+    # = 5 * 1 * 1 * 3
+    # = 15
+    assert len(baposgmcp_params) == (len(NUM_SIMS)*1*1*3)
     return baposgmcp_params
 
 
 def get_fixed_baposgmcps():   # noqa
     variable_params = {
         "num_sims": NUM_SIMS,
-        "action_selection": ["pucb", "ucb", "uniform"],
-        "truncated": [True, False]
+        # "action_selection": ["pucb", "ucb", "uniform"],
+        # "truncated": [True, False]
+        "action_selection": ["pucb"],
+        "truncated": [True]
     }
 
     baposgmcp_params = baseline_lib.load_random_baposgmcp_params(
@@ -200,9 +222,16 @@ def get_fixed_baposgmcps():   # noqa
     )
     # NUM Exps:
     # = |NUM_SIMS| * |ACT SEL| * |Truncated| * (|PIS| + 1)
+
+    # With truncated/not and all act selection options
     # = 5 * 3 * 2 * (5 + 1)
     # = 180
-    assert len(baposgmcp_params) == (len(NUM_SIMS)*3*2*(len(POLICY_IDS)+1))
+    # assert len(baposgmcp_params) == (len(NUM_SIMS)*3*2*(len(POLICY_IDS)+1))
+
+    # With truncated and PUCB
+    # = 5 * 1 * 1 * (5 + 1)
+    # = 30
+    assert len(baposgmcp_params) == (len(NUM_SIMS)*1*1*(len(POLICY_IDS)+1))
     return baposgmcp_params
 
 
