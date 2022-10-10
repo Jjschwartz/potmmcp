@@ -89,27 +89,6 @@ BAPOSGMCP_KWARGS = {
     "epsilon": 0.01
 }
 
-def get_policy_ids(seed: int, min_k: int = 0, max_k: int = 4) -> List[str]:  # noqa
-    return [
-        f"{ENV_ID}/klr_k{k}_seed{seed}-v0" for k in range(min_k, max_k+1)
-    ]
-
-
-def get_policy_prior(seed: int, max_k: int):   # noqa
-    policy_ids = get_policy_ids(seed, min_k=MIN_K, max_k=max_k-1)
-    return {OTHER_AGENT_ID: {
-        pi_id: 1.0 / len(policy_ids) for pi_id in policy_ids
-    }}
-
-
-def get_meta_policy(seed: int, max_k: int):   # noqa
-    return {
-        (-1, f"{ENV_ID}/klr_k{k}_seed{seed}-v0",): {
-            f"{ENV_ID}/klr_k{k+1}_seed{seed}-v0": 1.0
-        }
-        for k in range(MIN_K, max_k)
-    }
-
 
 def get_baselines():   # noqa
     variable_params = {
