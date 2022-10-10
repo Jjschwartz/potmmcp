@@ -10,26 +10,25 @@ from baposgmcp.plot.utils import filter_exps_by, filter_by
 
 def get_pairwise_values(plot_df,
                         y_key: str,
-                        policy_key: str,
+                        policy_key: str = "policy_id",
+                        coplayer_policy_key: str = "coplayer_policy_id",
                         policies: Optional[List[str]] = None,
                         coplayer_policies: Optional[List[str]] = None,
                         average_duplicates: bool = True,
                         duplicate_warning: bool = False):
     """Get values for each policy pairing."""
     if policies:
-        plot_df = plot_df[plot_df["policy_id"].isin(policies)]
+        plot_df = plot_df[plot_df[policy_key].isin(policies)]
 
     policies = plot_df[policy_key].unique().tolist()
     policies.sort()
 
     if coplayer_policies is None:
-        coplayer_policies = policies
+        coplayer_policies = plot_df[coplayer_policy_key].unique().tolist()
+        coplayer_policies.sort()
 
-    agent_ids = plot_df["agent_id"].unique()
-    agent_ids.sort()
-
-    plot_df = plot_df[plot_df["coplayer_policy_id"].isin(coplayer_policies)]
-    gb = plot_df.groupby(["policy_id", "coplayer_policy_id"])
+    plot_df = plot_df[plot_df[coplayer_policy_key].isin(coplayer_policies)]
+    gb = plot_df.groupby([policy_key, coplayer_policy_key])
 
     pw_values = np.zeros((len(policies), len(coplayer_policies)))
     for name, group in gb:

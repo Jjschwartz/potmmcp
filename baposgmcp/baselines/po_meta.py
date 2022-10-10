@@ -34,7 +34,7 @@ def load_pometa_params(num_sims: List[int],
         policy_id = f"{base_policy_id}_numsims{n}"
         kwargs_n.update({
             "policy_id": policy_id,
-            "belief_size": n,
+            "num_sims": n,
             "other_policy_dist": other_policy_dist,
             "meta_policy_dict": meta_policy_dict,
         })
@@ -60,7 +60,7 @@ class POMeta(BAPOSGMCP):
     def __init__(self,
                  model: M.POSGModel,
                  agent_id: M.AgentID,
-                 belief_size: int,
+                 num_sims: int,
                  other_policy_prior: PolicyPrior,
                  meta_policy: MetaPolicy,
                  reinvigorator: BeliefReinvigorator,
@@ -70,7 +70,7 @@ class POMeta(BAPOSGMCP):
             agent_id,
             discount=kwargs.pop("discount", 0.99),
             # belief size is based on num_sims
-            num_sims=belief_size,
+            num_sims=num_sims,
             other_policy_prior=other_policy_prior,
             meta_policy=meta_policy,
             c_init=kwargs.pop("c_init", 1.25),
@@ -133,7 +133,7 @@ class POMeta(BAPOSGMCP):
 
         Required kwargs
         ---------------
-        belief_size: int,
+        num_sims: int,
         other_policy_dist : P.AgentPolicyDist
         meta_policy_dict : Dict[P.PolicyState, P.PolicyDist]
 

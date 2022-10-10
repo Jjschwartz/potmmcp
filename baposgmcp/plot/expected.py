@@ -1,20 +1,98 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from baposgmcp.plot.pairwise import get_pairwise_values
 
 
+def get_uniform_expected_agg_map(df):
+    """Get aggregation function map for expected value DF."""
+    group_keys = ["policy_id"]
+
+    # take first value in grouped df
+    first_keys = [
+        "exp_id",
+        "exp_seed",
+    ]
+
+    # values that will be summed across groups
+    sum_keys = [
+        k for k in df.columns
+        if k != "num_sims" and (k.endswith("_n") or k.startswith("num_"))
+    ]
+
+    min_keys = [k for k in df.columns if k.endswith("_min")]
+    max_keys = [k for k in df.columns if k.endswith("_max")]
+    mean_keys = [
+        k for k in df.columns
+        if (
+            any(k.endswith(v) for v in ["_mean", "_std", "_CI"])
+            or k.startswith("prop_")
+        )
+    ]
+
+    assigned_keys = set(
+        group_keys + first_keys + sum_keys + min_keys
+        + max_keys + mean_keys
+    )
+    # keys that have constant value across groups
+    constants = [k for k in df.columns if k not in assigned_keys]
+
+    columns = set(list(df.columns))
+
+    agg_dict = {}
+    for (key_list, aggfunc) in [
+        (first_keys, "min"),
+        (constants, "first"),
+        (sum_keys, "sum"),
+        (min_keys, "min"),
+        (max_keys, "max"),
+        # TODO change this to weighted mean for non-uniform prior
+        (mean_keys, "mean")
+
+    ]:
+        for k in key_list:
+            if k in columns:
+                agg_dict[k] = pd.NamedAgg(column=k, aggfunc=aggfunc)
+            else:
+                print(f"Column {k} missing")
+
+    return agg_dict
+
+
+def get_uniform_expected_df(df, policy_prior):
+    """Get DF with expected values w.r.t policy prior for each policy."""
+    agg_dict = get_uniform_expected_agg_map(df)
+
+    coplayer_policies = set()
+    for v in policy_prior.values():
+        coplayer_policies.update(v)
+    exp_df = df[df["coplayer_policy_id"].isin(coplayer_policies)]
+    gb = exp_df.groupby(["policy_id"])
+    gb_agg = gb.agg(**agg_dict)
+
+    print("Ungrouped size =", len(exp_df))
+    exp_df = gb_agg.reset_index()
+    print("Grouped size =", len(exp_df))
+
+    new_policies = set(exp_df["policy_id"].unique().tolist())
+    assert len(new_policies) == len(exp_df), "Should be one row per policy ID"
+    return exp_df
+
+
 def get_expected_values_by_prior(plot_df,
                                  y_key: str,
                                  y_err_key: str,
-                                 policy_key: str,
                                  policy_prior,
+                                 policy_key: str = "policy_id",
+                                 coplayer_policy_key: str = "coplayer_policy_id",   # noqa
                                  other_agent_id: int = 1):
     """Get expected value w.r.t policy prior for each policy."""
     pw_values, (row_policy_ids, col_policy_ids) = get_pairwise_values(
         plot_df,
         y_key=y_key,
         policy_key=policy_key,
+        coplayer_policy_key=coplayer_policy_key,
         average_duplicates=True,
         duplicate_warning=False
     )
@@ -22,6 +100,7 @@ def get_expected_values_by_prior(plot_df,
         plot_df,
         y_key=y_err_key,
         policy_key=policy_key,
+        coplayer_policy_key=coplayer_policy_key,
         average_duplicates=True,
         duplicate_warning=False
     )

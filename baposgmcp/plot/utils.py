@@ -82,6 +82,25 @@ def add_df_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([df_0, df_1]).reset_index(drop=True)
 
 
+def clean_num_sims(df):
+    """Get num sims in integer format."""
+
+    def clean(row):
+        try:
+            return int(row["num_sims"])
+        except (KeyError, ValueError, TypeError):
+            pass
+        try:
+            return int(row["belief_size"])
+        except (KeyError, ValueError, TypeError):
+            pass
+        return 0
+
+    df["num_sims"] = df.apply(clean, axis=1)
+    df = df.astype({"num_sims": int})
+    return df
+
+
 def import_results(result_file: str,
                    columns_to_drop: Optional[List[str]] = None,
                    clean_policy_id: bool = True,
@@ -107,6 +126,7 @@ def import_results(result_file: str,
 
     df = add_95CI(df)
     df = add_outcome_proportions(df)
+    df = clean_num_sims(df)
 
     if clean_policy_id:
         df = clean_df_policy_ids(df)

@@ -54,7 +54,7 @@ def _read_and_concat_multiple_files(filepaths):
     main_df = pd.read_csv(filepaths[0])
     for i, p in enumerate(filepaths[1:]):
         main_df = _read_and_concat(main_df, p)
-        if num_files > 10 and (i+1 > 0 and i % (num_files // 10) == 0):
+        if num_files > 10 and (i > 0 and (i+1) % (num_files // 10) == 0):
             print(f"[pid={os.getpid()}] {i+1}/{num_files} processed")
     return main_df
 
