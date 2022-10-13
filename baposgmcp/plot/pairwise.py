@@ -79,7 +79,7 @@ def plot_pairwise_comparison(plot_df,
 
     ncols = 2 if y_err_key else 1
     fig, axs = plt.subplots(
-        nrows=1, ncols=ncols, figsize=figsize, squeeze=False
+        nrows=1, ncols=ncols, figsize=figsize, squeeze=False, sharey=True
     )
 
     pw_values, (row_policies, col_policies) = get_pairwise_values(

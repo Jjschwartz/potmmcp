@@ -393,3 +393,89 @@ def plot_multiple_action_selection_vs_num_sims_by_alg(plot_df,
             ax.set_title(alg_id)
 
     return fig, axs
+
+
+def plot_expected_belief_stat_by_step(plot_df: pd.DataFrame,
+                                      ax: Axes,
+                                      y_key_prefix: str,
+                                      step_limit: int,
+                                      other_agent_id: int,
+                                      y_suffix: str = "mean",
+                                      y_err_suffix: str = "CI"):
+    """Plot expected value of a belief stat w.r.t policy prior by ep step."""
+    xs = np.arange(0, step_limit)
+
+    y_keys = [
+        f"{y_key_prefix}_{other_agent_id}_{t}" for t in range(step_limit)
+    ]
+    num_sims = plot_df["num_sims"].unique().tolist()
+    num_sims.sort()
+
+    for n in num_sims:
+        n_df = plot_df[plot_df["num_sims"] == n]
+        y = np.zeros(step_limit)
+        y_err = np.zeros(step_limit)
+
+        for t in range(step_limit):
+            y_t = n_df[f"{y_keys[t]}_{y_suffix}"]
+            y_err_t = n_df[f"{y_keys[t]}_{y_err_suffix}"]
+            if len(y_t):
+                assert len(y_t) == 1, f"{y_t}"
+                y[t] = y_t.values[0]
+                y_err[t] = y_err_t.values[0]
+
+        ax.plot(xs, y, label=n)
+        ax.fill_between(xs, y-y_err, y+y_err, alpha=0.2)
+
+
+def plot_multiple_belief_stats(plot_df: pd.DataFrame,
+                               y_key_prefix: str,
+                               step_limit: int,
+                               other_agent_id: int,
+                               y_suffix: str = "mean",
+                               y_err_suffix: str = "CI",
+                               alg_id_key: str = "alg_id",
+                               subplot_kwargs=None,
+                               legend_kwargs=None,
+                               fig_kwargs=None,
+                               set_title: bool = False
+                               ) -> Tuple[Figure, List[List[Axes]]]:
+    """Create multiple belief stat vs step by num sims plots."""
+    alg_ids = plot_df[alg_id_key].unique().tolist()
+    alg_ids.sort()
+
+    if not subplot_kwargs:
+        subplot_kwargs = {}
+
+    if not legend_kwargs:
+        legend_kwargs = {}
+
+    num_rows = len(alg_ids)
+    num_cols = 1
+
+    fig, axs = plt.subplots(
+        nrows=num_rows,
+        ncols=num_cols,
+        squeeze=False,
+        subplot_kw=subplot_kwargs,
+        **fig_kwargs
+    )
+
+    for row_axs, alg_id in zip(axs, alg_ids):
+        ax = row_axs[0]
+        alg_df = plot_df[plot_df[alg_id_key] == alg_id]
+        plot_expected_belief_stat_by_step(
+            alg_df,
+            ax,
+            y_key_prefix=y_key_prefix,
+            step_limit=step_limit,
+            other_agent_id=other_agent_id,
+            y_suffix=y_suffix,
+            y_err_suffix=y_err_suffix
+        )
+        ax.legend(**legend_kwargs)
+
+        if set_title:
+            ax.set_title(alg_id)
+
+    return fig, axs
