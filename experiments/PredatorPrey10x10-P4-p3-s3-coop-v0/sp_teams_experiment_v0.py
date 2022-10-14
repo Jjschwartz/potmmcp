@@ -138,6 +138,7 @@ def get_baselines():   # noqa
     # = (|Meta|) + (|NUM_SIMS| * |Meta|) + (|NUM_SIMS| * |Meta|)
     # = 3 + 5*3 + 5*3
     # = 33
+    print(f"Num baseline params = {len(baseline_params)}")
     n_meta = 3
     assert (
         len(baseline_params)
@@ -170,6 +171,7 @@ def get_baposgmcps():   # noqa
     # = |NUM_SIMS| * |Meta|
     # = 5 * 3
     # = 15
+    print(f"Num BAPOSGMCP params = {len(baposgmcp_params)}")
     assert len(baposgmcp_params) == (len(NUM_SIMS)*3)
     return baposgmcp_params
 
@@ -198,6 +200,7 @@ def get_fixed_baposgmcps():   # noqa
     # = |NUM_SIMS| * (|PIS| + 1)
     # = 5 * (5 + 1)
     # = 30
+    print(f"Num BAPOSGMCP-fixed params = {len(baposgmcp_params)}")
     assert len(baposgmcp_params) == (len(NUM_SIMS)*1*1*(len(POLICY_IDS)+1))
     return baposgmcp_params
 
