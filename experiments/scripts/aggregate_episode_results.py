@@ -32,6 +32,7 @@ constants = [
     "epsilon",
     "belief_size",
     "other_policy_dist",
+    "policy_prior_map",
     "meta_policy_dict",
     "num_sims",
     "num_episodes",

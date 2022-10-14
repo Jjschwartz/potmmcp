@@ -1,15 +1,15 @@
 """Baselines of BAPOSGMCP using different meta-policies."""
 import copy
 from itertools import product
-from typing import List, Dict
+from typing import List, Dict, Union
 
 import posggym.model as M
 
 import baposgmcp.policy as P
 import baposgmcp.tree as tree_lib
 from baposgmcp.run.exp import PolicyParams
-from baposgmcp.policy_prior import MapPolicyPrior
 from baposgmcp.meta_policy import SingleMetaPolicy
+from baposgmcp.policy_prior import load_posggym_agents_policy_prior
 
 
 def fixed_pi_baposgmcp_entry_point(model: M.POSGModel,
@@ -23,7 +23,7 @@ def fixed_pi_baposgmcp_entry_point(model: M.POSGModel,
 
     Required kwargs
     ---------------
-    other_policy_prior : P.AgentPolicyDist
+    policy_prior_map: Union[P.AgentPolicyDist, Dict[P.PolicyState, float]]
     fixed_policy_id : str
 
     Plus any other arguments required by BAPOSMGPCP.__init__ (excluding
@@ -34,10 +34,10 @@ def fixed_pi_baposgmcp_entry_point(model: M.POSGModel,
     # and may be reused in a different experiment if done on the same CPU
     kwargs = copy.deepcopy(kwargs)
 
-    other_policy_prior = MapPolicyPrior.load_posggym_agents_prior(
+    other_policy_prior = load_posggym_agents_policy_prior(
         model,
         agent_id,
-        policy_dist_map=kwargs.pop("other_policy_dist")
+        policy_prior_map=kwargs.pop("policy_prior_map")
     )
 
     meta_policy = SingleMetaPolicy.load_possgym_agents_meta_policy(
@@ -60,7 +60,10 @@ def fixed_pi_baposgmcp_entry_point(model: M.POSGModel,
 
 def load_random_baposgmcp_params(variable_params: Dict[str, List],
                                  baposgmcp_kwargs: Dict,
-                                 other_policy_dist: P.AgentPolicyDist,
+                                 policy_prior_map: Union[
+                                     P.AgentPolicyDist,
+                                     Dict[P.PolicyState, float]
+                                 ],
                                  base_policy_id: str = "baposgmcp_random"
                                  ) -> List[PolicyParams]:
     """Load params for BAPOSGMCP using random policy for evaluation.
@@ -70,7 +73,7 @@ def load_random_baposgmcp_params(variable_params: Dict[str, List],
     """
     base_kwargs = copy.deepcopy(baposgmcp_kwargs)
     base_kwargs.update({
-        "other_policy_dist": other_policy_dist,
+        "policy_prior_map": policy_prior_map,
         "fixed_policy_id": "random-v0"
     })
 
@@ -101,7 +104,10 @@ def load_random_baposgmcp_params(variable_params: Dict[str, List],
 def load_fixed_pi_baposgmcp_params(variable_params: Dict[str, List],
                                    fixed_policy_ids: List[str],
                                    baposgmcp_kwargs: Dict,
-                                   other_policy_dist: P.AgentPolicyDist,
+                                   policy_prior_map: Union[
+                                       P.AgentPolicyDist,
+                                       Dict[P.PolicyState, float]
+                                   ],
                                    base_policy_id: str = "baposgmcp_fixed"
                                    ) -> List[PolicyParams]:
     """Load params for BAPOSGMCP using fixed policy for evaluation.
@@ -111,7 +117,7 @@ def load_fixed_pi_baposgmcp_params(variable_params: Dict[str, List],
     """
     base_kwargs = copy.deepcopy(baposgmcp_kwargs)
     base_kwargs.update({
-        "other_policy_dist": other_policy_dist,
+        "policy_prior_map": policy_prior_map,
     })
 
     policy_params = []

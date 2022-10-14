@@ -1,13 +1,13 @@
 import copy
 from itertools import product
-from typing import List, Sequence, Dict
+from typing import List, Sequence, Dict, Union
 
 import posggym.model as M
 
 import baposgmcp.policy as P
 import baposgmcp.tree as tree_lib
 from baposgmcp.meta_policy import DictMetaPolicy
-from baposgmcp.policy_prior import MapPolicyPrior
+from baposgmcp.policy_prior import load_posggym_agents_policy_prior
 
 from baposgmcp.run.exp import PolicyParams
 from baposgmcp.run.render import Renderer, EpisodeRenderer
@@ -22,7 +22,7 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
 
     Required kwargs
     ---------------
-    other_policy_prior : P.AgentPolicyDist
+    policy_prior_map: Union[P.AgentPolicyDist, Dict[P.PolicyState, float]]
     meta_policy_dict : Dict[P.PolicyState, P.PolicyDist]
 
     Plus any other arguments required by BAPOSMGPCP.__init__ (excluding
@@ -33,10 +33,10 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
     # and may be reused in a different experiment if done on the same CPU
     kwargs = copy.deepcopy(kwargs)
 
-    other_policy_prior = MapPolicyPrior.load_posggym_agents_prior(
+    other_policy_prior = load_posggym_agents_policy_prior(
         model,
         agent_id,
-        policy_dist_map=kwargs.pop("other_policy_dist")
+        policy_prior_map=kwargs.pop("policy_prior_map")
     )
 
     meta_policy = DictMetaPolicy.load_possgym_agents_meta_policy(
@@ -59,7 +59,10 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
 
 def load_baposgmcp_params(variable_params: Dict[str, List],
                           baposgmcp_kwargs: Dict,
-                          other_policy_dist: P.AgentPolicyDist,
+                          policy_prior_map: Union[
+                              P.AgentPolicyDist,
+                              Dict[P.PolicyState, float]
+                          ],
                           meta_policy_dict: Dict[P.PolicyState, P.PolicyDist],
                           base_policy_id: str = "baposgmcp"
                           ) -> List[PolicyParams]:
@@ -67,7 +70,7 @@ def load_baposgmcp_params(variable_params: Dict[str, List],
     base_kwargs = copy.deepcopy(baposgmcp_kwargs)
 
     base_kwargs.update({
-        "other_policy_dist": other_policy_dist,
+        "policy_prior_map": policy_prior_map,
         "meta_policy_dict": meta_policy_dict
     })
 

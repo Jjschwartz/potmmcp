@@ -185,7 +185,7 @@ def get_baselines(agent_id: int, other_agent_id: int):   # noqa
             baseline_lib.load_all_baselines(
                 variable_params=variable_params,
                 baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-                other_policy_dist=POLICY_PRIOR_MAP[other_agent_id],
+                policy_prior_map=POLICY_PRIOR_MAP[other_agent_id],
                 meta_policy_dict=meta_policy_map,
                 policy_id_suffix=f"{name}_i{agent_id}"
             )
@@ -237,7 +237,7 @@ def get_baposgmcps(agent_id: int, other_agent_id: int):   # noqa
             run_lib.load_baposgmcp_params(
                 variable_params=variable_params,
                 baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-                other_policy_dist=POLICY_PRIOR_MAP[other_agent_id],
+                policy_prior_map=POLICY_PRIOR_MAP[other_agent_id],
                 meta_policy_dict=meta_policy_map,
                 base_policy_id=f"baposgmcp_{name}_i{agent_id}"
             )
@@ -272,7 +272,7 @@ def get_fixed_baposgmcps(agent_id: int, other_agent_id: int):   # noqa
     baposgmcp_params = baseline_lib.load_random_baposgmcp_params(
         variable_params=random_variable_params,
         baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-        other_policy_dist=POLICY_PRIOR_MAP[other_agent_id],
+        policy_prior_map=POLICY_PRIOR_MAP[other_agent_id],
         base_policy_id=f"baposgmcp-random_i{agent_id}"
     )
 
@@ -288,7 +288,7 @@ def get_fixed_baposgmcps(agent_id: int, other_agent_id: int):   # noqa
             variable_params=fixed_variable_params,
             fixed_policy_ids=POLICY_IDS[agent_id],
             baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-            other_policy_dist=POLICY_PRIOR_MAP[other_agent_id],
+            policy_prior_map=POLICY_PRIOR_MAP[other_agent_id],
             base_policy_id=f"baposgmcp-fixed_i{agent_id}"
         )
     )

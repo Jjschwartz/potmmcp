@@ -1,5 +1,4 @@
 """Run BAPOSGMCP experiment in Driving env with KLR policies."""
-from typing import List
 from pprint import pprint
 
 import baposgmcp.run as run_lib
@@ -109,7 +108,7 @@ def get_baselines():   # noqa
             baseline_lib.load_all_baselines(
                 variable_params=variable_params,
                 baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-                other_policy_dist=POLICY_PRIOR_MAP,
+                policy_prior_map=POLICY_PRIOR_MAP,
                 meta_policy_dict=meta_policy_map,
                 policy_id_suffix=name
             )
@@ -155,7 +154,7 @@ def get_baposgmcps():   # noqa
             run_lib.load_baposgmcp_params(
                 variable_params=variable_params,
                 baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-                other_policy_dist=POLICY_PRIOR_MAP,
+                policy_prior_map=POLICY_PRIOR_MAP,
                 meta_policy_dict=meta_policy_map,
                 base_policy_id=f"baposgmcp_{name}"
             )
@@ -187,7 +186,7 @@ def get_fixed_baposgmcps():   # noqa
     baposgmcp_params = baseline_lib.load_random_baposgmcp_params(
         variable_params=variable_params,
         baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-        other_policy_dist=POLICY_PRIOR_MAP,
+        policy_prior_map=POLICY_PRIOR_MAP,
         base_policy_id="baposgmcp_random"
     )
     baposgmcp_params.extend(
@@ -195,7 +194,7 @@ def get_fixed_baposgmcps():   # noqa
             variable_params=variable_params,
             fixed_policy_ids=POLICY_IDS,
             baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-            other_policy_dist=POLICY_PRIOR_MAP,
+            policy_prior_map=POLICY_PRIOR_MAP,
             base_policy_id="baposgmcp_fixed"
         )
     )

@@ -54,7 +54,7 @@ def get_baselines(args, policy_prior, meta_policy_dict):   # noqa
         num_sims=args.num_sims,
         action_selection=['pucb'],
         baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-        other_policy_dist=policy_prior,
+        policy_prior_map=policy_prior,
         meta_policy_dict=meta_policy_dict
     )
     return baseline_params
@@ -70,7 +70,7 @@ def main(args):   # noqa
     baposgmcp_params = run_lib.load_baposgmcp_params(
         num_sims=args.num_sims,
         baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-        other_policy_dist=policy_prior,
+        policy_prior_map=policy_prior,
         meta_policy_dict=meta_policy_dict
     )
 

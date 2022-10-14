@@ -87,7 +87,7 @@ def get_baselines(args):   # noqa
             num_sims=args.num_sims,
             action_selection=['pucb'],
             baposgmcp_kwargs=BAPOSGMCP_KWARGS,
-            other_policy_dist=POLICY_PRIOR_MAP,
+            policy_prior_map=POLICY_PRIOR_MAP,
             meta_policy_dict=meta_policy_map,
             policy_id_suffix=name
         ))
@@ -106,7 +106,7 @@ def get_baposgmcps(args):   # noqa
         baposgmcp_params.extend(run_lib.load_baposgmcp_params(
             num_sims=args.num_sims,
             baposgmcp_kwargs=kwargs,
-            other_policy_dist=POLICY_PRIOR_MAP,
+            policy_prior_map=POLICY_PRIOR_MAP,
             meta_policy_dict=meta_policy_map
         ))
     return baposgmcp_params

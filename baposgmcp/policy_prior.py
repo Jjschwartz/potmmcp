@@ -1,8 +1,9 @@
 import abc
+import copy
 import math
 import random
-from typing import Dict, List
 from itertools import product
+from typing import Dict, List, Union
 
 import posggym.model as M
 
@@ -122,7 +123,8 @@ class MapPolicyPrior(PolicyPrior):
     @staticmethod
     def load_posggym_agents_prior(model: M.POSGModel,
                                   ego_agent: M.AgentID,
-                                  policy_dist_map: P.AgentPolicyDist):
+                                  policy_dist_map: P.AgentPolicyDist
+                                  ) -> 'MapPolicyPrior':
         import posggym_agents
         policies = {}
         for i in range(model.n_agents):
@@ -133,3 +135,94 @@ class MapPolicyPrior(PolicyPrior):
                 for id in policy_dist_map[i]
             }
         return MapPolicyPrior(model, ego_agent, policies, policy_dist_map)
+
+
+class PolicyStateMapPrior(PolicyPrior):
+    """Policy prior using a dictionary mapping policy-states to prior prob."""
+
+    def __init__(self,
+                 model: M.POSGModel,
+                 ego_agent: M.AgentID,
+                 policies: P.AgentPolicyMap,
+                 policy_state_map: Dict[P.PolicyState, float]):
+        super().__init__(model, ego_agent, policies)
+        self._policy_state_map = policy_state_map
+        self._policy_dist_map = {i: {} for i in range(model.n_agents)}
+        for pi_state, prob in policy_state_map.items():
+            for i in range(model.n_agents):
+                if i == self.ego_agent:
+                    continue
+                pi_id = pi_state[i]
+                if pi_id not in self._policy_dist_map[i]:
+                    self._policy_dist_map[i][pi_id] = 0
+                self._policy_dist_map[i][pi_id] += prob
+
+    def sample_agent_policy(self, agent_id: M.AgentID) -> P.PolicyID:
+        return random.choices(
+            list(self._policy_dist_map[agent_id]),
+            weights=list(self._policy_dist_map[agent_id].values()),
+            k=1
+        )[0]
+
+    def get_prior_dist(self) -> Dict[P.PolicyState, float]:
+        return copy.copy(self._policy_state_map)
+
+    def sample_policy_state(self) -> P.PolicyState:
+        return random.choices(
+            list(self._policy_state_map),
+            weights=list(self._policy_state_map.values()),
+            k=1
+        )[0]
+
+    @staticmethod
+    def load_posggym_agents_prior(model: M.POSGModel,
+                                  ego_agent: M.AgentID,
+                                  policy_state_map: Dict[P.PolicyState, float]
+                                  ) -> 'PolicyStateMapPrior':
+        import posggym_agents
+        policy_ids = {i: set() for i in range(model.n_agents)}
+        for pi_state in policy_state_map:
+            for i in range(model.n_agents):
+                if i == ego_agent:
+                    continue
+                policy_ids[i].add(pi_state[i])
+
+        policies = {}
+        for i in range(model.n_agents):
+            if i == ego_agent:
+                continue
+            policies[i] = {
+                id: posggym_agents.make(id, model, i) for id in policy_ids[i]
+            }
+        return PolicyStateMapPrior(
+            model, ego_agent, policies, policy_state_map
+        )
+
+
+def load_posggym_agents_policy_prior(model: M.POSGModel,
+                                     ego_agent: M.AgentID,
+                                     policy_prior_map: Union[
+                                         P.AgentPolicyDist,
+                                         Dict[P.PolicyState, float]
+                                     ]) -> PolicyPrior:
+    """Load Policy Prior of posggym agents.
+
+    Handles loading correct prior based on policy prior map format.
+
+    Supports loading
+
+    MapPolicyPrior
+    PolicyStateMapPrior
+
+    """
+    if isinstance(list(policy_prior_map.values())[0], dict):
+        return MapPolicyPrior.load_posggym_agents_prior(
+            model, ego_agent, policy_prior_map
+        )
+    elif isinstance(list(policy_prior_map.values())[0], float):
+        return PolicyStateMapPrior.load_posggym_agents_prior(
+            model, ego_agent, policy_prior_map
+        )
+    raise ValueError(
+        f"Unsupported policy_prior_map format '{policy_prior_map}'"
+    )

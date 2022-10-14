@@ -1,13 +1,13 @@
 import copy
 from itertools import product
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Union
 
 import posggym.model as M
 
 import baposgmcp.policy as P
 from baposgmcp.run.exp import PolicyParams
 from baposgmcp.meta_policy import DictMetaPolicy
-from baposgmcp.policy_prior import MapPolicyPrior
+from baposgmcp.policy_prior import load_posggym_agents_policy_prior
 
 from baposgmcp.tree.node import ObsNode
 from baposgmcp.tree.policy import BAPOSGMCP
@@ -17,7 +17,10 @@ from baposgmcp.tree.reinvigorate import BABeliefRejectionSampler
 
 def load_pometarollout_params(variable_params: Dict[str, List],
                               baposgmcp_kwargs: Dict,
-                              other_policy_dist: P.AgentPolicyDist,
+                              policy_prior_map: Union[
+                                  P.AgentPolicyDist,
+                                  Dict[P.PolicyState, float]
+                              ],
                               meta_policy_dict: Dict[
                                   P.PolicyState, P.PolicyDist
                               ],
@@ -32,7 +35,7 @@ def load_pometarollout_params(variable_params: Dict[str, List],
     base_kwargs = dict(baposgmcp_kwargs)
 
     base_kwargs.update({
-        "other_policy_dist": other_policy_dist,
+        "policy_prior_map": policy_prior_map,
         "meta_policy_dict": meta_policy_dict
     })
 
@@ -150,7 +153,7 @@ class POMetaRollout(BAPOSGMCP):
 
         Required kwargs
         ---------------
-        other_policy_dist : P.AgentPolicyDist
+        policy_prior_map: Union[P.AgentPolicyDist,Dict[P.PolicyState, float]]
         meta_policy_dict : Dict[P.PolicyState, P.PolicyDist]
 
         Plus any other arguments required by BAPOSMGPCP.__init__ (excluding
@@ -161,10 +164,10 @@ class POMetaRollout(BAPOSGMCP):
         # and may be reused in a different experiment if done on the same CPU
         kwargs = copy.deepcopy(kwargs)
 
-        other_policy_prior = MapPolicyPrior.load_posggym_agents_prior(
+        other_policy_prior = load_posggym_agents_policy_prior(
             model,
             agent_id,
-            policy_dist_map=kwargs.pop("other_policy_dist")
+            policy_prior_map=kwargs.pop("policy_prior_map")
         )
 
         meta_policy = DictMetaPolicy.load_possgym_agents_meta_policy(

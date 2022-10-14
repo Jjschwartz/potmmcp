@@ -1,5 +1,5 @@
 """Baseline policies for BAPOSGMCP experiments."""
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 
 import baposgmcp.policy as P
 from baposgmcp.run.exp import PolicyParams
@@ -15,7 +15,10 @@ from baposgmcp.baselines.po_meta_rollout import load_pometarollout_params
 
 def load_all_baselines(variable_params: Dict[str, List],
                        baposgmcp_kwargs: Dict,
-                       other_policy_dist: P.AgentPolicyDist,
+                       policy_prior_map: Union[
+                           P.AgentPolicyDist,
+                           Dict[P.PolicyState, float]
+                       ],
                        meta_policy_dict: Dict[
                            P.PolicyState, P.PolicyDist
                        ],
@@ -43,7 +46,7 @@ def load_all_baselines(variable_params: Dict[str, List],
         entry_point=MetaBaselinePolicy.posggym_agents_entry_point,
         kwargs={
             "policy_id": policy_id,
-            "other_policy_dist": other_policy_dist,
+            "policy_prior_map": policy_prior_map,
             "meta_policy_dict": meta_policy_dict
         }
     )
@@ -52,7 +55,7 @@ def load_all_baselines(variable_params: Dict[str, List],
     # PO-Meta for different number of simulations
     pometa_params = load_pometa_params(
         num_sims,
-        other_policy_dist=other_policy_dist,
+        policy_prior_map=policy_prior_map,
         meta_policy_dict=meta_policy_dict,
         kwargs=baposgmcp_kwargs,
         base_policy_id=f"POMeta{policy_id_suffix}"
@@ -63,7 +66,7 @@ def load_all_baselines(variable_params: Dict[str, List],
     pometarollout_params = load_pometarollout_params(
         variable_params,
         baposgmcp_kwargs=baposgmcp_kwargs,
-        other_policy_dist=other_policy_dist,
+        policy_prior_map=policy_prior_map,
         meta_policy_dict=meta_policy_dict,
         base_policy_id=f"POMetaRollout{policy_id_suffix}"
     )
