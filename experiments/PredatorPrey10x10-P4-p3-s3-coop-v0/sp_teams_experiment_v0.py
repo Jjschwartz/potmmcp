@@ -40,7 +40,6 @@ for pi_state in pi_states:
     prob = POLICY_PRIOR_MAP.pop(pi_state)
     POLICY_PRIOR_MAP[updated_pi_state] = prob
 
-
 # Defined for policy states with (K=3) and meta-policy (K=4)
 PAIRWISE_RETURNS = {
     (-1, "sp_seed0-v0", "sp_seed0-v0", "sp_seed0-v0"): {
@@ -83,7 +82,7 @@ PAIRWISE_RETURNS = {
 pi_states = list(PAIRWISE_RETURNS)
 for pi_state in pi_states:
     updated_pairwise_returns = {
-        f"{ENV_ID}/{k}": v for k, v in PAIRWISE_RETURNS[pi_state]
+        f"{ENV_ID}/{k}": v for k, v in PAIRWISE_RETURNS[pi_state].items()
     }
     updated_pi_state = tuple(
         v if v == -1 else f"{ENV_ID}/{v}" for v in pi_state
@@ -133,25 +132,16 @@ def get_baselines():   # noqa
             policy_id_suffix=name
         )
 
-        if name != "greedy":
-            # remove POMeta baselines except for greedy meta-policy
-            params_to_drop = []
-            for p in params:
-                if p.id.startswith(f"POMeta_{name}"):
-                    params_to_drop.append(p)
-            for p in params_to_drop:
-                params.remove(p)
-
         baseline_params.extend(params)
     # NUM Exps:
     # = |metabaseline| + |POMeta| + |POMetaRollout|
-    # = (|Meta|) + (|NUM_SIMS| * 1) + (|NUM_SIMS| * |Meta|)
-    # = 3 + 5 + (5*3)
-    # = 23
+    # = (|Meta|) + (|NUM_SIMS| * |Meta|) + (|NUM_SIMS| * |Meta|)
+    # = 3 + 5*3 + 5*3
+    # = 33
     n_meta = 3
     assert (
         len(baseline_params)
-        == ((n_meta + len(NUM_SIMS) + len(NUM_SIMS)*n_meta))
+        == ((n_meta + len(NUM_SIMS)*n_meta + len(NUM_SIMS)*n_meta))
     )
     return baseline_params
 
@@ -217,29 +207,35 @@ def main(args):   # noqa
     pprint(vars(args))
 
     print("== Creating Experiments ==")
-    other_params = run_lib.load_posggym_agent_params(
-        list(POLICY_PRIOR_MAP[OTHER_AGENT_ID])
-    )
-    assert len(other_params) == len(POLICY_PRIOR_MAP[OTHER_AGENT_ID])
-
     policy_params = get_baposgmcps()
     policy_params.extend(get_baselines())
     policy_params.extend(get_fixed_baposgmcps())
 
-    exp_params_list = run_lib.get_pairwise_exp_params(
-        ENV_ID,
-        [policy_params, other_params],
-        discount=DISCOUNT,
-        exp_id_init=0,
-        tracker_fn=run_lib.belief_tracker_fn,
-        tracker_fn_kwargs={
-            "num_agents": N_AGENTS,
-            "step_limit": ENV_STEP_LIMIT,
-            "discount": DISCOUNT
-        },
-        renderer_fn=None,
-        **vars(args)
-    )
+    exp_params_list = []
+    for pi_state in POLICY_PRIOR_MAP:
+        assert len(pi_state) == N_AGENTS
+        other_params = []
+        for i, pi_id in enumerate(pi_state):
+            if i == BAPOSGMCP_AGENT_ID:
+                continue
+            params_i = run_lib.load_posggym_agent_params([pi_id])
+            other_params.append(params_i)
+
+        pi_state_exp_params_list = run_lib.get_pairwise_exp_params(
+            ENV_ID,
+            [policy_params, *other_params],
+            discount=DISCOUNT,
+            exp_id_init=len(exp_params_list),
+            tracker_fn=run_lib.belief_tracker_fn,
+            tracker_fn_kwargs={
+                "num_agents": N_AGENTS,
+                "step_limit": ENV_STEP_LIMIT,
+                "discount": DISCOUNT
+            },
+            renderer_fn=None,
+            **vars(args)
+        )
+        exp_params_list.extend(pi_state_exp_params_list)
 
     if args.get_num_exps:
         print(f"Number of experiments = {len(exp_params_list)}")
