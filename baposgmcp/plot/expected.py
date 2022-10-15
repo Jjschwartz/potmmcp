@@ -1,3 +1,5 @@
+from typing import Sequence
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -60,13 +62,10 @@ def get_uniform_expected_agg_map(df):
     return agg_dict
 
 
-def get_uniform_expected_df(df, policy_prior):
+def get_uniform_expected_df(df, coplayer_policies: Sequence[str]):
     """Get DF with expected values w.r.t policy prior for each policy."""
     agg_dict = get_uniform_expected_agg_map(df)
 
-    coplayer_policies = set()
-    for v in policy_prior.values():
-        coplayer_policies.update(v)
     exp_df = df[df["coplayer_policy_id"].isin(coplayer_policies)]
     gb = exp_df.groupby(["policy_id"])
     gb_agg = gb.agg(**agg_dict)
