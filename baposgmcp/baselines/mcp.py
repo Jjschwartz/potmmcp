@@ -71,6 +71,8 @@ def load_random_baposgmcp_params(variable_params: Dict[str, List],
     This is BAPOSGMCP using a meta-policy which always returns the uniform
     random policy.
     """
+    assert not baposgmcp_kwargs["truncated"], \
+        "Cannot do truncated search with random policy."
     base_kwargs = copy.deepcopy(baposgmcp_kwargs)
     base_kwargs.update({
         "policy_prior_map": policy_prior_map,
