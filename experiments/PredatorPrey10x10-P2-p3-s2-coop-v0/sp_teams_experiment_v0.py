@@ -5,8 +5,6 @@ import baposgmcp.run as run_lib
 from baposgmcp import meta_policy
 import baposgmcp.baselines as baseline_lib
 
-# TODO update PRIOR POLICY creation to handle policy states
-
 ENV_ID = "PredatorPrey10x10-P2-p3-s2-coop-v0"
 N_AGENTS = 2
 ENV_STEP_LIMIT = 50
