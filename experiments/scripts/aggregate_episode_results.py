@@ -110,7 +110,7 @@ def main(results_filepath):   # noqa
         ep_df = plot_utils.add_df_coplayer_policy_id(ep_df)
         group_keys.append("coplayer_policy_id")
     else:
-        ep_df = add_df_multiple_coplayer_policy_id(ep_df)
+        ep_df = plot_utils.add_df_multiple_coplayer_policy_id(ep_df)
         for c in ep_df.columns:
             if c.startswith("coplayer_policy_id"):
                 group_keys.append(c)
