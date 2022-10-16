@@ -10,7 +10,7 @@ import baposgmcp.plot as plot_utils
 # Keys which DF is grouped by
 group_keys = [
     "policy_id",
-    "coplayer_policy_id"
+    # "coplayer_policy_id"    # added based on num agents in the env
 ]
 
 # keys that have constant value across groups
@@ -102,10 +102,18 @@ def main(results_filepath):   # noqa
     results_dir = osp.dirname(results_filepath)
     print(f"Saving aggregated results to dir '{results_dir}'")
 
-    # Import data
     print("Importing data")
     ep_df = pd.read_csv(results_filepath)
-    ep_df = plot_utils.add_df_coplayer_policy_id(ep_df)
+
+    print("Adding coplayer policy id column.")
+    if len(ep_df["agent_id"].unique().tolist()) == 2:
+        ep_df = plot_utils.add_df_coplayer_policy_id(ep_df)
+        group_keys.append("coplayer_policy_id")
+    else:
+        ep_df = add_df_multiple_coplayer_policy_id(ep_df)
+        for c in ep_df.columns:
+            if c.startswith("coplayer_policy_id"):
+                group_keys.append(c)
 
     print("Cleaning data")
     # replace num_episodes with actual number of episodes completed
