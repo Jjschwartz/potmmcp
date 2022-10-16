@@ -129,6 +129,7 @@ def get_fixed_baposgmcps():   # noqa
         "action_selection": ["pucb", "ucb", "uniform"]
     }
 
+    # only truncated search for LBF env so nothing to change for random
     baposgmcp_params = baseline_lib.load_random_baposgmcp_params(
         variable_params=variable_params,
         baposgmcp_kwargs=BAPOSGMCP_KWARGS,

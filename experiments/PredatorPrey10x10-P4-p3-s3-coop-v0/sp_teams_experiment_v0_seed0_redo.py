@@ -1,14 +1,4 @@
-"""Run BAPOSGMCP experiment in Driving env with KLR policies.
-
-V2 - running only relevant exps after V1
-
-Namely,
-- using only PUCB
-- using truncated search
-
-Only Greedy meta-policy for PO-META
-
-"""
+"""Run BAPOSGMCP experiment in PP env with teams of SP agents."""
 import copy
 from pprint import pprint
 
@@ -16,65 +6,97 @@ import baposgmcp.run as run_lib
 from baposgmcp import meta_policy
 import baposgmcp.baselines as baseline_lib
 
+REDO_EXP_IDS = [
+    48, 49, 50, 51,
+    126, 127, 128, 130,
+    204, 205, 206, 207,
+]
+for i in range(212, 390):
+    REDO_EXP_IDS.append(i)
 
-ENV_ID = "Driving14x14WideRoundAbout-n2-v0"
-N_AGENTS = 2
+ENV_ID = "PredatorPrey10x10-P4-p3-s3-coop-v0"
+N_AGENTS = 4
 ENV_STEP_LIMIT = 50
-POLICY_SEED = 0
 
 DISCOUNT = 0.99
 NUM_SIMS = [10, 50, 100, 500, 1000]
 BAPOSGMCP_AGENT_ID = 0
-OTHER_AGENT_ID = 1
+OTHER_AGENT_IDS = [1, 2, 3]
 
-# NOTE There are 5 policies available (K=4) but we assume the other agent is
-# only using 4 (K=3), but we have all (K=4) policies available for the
-# meta policy
 POLICY_IDS = [
-    f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0",
-    f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0",
-    f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0",
-    f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0",
-    f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0"
+    f"{ENV_ID}/sp_seed0-v0",
+    f"{ENV_ID}/sp_seed1-v0",
+    f"{ENV_ID}/sp_seed2-v0",
+    f"{ENV_ID}/sp_seed3-v0",
+    f"{ENV_ID}/sp_seed4-v0"
 ]
 # Defined for K=3
-POLICY_PRIOR_MAP = {OTHER_AGENT_ID: {
-    f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 1/4,
-    f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 1/4,
-    f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 1/4,
-    f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 1/4
-}}
+POLICY_PRIOR_MAP = {
+    (-1, 'sp_seed0-v0', 'sp_seed0-v0', 'sp_seed0-v0'): 0.2,
+    (-1, 'sp_seed1-v0', 'sp_seed1-v0', 'sp_seed1-v0'): 0.2,
+    (-1, 'sp_seed2-v0', 'sp_seed2-v0', 'sp_seed2-v0'): 0.2,
+    (-1, 'sp_seed3-v0', 'sp_seed3-v0', 'sp_seed3-v0'): 0.2,
+    (-1, 'sp_seed4-v0', 'sp_seed4-v0', 'sp_seed4-v0'): 0.2,
+}
+# Add env_id to each policy id
+pi_states = list(POLICY_PRIOR_MAP)
+for pi_state in pi_states:
+    updated_pi_state = tuple(
+        v if v == -1 else f"{ENV_ID}/{v}" for v in pi_state
+    )
+    prob = POLICY_PRIOR_MAP.pop(pi_state)
+    POLICY_PRIOR_MAP[updated_pi_state] = prob
+
 # Defined for policy states with (K=3) and meta-policy (K=4)
 PAIRWISE_RETURNS = {
-    (-1, f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0"): {
-        f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 1.91,
-        f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 2.21,
-        f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 2.01,
-        f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 1.74,
-        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 1.70
+    (-1, "sp_seed0-v0", "sp_seed0-v0", "sp_seed0-v0"): {
+        "sp_seed0-v0": 0.82,
+        "sp_seed1-v0": 0.57,
+        "sp_seed2-v0": 0.54,
+        "sp_seed3-v0": 0.55,
+        "sp_seed4-v0": 0.61,
     },
-    (-1, f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0"): {
-        f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 2.21,
-        f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 2.05,
-        f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 2.21,
-        f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 1.74,
-        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 1.88
+    (-1, "sp_seed1-v0", "sp_seed1-v0", "sp_seed1-v0"): {
+        "sp_seed0-v0": 0.17,
+        "sp_seed1-v0": 0.96,
+        "sp_seed2-v0": 0.29,
+        "sp_seed3-v0": 0.49,
+        "sp_seed4-v0": 0.35,
     },
-    (-1, f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0"): {
-        f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 1.97,
-        f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 2.19,
-        f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 2.12,
-        f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 2.18,
-        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 1.76
+    (-1, "sp_seed2-v0", "sp_seed2-v0", "sp_seed2-v0"): {
+        "sp_seed0-v0": 0.62,
+        "sp_seed1-v0": 0.63,
+        "sp_seed2-v0": 0.95,
+        "sp_seed3-v0": 0.62,
+        "sp_seed4-v0": 0.77,
     },
-    (-1, f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0"): {
-        f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 1.73,
-        f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 1.76,
-        f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 2.18,
-        f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 1.89,
-        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 2.21
-    }
+    (-1, "sp_seed3-v0", "sp_seed3-v0", "sp_seed3-v0"): {
+        "sp_seed0-v0": 0.53,
+        "sp_seed1-v0": 0.56,
+        "sp_seed2-v0": 0.57,
+        "sp_seed3-v0": 0.93,
+        "sp_seed4-v0": 0.54,
+    },
+    (-1, "sp_seed4-v0", "sp_seed4-v0", "sp_seed4-v0"): {
+        "sp_seed0-v0": 0.46,
+        "sp_seed1-v0": 0.59,
+        "sp_seed2-v0": 0.64,
+        "sp_seed3-v0": 0.60,
+        "sp_seed4-v0": 0.94,
+    },
 }
+# Add env_id to each policy id
+pi_states = list(PAIRWISE_RETURNS)
+for pi_state in pi_states:
+    updated_pairwise_returns = {
+        f"{ENV_ID}/{k}": v for k, v in PAIRWISE_RETURNS[pi_state].items()
+    }
+    updated_pi_state = tuple(
+        v if v == -1 else f"{ENV_ID}/{v}" for v in pi_state
+    )
+    PAIRWISE_RETURNS.pop(pi_state)
+    PAIRWISE_RETURNS[updated_pi_state] = updated_pairwise_returns
+
 
 GREEDY_META_POLICY_MAP = meta_policy.get_greedy_policy_dict(PAIRWISE_RETURNS)
 UNIFORM_META_POLICY_MAP = meta_policy.get_uniform_policy_dict(PAIRWISE_RETURNS)
@@ -117,25 +139,17 @@ def get_baselines():   # noqa
             policy_id_suffix=name
         )
 
-        if name != "greedy":
-            # remove POMeta baselines except for greedy meta-policy
-            params_to_drop = []
-            for p in params:
-                if p.id.startswith(f"POMeta_{name}"):
-                    params_to_drop.append(p)
-            for p in params_to_drop:
-                params.remove(p)
-
         baseline_params.extend(params)
     # NUM Exps:
     # = |metabaseline| + |POMeta| + |POMetaRollout|
-    # = (|Meta|) + (|NUM_SIMS| * 1) + (|NUM_SIMS| * |Meta|)
-    # = 3 + 5 + (5*3)
-    # = 23
+    # = (|Meta|) + (|NUM_SIMS| * |Meta|) + (|NUM_SIMS| * |Meta|)
+    # = 3 + 5*3 + 5*3
+    # = 33
+    print(f"Num baseline params = {len(baseline_params)}")
     n_meta = 3
     assert (
         len(baseline_params)
-        == ((n_meta + len(NUM_SIMS) + len(NUM_SIMS)*n_meta))
+        == ((n_meta + len(NUM_SIMS)*n_meta + len(NUM_SIMS)*n_meta))
     )
     return baseline_params
 
@@ -164,6 +178,7 @@ def get_baposgmcps():   # noqa
     # = |NUM_SIMS| * |Meta|
     # = 5 * 3
     # = 15
+    print(f"Num BAPOSGMCP params = {len(baposgmcp_params)}")
     assert len(baposgmcp_params) == (len(NUM_SIMS)*3)
     return baposgmcp_params
 
@@ -194,6 +209,7 @@ def get_fixed_baposgmcps():   # noqa
     # = |NUM_SIMS| * (|PIS| + 1)
     # = 5 * (5 + 1)
     # = 30
+    print(f"Num BAPOSGMCP-fixed params = {len(baposgmcp_params)}")
     assert len(baposgmcp_params) == (len(NUM_SIMS)*1*1*(len(POLICY_IDS)+1))
     return baposgmcp_params
 
@@ -201,31 +217,41 @@ def get_fixed_baposgmcps():   # noqa
 def main(args):   # noqa
     print("\n== Running Experiments ==")
     pprint(vars(args))
+    if args.run_exp_id is not None:
+        if args.run_exp_id not in REDO_EXP_IDS:
+            print("Not exp id of interest. Skipping.")
+            return
 
     print("== Creating Experiments ==")
-    other_params = run_lib.load_posggym_agent_params(
-        list(POLICY_PRIOR_MAP[OTHER_AGENT_ID])
-    )
-    assert len(other_params) == len(POLICY_PRIOR_MAP[OTHER_AGENT_ID])
-
     policy_params = get_baposgmcps()
     policy_params.extend(get_baselines())
     policy_params.extend(get_fixed_baposgmcps())
 
-    exp_params_list = run_lib.get_pairwise_exp_params(
-        ENV_ID,
-        [policy_params, other_params],
-        discount=DISCOUNT,
-        exp_id_init=0,
-        tracker_fn=run_lib.belief_tracker_fn,
-        tracker_fn_kwargs={
-            "num_agents": N_AGENTS,
-            "step_limit": ENV_STEP_LIMIT,
-            "discount": DISCOUNT
-        },
-        renderer_fn=None,
-        **vars(args)
-    )
+    exp_params_list = []
+    for pi_state in POLICY_PRIOR_MAP:
+        assert len(pi_state) == N_AGENTS
+        other_params = []
+        for i, pi_id in enumerate(pi_state):
+            if i == BAPOSGMCP_AGENT_ID:
+                continue
+            params_i = run_lib.load_posggym_agent_params([pi_id])
+            other_params.append(params_i)
+
+        pi_state_exp_params_list = run_lib.get_pairwise_exp_params(
+            ENV_ID,
+            [policy_params, *other_params],
+            discount=DISCOUNT,
+            exp_id_init=len(exp_params_list),
+            tracker_fn=run_lib.belief_tracker_fn,
+            tracker_fn_kwargs={
+                "num_agents": N_AGENTS,
+                "step_limit": ENV_STEP_LIMIT,
+                "discount": DISCOUNT
+            },
+            renderer_fn=None,
+            **vars(args)
+        )
+        exp_params_list.extend(pi_state_exp_params_list)
 
     if args.get_num_exps:
         print(f"Number of experiments = {len(exp_params_list)}")

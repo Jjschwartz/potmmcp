@@ -1,4 +1,5 @@
 """Run BAPOSGMCP experiment in PP env with teams of SP agents."""
+import copy
 from pprint import pprint
 
 import baposgmcp.run as run_lib
@@ -181,9 +182,11 @@ def get_fixed_baposgmcps():   # noqa
         "num_sims": NUM_SIMS,
     }
 
+    random_kwargs = copy.deepcopy(BAPOSGMCP_KWARGS)
+    random_kwargs["truncated"] = False
     baposgmcp_params = baseline_lib.load_random_baposgmcp_params(
         variable_params=variable_params,
-        baposgmcp_kwargs=BAPOSGMCP_KWARGS,
+        baposgmcp_kwargs=random_kwargs,
         policy_prior_map=POLICY_PRIOR_MAP,
         base_policy_id="baposgmcp_random"
     )

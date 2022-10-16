@@ -1,5 +1,6 @@
 """Baselines of BAPOSGMCP using different meta-policies."""
 import copy
+import warnings
 from itertools import product
 from typing import List, Dict, Union
 
@@ -71,9 +72,14 @@ def load_random_baposgmcp_params(variable_params: Dict[str, List],
     This is BAPOSGMCP using a meta-policy which always returns the uniform
     random policy.
     """
-    assert not baposgmcp_kwargs["truncated"], \
-        "Cannot do truncated search with random policy."
     base_kwargs = copy.deepcopy(baposgmcp_kwargs)
+    if base_kwargs["truncated"]:
+        warnings.warn(
+            "Cannot do truncated search with random policy. Changing to "
+            "untruncated search."
+        )
+        base_kwargs["truncated"] = False
+
     base_kwargs.update({
         "policy_prior_map": policy_prior_map,
         "fixed_policy_id": "random-v0"
