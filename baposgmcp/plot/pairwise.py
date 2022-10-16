@@ -95,8 +95,8 @@ def plot_pairwise_comparison(plot_df,
     )
 
     if policy_labels:
-        row_policy_labels = [policy_labels[k] for k in row_policies]
-        col_policy_labels = [policy_labels[k] for k in col_policies]
+        row_policy_labels = [policy_labels.get(k, k) for k in row_policies]
+        col_policy_labels = [policy_labels.get(k, k) for k in col_policies]
     else:
         row_policy_labels = row_policies
         col_policy_labels = col_policies

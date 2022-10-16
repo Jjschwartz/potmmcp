@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Optional
 
 import numpy as np
 import pandas as pd
@@ -62,11 +62,13 @@ def get_uniform_expected_agg_map(df):
     return agg_dict
 
 
-def get_uniform_expected_df(df, coplayer_policies: Sequence[str]):
+def get_uniform_expected_df(df,
+                            coplayer_policies: Sequence[str],
+                            coplayer_policy_key: str = "coplayer_policy_id"):
     """Get DF with expected values w.r.t policy prior for each policy."""
     agg_dict = get_uniform_expected_agg_map(df)
 
-    exp_df = df[df["coplayer_policy_id"].isin(coplayer_policies)]
+    exp_df = df[df[coplayer_policy_key].isin(coplayer_policies)]
     gb = exp_df.groupby(["policy_id"])
     gb_agg = gb.agg(**agg_dict)
 

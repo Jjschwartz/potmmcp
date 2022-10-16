@@ -76,10 +76,6 @@ mean_keys = [
     'episode_time'
 ]
 
-assigned_keys = set(
-    group_keys + constants + replaced + first_keys + sum_keys + mean_keys
-)
-
 
 def parse_win(row):  # noqa
     return int(row["episode_outcome"] == 'WIN')
@@ -114,6 +110,10 @@ def main(results_filepath):   # noqa
         for c in ep_df.columns:
             if c.startswith("coplayer_policy_id"):
                 group_keys.append(c)
+        group_keys.append("agent_id")
+        constants.remove("agent_id")
+
+    print(f"{group_keys=}")
 
     print("Cleaning data")
     # replace num_episodes with actual number of episodes completed
@@ -129,6 +129,9 @@ def main(results_filepath):   # noqa
         ep_df[k] = ep_df.apply(fn, axis=1)
 
     # unassigned keys belong to belief statistics
+    assigned_keys = set(
+        group_keys + constants + replaced + first_keys + sum_keys + mean_keys
+    )
     belief_stat_keys = [c for c in ep_df if c not in assigned_keys]
 
     print("Grouping data")
