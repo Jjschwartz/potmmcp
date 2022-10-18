@@ -260,9 +260,14 @@ def plot_truncated_vs_num_sims_by_alg(plot_df: pd.DataFrame,
                                       ax: Axes,
                                       y_key: str,
                                       y_err_key: str,
+                                      truncated_label_map=None,
                                       alg_id_key: str = "alg_id"):
     """Plot expected values for truncated vs untruncated by num_sims."""
     assert len(plot_df[alg_id_key].unique()) == 1
+
+    if not truncated_label_map:
+        truncated_label_map = {}
+
     all_trunc = plot_df["truncated"].unique().tolist()
     all_trunc.sort()
 
@@ -273,7 +278,7 @@ def plot_truncated_vs_num_sims_by_alg(plot_df: pd.DataFrame,
         y = a_df[y_key]
         y_err = a_df[y_err_key]
 
-        ax.plot(x, y, label=trunc)
+        ax.plot(x, y, label=truncated_label_map.get(trunc, trunc))
         ax.fill_between(x, y-y_err, y+y_err, alpha=0.2)
 
 
@@ -281,6 +286,7 @@ def plot_multiple_truncated_vs_num_sims_by_alg(plot_df: pd.DataFrame,
                                                y_key: str,
                                                y_err_key: str,
                                                alg_id_key: str = "alg_id",
+                                               truncated_label_map=None,
                                                subplot_kwargs=None,
                                                legend_kwargs=None,
                                                fig_kwargs=None,
@@ -318,7 +324,8 @@ def plot_multiple_truncated_vs_num_sims_by_alg(plot_df: pd.DataFrame,
             ax,
             y_key=y_key,
             y_err_key=y_err_key,
-            alg_id_key=alg_id_key
+            alg_id_key=alg_id_key,
+            truncated_label_map=truncated_label_map
         )
         ax.legend(**legend_kwargs)
         if set_title:
@@ -331,9 +338,16 @@ def plot_action_selection_vs_num_sims_by_alg(plot_df: pd.DataFrame,
                                              ax: Axes,
                                              y_key: str,
                                              y_err_key: str,
-                                             alg_id_key: str = "alg_id"):
+                                             alg_id_key: str = "alg_id",
+                                             act_sel_label_map: Optional[
+                                                 Dict[str, str]
+                                             ] = None):
     """Plot expected values for action selction strategies by num_sims."""
     assert len(plot_df[alg_id_key].unique()) == 1
+
+    if not act_sel_label_map:
+        act_sel_label_map = {}
+
     all_act_sel = plot_df["action_selection"].unique().tolist()
     all_act_sel.sort()
 
@@ -344,7 +358,7 @@ def plot_action_selection_vs_num_sims_by_alg(plot_df: pd.DataFrame,
         y = a_df[y_key]
         y_err = a_df[y_err_key]
 
-        ax.plot(x, y, label=act_sel)
+        ax.plot(x, y, label=act_sel_label_map.get(act_sel, act_sel))
         ax.fill_between(x, y-y_err, y+y_err, alpha=0.2)
 
 
@@ -352,6 +366,7 @@ def plot_multiple_action_selection_vs_num_sims_by_alg(plot_df,
                                                       y_key: str,
                                                       y_err_key: str,
                                                       alg_id_key="alg_id",
+                                                      act_sel_label_map=None,
                                                       subplot_kwargs=None,
                                                       legend_kwargs=None,
                                                       fig_kwargs=None,
@@ -386,7 +401,8 @@ def plot_multiple_action_selection_vs_num_sims_by_alg(plot_df,
             ax,
             y_key=y_key,
             y_err_key=y_err_key,
-            alg_id_key=alg_id_key
+            alg_id_key=alg_id_key,
+            act_sel_label_map=act_sel_label_map
         )
         ax.legend(**legend_kwargs)
         if set_title:
