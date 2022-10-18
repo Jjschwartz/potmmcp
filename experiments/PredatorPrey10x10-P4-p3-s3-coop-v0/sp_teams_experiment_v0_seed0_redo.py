@@ -6,13 +6,19 @@ import baposgmcp.run as run_lib
 from baposgmcp import meta_policy
 import baposgmcp.baselines as baseline_lib
 
+# REDO_EXP_IDS = [
+#     48, 49, 50, 51,
+#     126, 127, 128, 130,
+#     204, 205, 206, 207,
+# ]
+# for i in range(212, 390):
+#     REDO_EXP_IDS.append(i)
+
 REDO_EXP_IDS = [
-    48, 49, 50, 51,
-    126, 127, 128, 130,
-    204, 205, 206, 207,
+    52,
+    129,
+    208,
 ]
-for i in range(212, 390):
-    REDO_EXP_IDS.append(i)
 
 ENV_ID = "PredatorPrey10x10-P4-p3-s3-coop-v0"
 N_AGENTS = 4
