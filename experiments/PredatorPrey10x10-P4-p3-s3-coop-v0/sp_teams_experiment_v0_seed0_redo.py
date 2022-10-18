@@ -14,10 +14,19 @@ import baposgmcp.baselines as baseline_lib
 # for i in range(212, 390):
 #     REDO_EXP_IDS.append(i)
 
+# REDO_EXP_IDS = [
+#     52,
+#     129,
+#     208,
+# ]
+
+# Due to error while initializing ray
 REDO_EXP_IDS = [
-    52,
-    129,
-    208,
+    216, 217, 218, 219, 220,
+    223, 225, 226, 227, 228,
+    230, 237, 240, 247, 249,
+    254, 255, 256, 261, 262,
+    263, 264,
 ]
 
 ENV_ID = "PredatorPrey10x10-P4-p3-s3-coop-v0"
