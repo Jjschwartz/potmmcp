@@ -65,11 +65,11 @@ policy_id_renaming = {
     "baposgmcp_greedy_numsims50": "baposgmcp_greedy_numsims500_actionselectionpucb_truncatedTrue",
     "baposgmcp_greedy_numsims500": "baposgmcp_greedy_numsims50_actionselectionpucb_truncatedTrue",
 
-    # "baposgmcp_random_numsims1000_actionselectionpucb_truncatedFalse",
-    # "baposgmcp_random_numsims100_actionselectionpucb_truncatedFalse",
-    # "baposgmcp_random_numsims10_actionselectionpucb_truncatedFalse",
-    # "baposgmcp_random_numsims500_actionselectionpucb_truncatedFalse",
-    # "baposgmcp_random_numsims50_actionselectionpucb_truncatedFalse",
+    "baposgmcp_random_numsims10": "baposgmcp_random_numsims10_actionselectionpucb_truncatedFalse",
+    "baposgmcp_random_numsims100": "baposgmcp_random_numsims100_actionselectionpucb_truncatedFalse",
+    "baposgmcp_random_numsims1000": "baposgmcp_random_numsims1000_actionselectionpucb_truncatedFalse",
+    "baposgmcp_random_numsims50": "baposgmcp_random_numsims50_actionselectionpucb_truncatedFalse",
+    "baposgmcp_random_numsims500": "baposgmcp_random_numsims500_actionselectionpucb_truncatedFalse",
 
     "baposgmcp_softmax_numsims10": "baposgmcp_softmax_numsims10_actionselectionpucb_truncatedTrue",
     "baposgmcp_softmax_numsims100": "baposgmcp_softmax_numsims100_actionselectionpucb_truncatedTrue",
