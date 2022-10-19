@@ -180,8 +180,8 @@ def get_baselines(agent_id: int, other_agent_id: int):   # noqa
 
     meta_pis = [
         # ("greedy", GREEDY_META_POLICY_MAP[agent_id]),
-        ("softmax", SOFTMAX_META_POLICY_MAP),
-        ("uniform", UNIFORM_META_POLICY_MAP)
+        ("softmax", SOFTMAX_META_POLICY_MAP[agent_id]),
+        ("uniform", UNIFORM_META_POLICY_MAP[agent_id])
     ]
 
     baseline_params = []
