@@ -7,13 +7,13 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 
-plt.rc('font', size=14)              # controls default text size
-plt.rc('axes', titlesize=14)         # fontsize of the title
-plt.rc('axes', labelsize=14)         # fontsize of the x and y labels
-plt.rc('xtick', labelsize=10)        # fontsize of the x tick labels
-plt.rc('ytick', labelsize=10)        # fontsize of the y tick labels
-plt.rc('legend', fontsize=14)        # fontsize of the legend
-plt.rc('legend', title_fontsize=14)  # fontsize of the legend title
+plt.rc('font', size=18)              # controls default text size
+plt.rc('axes', titlesize=18)         # fontsize of the title
+plt.rc('axes', labelsize=18)         # fontsize of the x and y labels
+plt.rc('xtick', labelsize=12)        # fontsize of the x tick labels
+plt.rc('ytick', labelsize=12)        # fontsize of the y tick labels
+plt.rc('legend', fontsize=18)        # fontsize of the legend
+plt.rc('legend', title_fontsize=16)  # fontsize of the legend title
 
 
 def get_base_plot_kwargs():
