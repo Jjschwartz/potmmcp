@@ -13,9 +13,7 @@ from baposgmcp.policy_prior import (
 )
 
 from baposgmcp.tree.policy import BAPOSGMCP
-from baposgmcp.tree.reinvigorate import (
-    BeliefReinvigorator, BABeliefRejectionSampler
-)
+from baposgmcp.tree.reinvigorate import BeliefReinvigorator
 
 
 def load_pometa_params(num_sims: List[int],
@@ -68,7 +66,6 @@ class POMeta(BAPOSGMCP):
                  num_sims: int,
                  other_policy_prior: PolicyPrior,
                  meta_policy: MetaPolicy,
-                 reinvigorator: BeliefReinvigorator,
                  **kwargs):
         super().__init__(
             model,
@@ -81,7 +78,7 @@ class POMeta(BAPOSGMCP):
             c_init=kwargs.pop("c_init", 1.25),
             c_base=kwargs.pop("c_base", 1.25),
             truncated=kwargs.pop("truncated", True),
-            reinvigorator=reinvigorator,
+            reinvigorator=kwargs.pop("reinvigorator", None),
             step_limit=kwargs.pop("step_limit", None),
             epsilon=kwargs.pop("epsilon", 0.01),
             policy_id=kwargs.pop("policy_id", "POMeta"),
@@ -161,9 +158,6 @@ class POMeta(BAPOSGMCP):
             agent_id,
             meta_policy_dict=kwargs.pop("meta_policy_dict")
         )
-
-        if "reinvigorator" not in kwargs:
-            kwargs["reinvigorator"] = BABeliefRejectionSampler(model)
 
         return POMeta(
             model,

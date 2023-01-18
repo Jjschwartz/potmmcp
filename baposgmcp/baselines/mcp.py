@@ -47,9 +47,6 @@ def fixed_pi_baposgmcp_entry_point(model: M.POSGModel,
         policy_id=kwargs.pop("fixed_policy_id")
     )
 
-    if "reinvigorator" not in kwargs:
-        kwargs["reinvigorator"] = tree_lib.BABeliefRejectionSampler(model)
-
     return tree_lib.BAPOSGMCP(
         model,
         agent_id,

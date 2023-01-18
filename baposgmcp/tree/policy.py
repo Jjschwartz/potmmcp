@@ -17,7 +17,7 @@ import baposgmcp.tree.belief as B
 from baposgmcp.tree.hps import HistoryPolicyState
 from baposgmcp.tree.node import ObsNode, ActionNode
 from baposgmcp.tree.stats import MinMaxStats, KnownBounds
-from baposgmcp.tree.reinvigorate import BeliefReinvigorator
+from baposgmcp.tree.reinvigorate import BeliefReinvigorator, BABeliefRejectionSampler
 
 
 class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
@@ -39,7 +39,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                  c_init: float,
                  c_base: float,
                  truncated: bool,
-                 reinvigorator: BeliefReinvigorator,
+                 reinvigorator: Optional[BeliefReinvigorator] = None,
                  action_selection: str = "pucb",
                  dirichlet_alpha: Optional[float] = None,
                  root_exploration_fraction: float = 0.25,
@@ -71,10 +71,13 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         self._known_bounds = known_bounds
         self._min_max_stats = MinMaxStats(known_bounds)
         self._truncated = truncated
-        self._reinvigorator = reinvigorator
         self._extra_particles = math.ceil(num_sims * extra_particles_prop)
         self._step_limit = step_limit
         self._epsilon = epsilon
+
+        if reinvigorator is None:
+            reinvigorator = BABeliefRejectionSampler(model, sample_limit=4*num_sims)
+        self._reinvigorator = reinvigorator
 
         if discount == 0.0:
             self._depth_limit = 0

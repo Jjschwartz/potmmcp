@@ -45,9 +45,6 @@ def baposgmcp_init_fn(model: M.POSGModel, agent_id: M.AgentID, kwargs):
         meta_policy_dict=kwargs.pop("meta_policy_dict")
     )
 
-    if "reinvigorator" not in kwargs:
-        kwargs["reinvigorator"] = tree_lib.BABeliefRejectionSampler(model)
-
     return tree_lib.BAPOSGMCP(
         model,
         agent_id,

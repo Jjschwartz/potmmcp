@@ -12,7 +12,6 @@ from baposgmcp.policy_prior import load_posggym_agents_policy_prior
 from baposgmcp.tree.node import ObsNode
 from baposgmcp.tree.policy import BAPOSGMCP
 from baposgmcp.tree.hps import HistoryPolicyState
-from baposgmcp.tree.reinvigorate import BABeliefRejectionSampler
 
 
 def load_pometarollout_params(variable_params: Dict[str, List],
@@ -175,9 +174,6 @@ class POMetaRollout(BAPOSGMCP):
             agent_id,
             meta_policy_dict=kwargs.pop("meta_policy_dict")
         )
-
-        if "reinvigorator" not in kwargs:
-            kwargs["reinvigorator"] = BABeliefRejectionSampler(model)
 
         return POMetaRollout(
             model,
