@@ -29,7 +29,11 @@ def get_uniform_expected_agg_map(df):
         k for k in df.columns
         if (
             any(k.endswith(v) for v in ["_mean", "_std", "_CI"])
-            or k.startswith("prop_")
+            or any(
+                k.startswith(v) for v in [
+                    "prop_", "bayes_accuracy", "action_dist_distance"
+                ]
+            )
         )
     ]
 

@@ -70,7 +70,8 @@ def load_random_baposgmcp_params(variable_params: Dict[str, List],
     random policy.
     """
     base_kwargs = copy.deepcopy(baposgmcp_kwargs)
-    if base_kwargs["truncated"]:
+
+    if "truncated" not in base_kwargs or base_kwargs["truncated"]:
         warnings.warn(
             "Cannot do truncated search with random policy. Changing to "
             "untruncated search."

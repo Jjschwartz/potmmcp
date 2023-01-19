@@ -625,20 +625,14 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             return random.choice(self.action_space)
 
         sqrt_n = math.sqrt(obs_node.visits)
-        exploration_rate = self._c_init
-        exploration_rate += math.log(
-            (1 + obs_node.visits + self._c_base) / self._c_base
-        )
 
         max_v = -float('inf')
         max_action = obs_node.children[0].action
         for action_node in obs_node.children:
-            ucb_c = (sqrt_n / (1 + action_node.visits)) * exploration_rate
-            if action_node.visits > 0:
-                action_v = self._min_max_stats.normalize(action_node.value)
-            else:
-                action_v = 0
-            action_v = action_v + ucb_c
+            if action_node.visits == 0:
+                return action_node.action
+            explore_v = self._c_init * (sqrt_n / math.sqrt(action_node.visits))
+            action_v = self._min_max_stats.normalize(action_node.value) + explore_v
             if action_v > max_v:
                 max_v = action_v
                 max_action = action_node.action

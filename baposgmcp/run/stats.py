@@ -468,9 +468,13 @@ class BayesAccuracyTracker(Tracker):
 
         stats = {}
         for i in range(self._num_agents):
-            stats[i] = {f"bayes_accuracy_{i}": np.nan}
+            stats[i] = {
+                f"bayes_accuracy_{i}_mean": np.nan,
+                f"bayes_accuracy_{i}_std": np.nan
+            }
             for j, acc in self._episode_acc[i].items():
-                stats[i][f"bayes_accuracy_{j}"] = np.mean(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_mean"] = np.mean(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_std"] = np.std(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -495,13 +499,18 @@ class BayesAccuracyTracker(Tracker):
 
         stats = {}
         for i in range(self._num_agents):
-            stats[i] = {f"bayes_accuracy_{i}": np.nan}
+            stats[i] = {
+                f"bayes_accuracy_{i}_mean": np.nan,
+                f"bayes_accuracy_{i}_std": np.nan
+            }
             for j, acc in self._acc[i].items():
-                stats[i][f"bayes_accuracy_{j}"] = np.mean(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_mean"] = np.mean(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_std"] = np.std(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
-                    stats[i][f"bayes_accuracy_{i}_{t}"] = np.nan
+                    stats[i][f"bayes_accuracy_{i}_{t}_mean"] = np.nan
+                    stats[i][f"bayes_accuracy_{i}_{t}_std"] = np.nan
 
                 for j, ep_accs in self._step_acc[i].items():
                     accs_by_t = [[] for _ in range(num_steps)]
@@ -510,8 +519,8 @@ class BayesAccuracyTracker(Tracker):
                             accs_by_t[t].append(v)
 
                     for t in range(num_steps):
-                        mean_acc = np.mean(accs_by_t[t])
-                        stats[i][f"bayes_accuracy_{j}_{t}"] = mean_acc
+                        stats[i][f"bayes_accuracy_{j}_{t}_mean"] = np.mean(accs_by_t[t])
+                        stats[i][f"bayes_accuracy_{j}_{t}_std"] = np.std(accs_by_t[t])
 
         return stats
 
@@ -608,7 +617,10 @@ class BeliefStateAccuracyTracker(Tracker):
         stats = {}
         for i in range(self._num_agents):
             acc = self._episode_acc[i]
-            stats[i] = {"state_accuracy": np.mean(acc, axis=0)}
+            stats[i] = {
+                "state_accuracy_mean": np.mean(acc, axis=0),
+                "state_accuracy_std": np.std(acc, axis=0)
+            }
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -628,7 +640,10 @@ class BeliefStateAccuracyTracker(Tracker):
 
         stats = {}
         for i in range(self._num_agents):
-            stats[i] = {"state_accuracy": np.mean(self._acc[i], axis=0)}
+            stats[i] = {
+                "state_accuracy_mean": np.mean(self._acc[i], axis=0),
+                "state_accuracy_std": np.std(self._acc[i], axis=0)
+            }
 
             if self._track_per_step:
                 ep_accs = self._step_acc[i]
@@ -638,8 +653,8 @@ class BeliefStateAccuracyTracker(Tracker):
                         accs_by_t[t].append(v)
 
                 for t in range(num_steps):
-                    mean_acc = np.mean(accs_by_t[t])
-                    stats[i][f"state_accuracy_{t}"] = mean_acc
+                    stats[i][f"state_accuracy_{t}_mean"] = np.mean(accs_by_t[t])
+                    stats[i][f"state_accuracy_{t}_std"] = np.std(accs_by_t[t])
 
         return stats
 
@@ -741,9 +756,13 @@ class BeliefHistoryAccuracyTracker(Tracker):
 
         stats = {}
         for i in range(self._num_agents):
-            stats[i] = {f"history_accuracy_{i}": np.nan}
-            for j, acc in self._episode_acc[i].items():
-                stats[i][f"history_accuracy_{j}"] = np.mean(acc, axis=0)
+            stats[i] = {
+                f"history_accuracy_{i}_mean": np.nan,
+                f"history_accuracy_{i}_std": np.nan
+            }
+            for j, acc in self._acc[i].items():
+                stats[i][f"history_accuracy_{j}_mean"] = np.mean(acc, axis=0)
+                stats[i][f"history_accuracy_{j}_std"] = np.std(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -768,13 +787,18 @@ class BeliefHistoryAccuracyTracker(Tracker):
 
         stats = {}
         for i in range(self._num_agents):
-            stats[i] = {f"history_accuracy_{i}": np.nan}
+            stats[i] = {
+                f"history_accuracy_{i}_mean": np.nan,
+                f"history_accuracy_{i}_std": np.nan
+            }
             for j, acc in self._acc[i].items():
-                stats[i][f"history_accuracy_{j}"] = np.mean(acc, axis=0)
+                stats[i][f"history_accuracy_{j}_mean"] = np.mean(acc, axis=0)
+                stats[i][f"history_accuracy_{j}_std"] = np.std(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
-                    stats[i][f"history_accuracy_{i}_{t}"] = np.nan
+                    stats[i][f"history_accuracy_{i}_{t}_mean"] = np.nan
+                    stats[i][f"history_accuracy_{i}_{t}_std"] = np.nan
 
                 for j, ep_accs in self._step_acc[i].items():
                     accs_by_t = [[] for _ in range(num_steps)]
@@ -784,7 +808,9 @@ class BeliefHistoryAccuracyTracker(Tracker):
 
                     for t in range(num_steps):
                         mean_acc = np.mean(accs_by_t[t])
-                        stats[i][f"history_accuracy_{j}_{t}"] = mean_acc
+                        stats[i][f"history_accuracy_{j}_{t}_mean"] = mean_acc
+                        std_acc = np.std(accs_by_t[t])
+                        stats[i][f"history_accuracy_{j}_{t}_std"] = std_acc
 
         return stats
 
@@ -897,9 +923,13 @@ class ActionDistributionDistanceTracker(Tracker):
 
         stats = {}
         for i in range(self._num_agents):
-            stats[i] = {f"action_dist_distance_{i}": np.nan}
+            stats[i] = {
+                f"action_dist_distance_{i}_mean": np.nan,
+                f"action_dist_distance_{i}_std": np.nan
+            }
             for j, acc in self._episode_acc[i].items():
-                stats[i][f"action_dist_distance_{j}"] = np.mean(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_mean"] = np.mean(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_std"] = np.std(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -924,13 +954,18 @@ class ActionDistributionDistanceTracker(Tracker):
 
         stats = {}
         for i in range(self._num_agents):
-            stats[i] = {f"action_dist_distance_{i}": np.nan}
+            stats[i] = {
+                f"action_dist_distance_{i}_mean": np.nan,
+                f"action_dist_distance_{i}_std": np.nan
+            }
             for j, acc in self._acc[i].items():
-                stats[i][f"action_dist_distance_{j}"] = np.mean(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_mean"] = np.mean(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_std"] = np.std(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
-                    stats[i][f"action_dist_distance_{i}_{t}"] = np.nan
+                    stats[i][f"action_dist_distance_{i}_{t}_mean"] = np.nan
+                    stats[i][f"action_dist_distance_{i}_{t}_std"] = np.nan
 
                 for j, ep_accs in self._step_acc[i].items():
                     accs_by_t = [[] for _ in range(num_steps)]
@@ -940,6 +975,8 @@ class ActionDistributionDistanceTracker(Tracker):
 
                     for t in range(num_steps):
                         mean_acc = np.mean(accs_by_t[t])
-                        stats[i][f"action_dist_distance_{j}_{t}"] = mean_acc
+                        stats[i][f"action_dist_distance_{j}_{t}_mean"] = mean_acc
+                        std_acc = np.std(accs_by_t[t])
+                        stats[i][f"action_dist_distance_{j}_{t}_std"] = std_acc
 
         return stats

@@ -1,3 +1,4 @@
+from itertools import product
 from typing import List, Optional, Dict, Tuple
 
 import numpy as np
@@ -334,50 +335,18 @@ def plot_multiple_truncated_vs_num_sims_by_alg(plot_df: pd.DataFrame,
     return fig, axs
 
 
-def plot_action_selection_vs_num_sims_by_alg(plot_df: pd.DataFrame,
-                                             ax: Axes,
-                                             y_key: str,
-                                             y_err_key: str,
-                                             alg_id_key: str = "alg_id",
-                                             act_sel_label_map: Optional[
-                                                 Dict[str, str]
-                                             ] = None):
+def plot_action_selection_vs_num_sims(plot_df: pd.DataFrame,
+                                      ax: Axes,
+                                      y_key: str,
+                                      y_err_key: str,
+                                      alg_id_key="alg_id",
+                                      act_sel_key="action_selection",
+                                      label_map=None,
+                                      subplot_kwargs=None,
+                                      legend_kwargs=None,
+                                      fig_kwargs=None,
+                                      set_title: bool = False):
     """Plot expected values for action selction strategies by num_sims."""
-    assert len(plot_df[alg_id_key].unique()) == 1
-
-    if not act_sel_label_map:
-        act_sel_label_map = {}
-
-    all_act_sel = plot_df["action_selection"].unique().tolist()
-    all_act_sel.sort()
-
-    for act_sel in all_act_sel:
-        a_df = plot_df[plot_df["action_selection"] == act_sel]
-        a_df = a_df.sort_values(by="num_sims")
-        x = a_df["num_sims"]
-        y = a_df[y_key]
-        y_err = a_df[y_err_key]
-
-        ax.plot(x, y, label=act_sel_label_map.get(act_sel, act_sel))
-        ax.fill_between(x, y-y_err, y+y_err, alpha=0.2)
-
-
-def plot_multiple_action_selection_vs_num_sims_by_alg(plot_df,
-                                                      y_key: str,
-                                                      y_err_key: str,
-                                                      alg_id_key="alg_id",
-                                                      act_sel_label_map=None,
-                                                      subplot_kwargs=None,
-                                                      legend_kwargs=None,
-                                                      fig_kwargs=None,
-                                                      set_title: bool = False):
-    """Create multiple action selection vs num sims plots."""
-    alg_ids = plot_df[alg_id_key].unique()
-    alg_ids.sort()
-
-    num_rows = len(alg_ids)
-    num_cols = 1
-
     if not subplot_kwargs:
         subplot_kwargs = {}
 
@@ -385,30 +354,37 @@ def plot_multiple_action_selection_vs_num_sims_by_alg(plot_df,
         legend_kwargs = {}
 
     fig, axs = plt.subplots(
-        nrows=num_rows,
-        ncols=num_cols,
+        nrows=1,
+        ncols=1,
         squeeze=False,
         subplot_kw=subplot_kwargs,
         **fig_kwargs
     )
 
-    for row_axs, alg_id in zip(axs, alg_ids):
-        ax = row_axs[0]
-        alg_df = plot_df[plot_df[alg_id_key] == alg_id]
+    if not label_map:
+        label_map = {}
 
-        plot_action_selection_vs_num_sims_by_alg(
-            alg_df,
-            ax,
-            y_key=y_key,
-            y_err_key=y_err_key,
-            alg_id_key=alg_id_key,
-            act_sel_label_map=act_sel_label_map
-        )
-        ax.legend(**legend_kwargs)
-        if set_title:
-            ax.set_title(alg_id)
+    alg_ids = plot_df[alg_id_key].unique().tolist()
+    alg_ids.sort()
 
-    return fig, axs
+    all_act_sel = plot_df[act_sel_key].unique().tolist()
+    all_act_sel.sort()
+
+    for alg_id, act_sel in product(alg_ids, all_act_sel):
+        a_df = plot_df[
+            (plot_df[act_sel_key] == act_sel)
+            & (plot_df[alg_id_key] == alg_id)
+        ]
+        if len(a_df) == 0:
+            continue
+
+        a_df = a_df.sort_values(by="num_sims")
+        x = a_df["num_sims"]
+        y = a_df[y_key]
+        y_err = a_df[y_err_key]
+
+        ax.plot(x, y, label=label_map.get((alg_id, act_sel), f"{alg_id} - {act_sel}"))
+        ax.fill_between(x, y-y_err, y+y_err, alpha=0.2)
 
 
 def plot_expected_belief_stat_by_step(plot_df: pd.DataFrame,
