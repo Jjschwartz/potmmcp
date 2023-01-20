@@ -21,9 +21,9 @@ Experiments
 import copy
 from pprint import pprint
 
+import baposgmcp.baselines as baseline_lib
 import baposgmcp.run as run_lib
 from baposgmcp import meta_policy
-import baposgmcp.baselines as baseline_lib
 
 
 ENV_ID = "Driving14x14WideRoundAbout-n2-v0"
@@ -47,15 +47,17 @@ POLICY_IDS = [
     f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0",
     f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0",
     f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0",
-    f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0"
+    f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0",
 ]
 # Defined for K=3
-POLICY_PRIOR_MAP = {OTHER_AGENT_ID: {
-    f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 1/4,
-    f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 1/4,
-    f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 1/4,
-    f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 1/4
-}}
+POLICY_PRIOR_MAP = {
+    OTHER_AGENT_ID: {
+        f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 1 / 4,
+        f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 1 / 4,
+        f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 1 / 4,
+        f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 1 / 4,
+    }
+}
 # Defined for policy states with (K=3) and meta-policy (K=4)
 PAIRWISE_RETURNS = {
     (-1, f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0"): {
@@ -63,36 +65,34 @@ PAIRWISE_RETURNS = {
         f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 2.21,
         f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 2.01,
         f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 1.74,
-        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 1.70
+        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 1.70,
     },
     (-1, f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0"): {
         f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 2.21,
         f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 2.05,
         f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 2.21,
         f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 1.74,
-        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 1.88
+        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 1.88,
     },
     (-1, f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0"): {
         f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 1.97,
         f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 2.19,
         f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 2.12,
         f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 2.18,
-        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 1.76
+        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 1.76,
     },
     (-1, f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0"): {
         f"{ENV_ID}/klr_k0_seed{POLICY_SEED}-v0": 1.73,
         f"{ENV_ID}/klr_k1_seed{POLICY_SEED}-v0": 1.76,
         f"{ENV_ID}/klr_k2_seed{POLICY_SEED}-v0": 2.18,
         f"{ENV_ID}/klr_k3_seed{POLICY_SEED}-v0": 1.89,
-        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 2.21
-    }
+        f"{ENV_ID}/klr_k4_seed{POLICY_SEED}-v0": 2.21,
+    },
 }
 
 GREEDY_META_POLICY_MAP = meta_policy.get_greedy_policy_dict(PAIRWISE_RETURNS)
 UNIFORM_META_POLICY_MAP = meta_policy.get_uniform_policy_dict(PAIRWISE_RETURNS)
-SOFTMAX_META_POLICY_MAP = meta_policy.get_softmax_policy_dict(
-    PAIRWISE_RETURNS, 0.25
-)
+SOFTMAX_META_POLICY_MAP = meta_policy.get_softmax_policy_dict(PAIRWISE_RETURNS, 0.25)
 
 BEST_META_PI_NAME = "softmax"
 BEST_META_PI_MAP = SOFTMAX_META_POLICY_MAP
@@ -104,23 +104,23 @@ BAPOSGMCP_PUCT_KWARGS = {
     "c_base": 20000,
     # "truncated": True,   # added as variable param like num sims
     "action_selection": "pucb",
-    "dirichlet_alpha": 0.5,    # 5 actions / 10
-    "root_exploration_fraction": 0.5,   # half actions valid/useful at any step
-    "reinvigorator": None,    # Use default rejection sampler
+    "dirichlet_alpha": 0.5,  # 5 actions / 10
+    "root_exploration_fraction": 0.5,  # half actions valid/useful at any step
+    "reinvigorator": None,  # Use default rejection sampler
     "known_bounds": None,
     "extra_particles_prop": 1.0 / 16,
     "step_limit": ENV_STEP_LIMIT,
-    "epsilon": 0.01
+    "epsilon": 0.01,
 }
-UCB_C = 2.0   # as per OG paper/standard parameter
+UCB_C = 2.0  # as per OG paper/standard parameter
 
 
-def get_metabaseline():   # noqa
+def get_metabaseline():  # noqa
     baseline_params = []
     for (name, meta_policy_map) in [
-            ("greedy", GREEDY_META_POLICY_MAP),
-            ("softmax", SOFTMAX_META_POLICY_MAP),
-            ("uniform", UNIFORM_META_POLICY_MAP)
+        ("greedy", GREEDY_META_POLICY_MAP),
+        ("softmax", SOFTMAX_META_POLICY_MAP),
+        ("uniform", UNIFORM_META_POLICY_MAP),
     ]:
         # Meta Baseline Policy
         policy_id = f"metabaseline_{name}"
@@ -130,8 +130,8 @@ def get_metabaseline():   # noqa
             kwargs={
                 "policy_id": policy_id,
                 "policy_prior_map": POLICY_PRIOR_MAP,
-                "meta_policy_dict": meta_policy_map
-            }
+                "meta_policy_dict": meta_policy_map,
+            },
         )
         baseline_params.append(policy_params)
 
@@ -143,17 +143,14 @@ def get_metabaseline():   # noqa
     return baseline_params
 
 
-def get_baposgmcps():   # noqa
-    variable_params = {
-        "num_sims": NUM_SIMS,
-        "truncated": [True]
-    }
+def get_baposgmcps():  # noqa
+    variable_params = {"num_sims": NUM_SIMS, "truncated": [True]}
 
     baposgmcp_params = []
     for (name, meta_policy_map) in [
-            ("greedy", GREEDY_META_POLICY_MAP),
-            ("softmax", SOFTMAX_META_POLICY_MAP),
-            ("uniform", UNIFORM_META_POLICY_MAP)
+        ("greedy", GREEDY_META_POLICY_MAP),
+        ("softmax", SOFTMAX_META_POLICY_MAP),
+        ("uniform", UNIFORM_META_POLICY_MAP),
     ]:
         baposgmcp_params.extend(
             run_lib.load_baposgmcp_params(
@@ -161,29 +158,26 @@ def get_baposgmcps():   # noqa
                 baposgmcp_kwargs=BAPOSGMCP_PUCT_KWARGS,
                 policy_prior_map=POLICY_PRIOR_MAP,
                 meta_policy_dict=meta_policy_map,
-                base_policy_id=f"baposgmcp_meta{name}"
+                base_policy_id=f"baposgmcp_meta{name}",
             )
         )
     # NUM Exps:
     # = |NUM_SIMS| * |Meta|
     # = 5 * 3
     # = 15
-    assert len(baposgmcp_params) == (len(NUM_SIMS)*3)
+    assert len(baposgmcp_params) == (len(NUM_SIMS) * 3)
     return baposgmcp_params
 
 
-def get_untruncated_baposgmcps():   # noqa
-    variable_params = {
-        "num_sims": NUM_SIMS,
-        "truncated": [False]
-    }
+def get_untruncated_baposgmcps():  # noqa
+    variable_params = {"num_sims": NUM_SIMS, "truncated": [False]}
 
     baposgmcp_params = run_lib.load_baposgmcp_params(
         variable_params=variable_params,
         baposgmcp_kwargs=BAPOSGMCP_PUCT_KWARGS,
         policy_prior_map=POLICY_PRIOR_MAP,
         meta_policy_dict=BEST_META_PI_MAP,
-        base_policy_id=f"baposgmcp_meta{BEST_META_PI_NAME}"
+        base_policy_id=f"baposgmcp_meta{BEST_META_PI_NAME}",
     )
 
     # NUM Exps:
@@ -193,10 +187,10 @@ def get_untruncated_baposgmcps():   # noqa
     return baposgmcp_params
 
 
-def get_fixed_baposgmcps():   # noqa
+def get_fixed_baposgmcps():  # noqa
     random_variable_params = {
         "num_sims": NUM_SIMS,
-        "truncated": [False]   # added so it's clearly visible in policy id
+        "truncated": [False],  # added so it's clearly visible in policy id
     }
     random_kwargs = copy.deepcopy(BAPOSGMCP_PUCT_KWARGS)
     random_kwargs["truncated"] = False
@@ -204,57 +198,48 @@ def get_fixed_baposgmcps():   # noqa
         variable_params=random_variable_params,
         baposgmcp_kwargs=random_kwargs,
         policy_prior_map=POLICY_PRIOR_MAP,
-        base_policy_id="baposgmcp-random"
+        base_policy_id="baposgmcp-random",
     )
 
-    fixed_variable_params = {
-        "num_sims": NUM_SIMS,
-        "truncated": [True]
-    }
+    fixed_variable_params = {"num_sims": NUM_SIMS, "truncated": [True]}
     baposgmcp_params.extend(
         baseline_lib.load_fixed_pi_baposgmcp_params(
             variable_params=fixed_variable_params,
             fixed_policy_ids=POLICY_IDS,
             baposgmcp_kwargs=BAPOSGMCP_PUCT_KWARGS,
             policy_prior_map=POLICY_PRIOR_MAP,
-            base_policy_id="baposgmcp-fixed"
+            base_policy_id="baposgmcp-fixed",
         )
     )
     # NUM Exps:
     # = |NUM_SIMS| * (|PIS| + 1)
     # = 5 * (5 + 1)
     # = 30
-    assert len(baposgmcp_params) == (len(NUM_SIMS)*1*1*(len(POLICY_IDS)+1))
+    assert len(baposgmcp_params) == (len(NUM_SIMS) * (len(POLICY_IDS) + 1))
     return baposgmcp_params
 
 
-def get_ucb_mcps():   # noqa
+def get_ucb_mcps():  # noqa
     """
-    - IPOMCP (UCB + Meta-Policy)
+    - UCB MCP (UCB + Meta-Policy)
       - Best meta-policy [Truncated]
       - Best meta-policy [UnTruncated]
-    - IPOMCP Random (UCB + Random) [Untruncated]
+    - UCB MCP Random (UCB + Random) [Untruncated]
     """
     ucb_kwargs = copy.deepcopy(BAPOSGMCP_PUCT_KWARGS)
     ucb_kwargs["c_init"] = UCB_C
     ucb_kwargs["action_selection"] = "ucb"
 
-    meta_variable_params = {
-        "num_sims": NUM_SIMS,
-        "truncated": [True, False]
-    }
+    meta_variable_params = {"num_sims": NUM_SIMS, "truncated": [True, False]}
     ucb_params = run_lib.load_baposgmcp_params(
         variable_params=meta_variable_params,
         baposgmcp_kwargs=ucb_kwargs,
         policy_prior_map=POLICY_PRIOR_MAP,
         meta_policy_dict=BEST_META_PI_MAP,
-        base_policy_id=f"ucbmcp_meta{BEST_META_PI_NAME}"
+        base_policy_id=f"ucbmcp_meta{BEST_META_PI_NAME}",
     )
 
-    random_variable_params = {
-        "num_sims": NUM_SIMS,
-        "truncated": [False]
-    }
+    random_variable_params = {"num_sims": NUM_SIMS, "truncated": [False]}
     random_kwargs = copy.deepcopy(ucb_kwargs)
     random_kwargs["truncated"] = False
     ucb_params.extend(
@@ -262,7 +247,7 @@ def get_ucb_mcps():   # noqa
             variable_params=random_variable_params,
             baposgmcp_kwargs=random_kwargs,
             policy_prior_map=POLICY_PRIOR_MAP,
-            base_policy_id="ucbmcp-random"
+            base_policy_id="ucbmcp-random",
         )
     )
 
@@ -274,7 +259,7 @@ def get_ucb_mcps():   # noqa
     return ucb_params
 
 
-def main(args):   # noqa
+def main(args):  # noqa
     print("\n== Running Experiments ==")
     pprint(vars(args))
 
@@ -314,10 +299,10 @@ def main(args):   # noqa
         tracker_fn_kwargs={
             "num_agents": N_AGENTS,
             "step_limit": ENV_STEP_LIMIT,
-            "discount": DISCOUNT
+            "discount": DISCOUNT,
         },
         renderer_fn=None,
-        **vars(args)
+        **vars(args),
     )
 
     if args.get_num_exps:
@@ -341,7 +326,7 @@ def main(args):   # noqa
         n_procs=args.n_procs,
         exp_args=vars(args),
         root_save_dir=args.root_save_dir,
-        run_exp_id=args.run_exp_id
+        run_exp_id=args.run_exp_id,
     )
     print("== All done ==")
 
@@ -349,7 +334,8 @@ def main(args):   # noqa
 if __name__ == "__main__":
     parser = run_lib.get_exp_parser()
     parser.add_argument(
-        "--get_num_exps", action="store_true",
-        help="Compute and display number of experiments without running them."
+        "--get_num_exps",
+        action="store_true",
+        help="Compute and display number of experiments without running them.",
     )
     main(parser.parse_args())
