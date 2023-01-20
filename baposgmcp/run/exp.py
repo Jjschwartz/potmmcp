@@ -13,7 +13,6 @@ from typing import (
     List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple
 )
 
-import ray
 import numpy as np
 
 import posggym
@@ -301,7 +300,6 @@ def run_experiments(exp_name: str,
                     exp_params_list: List[ExpParams],
                     exp_log_level: int = logging.INFO+1,
                     n_procs: Optional[int] = None,
-                    using_ray: bool = False,
                     exp_args: Optional[Dict] = None,
                     root_save_dir: Optional[str] = None,
                     run_exp_id: Optional[int] = None) -> str:
@@ -347,10 +345,6 @@ def run_experiments(exp_name: str,
     def _initializer(init_args):
         proc_lock = init_args
         _init_lock(proc_lock)
-        if using_ray:
-            # limit ray to using only a single CPU per experiment process
-            logging.log(exp_log_level, "Initializing ray")
-            ray.init(num_cpus=1, include_dashboard=False)
 
     if n_procs == 1 or run_exp_id is not None or len(exp_params_list) <= 1:
         logging.log(exp_log_level, "Running on single process")

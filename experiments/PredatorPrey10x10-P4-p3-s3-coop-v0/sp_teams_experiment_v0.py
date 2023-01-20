@@ -261,7 +261,6 @@ def main(args):   # noqa
         exp_params_list=exp_params_list,
         exp_log_level=args.log_level,
         n_procs=args.n_procs,
-        using_ray=True,
         exp_args=vars(args),
         root_save_dir=args.root_save_dir,
         run_exp_id=args.run_exp_id
