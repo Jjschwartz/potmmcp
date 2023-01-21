@@ -17,7 +17,7 @@ BAPOSGMCP_AGENT_ID = 0
 OTHER_AGENT_IDS = 1
 
 # DEBUG - Delete/comment this
-NUM_SIMS = [2, 5]
+# NUM_SIMS = [2, 5]
 
 POLICY_IDS = [
     f"{ENV_ID}/sp_seed0-v0",
@@ -287,7 +287,7 @@ def main(args):  # noqa
 
     seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
     exp_str = "" if args.run_exp_id is None else f"_exp{args.run_exp_id}"
-    exp_name = f"baposgmcp_klr{exp_str}_{seed_str}"
+    exp_name = f"baposgmcp{exp_str}_{seed_str}"
 
     exp_args = vars(args)
     exp_args["env_id"] = ENV_ID

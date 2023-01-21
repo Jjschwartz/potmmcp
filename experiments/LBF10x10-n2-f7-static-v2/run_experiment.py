@@ -257,7 +257,7 @@ def main(args):  # noqa
 
     seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
     exp_str = "" if args.run_exp_id is None else f"_exp{args.run_exp_id}"
-    exp_name = f"baposgmcp_heuristic{exp_str}_{seed_str}"
+    exp_name = f"baposgmcp{exp_str}_{seed_str}"
 
     exp_args = vars(args)
     exp_args["env_id"] = ENV_ID

@@ -1,15 +1,12 @@
 import abc
 import time
 from collections import ChainMap
-from typing import (
-    Mapping, Any, List, Sequence, Iterable, Dict, Optional, Union
-)
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
-from scipy.stats import wasserstein_distance
-
 import posggym
 import posggym.model as M
+from scipy.stats import wasserstein_distance
 
 import baposgmcp.policy as P
 import baposgmcp.tree as tree_lib
@@ -18,21 +15,21 @@ import baposgmcp.tree as tree_lib
 AgentStatisticsMap = Mapping[M.AgentID, Mapping[str, Any]]
 
 
-def generate_episode_statistics(trackers: Iterable['Tracker']
-                                ) -> AgentStatisticsMap:
+def generate_episode_statistics(trackers: Iterable["Tracker"]) -> AgentStatisticsMap:
     """Generate episode statistics from set of trackers."""
     statistics = combine_statistics([t.get_episode() for t in trackers])
     return statistics
 
 
-def generate_statistics(trackers: Iterable['Tracker']) -> AgentStatisticsMap:
+def generate_statistics(trackers: Iterable["Tracker"]) -> AgentStatisticsMap:
     """Generate summary statistics from set of trackers."""
     statistics = combine_statistics([t.get() for t in trackers])
     return statistics
 
 
-def combine_statistics(statistic_maps: Sequence[AgentStatisticsMap]
-                       ) -> AgentStatisticsMap:
+def combine_statistics(
+    statistic_maps: Sequence[AgentStatisticsMap],
+) -> AgentStatisticsMap:
     """Combine multiple Agent statistic maps into a single one."""
     agent_ids = list(statistic_maps[0].keys())
     return {
@@ -41,8 +38,7 @@ def combine_statistics(statistic_maps: Sequence[AgentStatisticsMap]
     }
 
 
-def get_action_dist_distance(dist1: P.ActionDist,
-                             dist2: P.ActionDist) -> float:
+def get_action_dist_distance(dist1: P.ActionDist, dist2: P.ActionDist) -> float:
     """Get the Wassersteing distance between two action distributions."""
     # ensure dists are over the same actions or one dist's actions are
     # a subset of the other
@@ -62,9 +58,9 @@ def get_action_dist_distance(dist1: P.ActionDist,
     return wasserstein_distance(actions, actions, probs1, probs2)
 
 
-def get_default_trackers(num_agents: int,
-                         discounts: Union[List[float], float]
-                         ) -> List['Tracker']:
+def get_default_trackers(
+    num_agents: int, discounts: Union[List[float], float]
+) -> List["Tracker"]:
     """Get the default set of Trackers."""
     return [
         EpisodeTracker(num_agents, discounts),
@@ -72,7 +68,7 @@ def get_default_trackers(num_agents: int,
     ]
 
 
-def belief_tracker_fn(kwargs) -> Sequence['Tracker']:
+def belief_tracker_fn(kwargs) -> Sequence["Tracker"]:
     """Get trackers for BAPOSGMCP experiment that track beliefs + defaults.
 
     Only includes tracking of Bayes accuracy (i.e. belief accuracy of other
@@ -98,7 +94,7 @@ def belief_tracker_fn(kwargs) -> Sequence['Tracker']:
         "num_agents": num_agents,
         # only track per step if step limit is provided
         "track_per_step": kwargs["step_limit"] is not None,
-        "step_limit": kwargs["step_limit"]
+        "step_limit": kwargs["step_limit"],
     }
     trackers.append(BayesAccuracyTracker(**tracker_kwargs))
     trackers.append(ActionDistributionDistanceTracker(**tracker_kwargs))
@@ -109,13 +105,15 @@ class Tracker(abc.ABC):
     """Generic Tracker Base class."""
 
     @abc.abstractmethod
-    def step(self,
-             episode_t: int,
-             env: posggym.Env,
-             timestep: M.JointTimestep,
-             action: M.JointAction,
-             policies: Sequence[P.BasePolicy],
-             episode_end: bool):
+    def step(
+        self,
+        episode_t: int,
+        env: posggym.Env,
+        timestep: M.JointTimestep,
+        action: M.JointAction,
+        policies: Sequence[P.BasePolicy],
+        episode_end: bool,
+    ):
         """Accumulates statistics for a single step."""
 
     @abc.abstractmethod
@@ -138,9 +136,7 @@ class Tracker(abc.ABC):
 class EpisodeTracker(Tracker):
     """Tracks episode return and other statistics."""
 
-    def __init__(self,
-                 num_agents: int,
-                 discounts: Union[float, List[float]]):
+    def __init__(self, num_agents: int, discounts: Union[float, List[float]]):
         if isinstance(discounts, float):
             discounts = [discounts] * num_agents
         assert len(discounts) == num_agents
@@ -155,20 +151,22 @@ class EpisodeTracker(Tracker):
         self._current_episode_discounted_returns = np.zeros(num_agents)
         self._current_episode_steps = 0
 
-        self._dones = []                # type: ignore
-        self._times = []                # type: ignore
-        self._returns = []              # type: ignore
-        self._discounted_returns = []   # type: ignore
-        self._steps = []                # type: ignore
-        self._outcomes = []             # type: ignore
+        self._dones = []  # type: ignore
+        self._times = []  # type: ignore
+        self._returns = []  # type: ignore
+        self._discounted_returns = []  # type: ignore
+        self._steps = []  # type: ignore
+        self._outcomes = []  # type: ignore
 
-    def step(self,
-             episode_t: int,
-             env: posggym.Env,
-             timestep: M.JointTimestep,
-             action: M.JointAction,
-             policies: Sequence[P.BasePolicy],
-             episode_end: bool):
+    def step(
+        self,
+        episode_t: int,
+        env: posggym.Env,
+        timestep: M.JointTimestep,
+        action: M.JointAction,
+        policies: Sequence[P.BasePolicy],
+        episode_end: bool,
+    ):
         if episode_t == 0:
             return
 
@@ -185,9 +183,7 @@ class EpisodeTracker(Tracker):
             self._dones.append(self._current_episode_done)
             self._times.append(time.time() - self._current_episode_start_time)
             self._returns.append(self._current_episode_returns)
-            self._discounted_returns.append(
-                self._current_episode_discounted_returns
-            )
+            self._discounted_returns.append(self._current_episode_discounted_returns)
             self._steps.append(self._current_episode_steps)
 
             if aux.get("outcome", None) is None:
@@ -219,20 +215,16 @@ class EpisodeTracker(Tracker):
             stats[i] = {
                 "episode_number": self._num_episodes,
                 "episode_return": self._returns[-1][i],
-                "episode_discounted_return": (
-                    self._discounted_returns[-1][i]
-                ),
+                "episode_discounted_return": (self._discounted_returns[-1][i]),
                 "episode_steps": self._steps[-1],
                 "episode_outcome": self._outcomes[-1][i],
                 "episode_done": self._dones[-1],
-                "episode_time": self._times[-1]
+                "episode_time": self._times[-1],
             }
         return stats
 
     def get(self) -> AgentStatisticsMap:
-        outcome_counts = {
-            k: [0 for _ in range(self._num_agents)] for k in M.Outcome
-        }
+        outcome_counts = {k: [0 for _ in range(self._num_agents)] for k in M.Outcome}
         for outcome in self._outcomes:
             for i in range(self._num_agents):
                 outcome_counts[outcome[i]][i] += 1
@@ -261,7 +253,7 @@ class EpisodeTracker(Tracker):
                 "episode_steps_std": np.std(self._steps),
                 "episode_time_mean": np.mean(self._times),
                 "episode_time_std": np.std(self._times),
-                "num_episode_done": np.sum(self._dones)
+                "num_episode_done": np.sum(self._dones),
             }
 
             for outcome, counts in outcome_counts.items():
@@ -283,7 +275,7 @@ class SearchTimeTracker(Tracker):
         "inference_time",
         "search_depth",
         "min_value",
-        "max_value"
+        "max_value",
     ]
 
     def __init__(self, num_agents: int):
@@ -291,22 +283,22 @@ class SearchTimeTracker(Tracker):
 
         self._num_episodes = 0
         self._current_episode_steps = 0
-        self._current_episode_times: Dict[
-            M.AgentID, Dict[str, List[float]]
-        ] = {}
+        self._current_episode_times: Dict[M.AgentID, Dict[str, List[float]]] = {}
 
         self._steps: List[int] = []
         self._times: Dict[M.AgentID, Dict[str, List[float]]] = {}
 
         self.reset()
 
-    def step(self,
-             episode_t: int,
-             env: posggym.Env,
-             timestep: M.JointTimestep,
-             action: M.JointAction,
-             policies: Sequence[P.BasePolicy],
-             episode_end: bool):
+    def step(
+        self,
+        episode_t: int,
+        env: posggym.Env,
+        timestep: M.JointTimestep,
+        action: M.JointAction,
+        policies: Sequence[P.BasePolicy],
+        episode_end: bool,
+    ):
         if episode_t == 0:
             return
 
@@ -382,10 +374,9 @@ class BayesAccuracyTracker(Tracker):
 
     """
 
-    def __init__(self,
-                 num_agents: int,
-                 track_per_step: bool,
-                 step_limit: Optional[int] = None):
+    def __init__(
+        self, num_agents: int, track_per_step: bool, step_limit: Optional[int] = None
+    ):
         self._num_agents = num_agents
         self._track_per_step = track_per_step
         self._step_limit = step_limit
@@ -396,19 +387,19 @@ class BayesAccuracyTracker(Tracker):
 
         self._steps: List[int] = []
         self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
-        self._step_acc: Dict[
-            M.AgentID, Dict[M.AgentID, List[List[float]]]
-        ] = {}
+        self._step_acc: Dict[M.AgentID, Dict[M.AgentID, List[List[float]]]] = {}
 
         self.reset()
 
-    def step(self,
-             episode_t: int,
-             env: posggym.Env,
-             timestep: M.JointTimestep,
-             action: M.JointAction,
-             policies: Sequence[P.BasePolicy],
-             episode_end: bool):
+    def step(
+        self,
+        episode_t: int,
+        env: posggym.Env,
+        timestep: M.JointTimestep,
+        action: M.JointAction,
+        policies: Sequence[P.BasePolicy],
+        episode_end: bool,
+    ):
         if episode_t == 0:
             return
 
@@ -434,7 +425,7 @@ class BayesAccuracyTracker(Tracker):
             self._steps.append(self._episode_steps)
             for i in range(self._num_agents):
                 for j, acc in self._episode_acc[i].items():
-                    self._acc[i][j].append(np.mean(acc, axis=0))
+                    self._acc[i][j].append(np.nanmean(acc, axis=0))
                     if self._track_per_step:
                         self._step_acc[i][j].append(acc)
 
@@ -445,17 +436,13 @@ class BayesAccuracyTracker(Tracker):
         self._acc = {}
         for i in range(self._num_agents):
             self._acc[i] = {j: [] for j in range(self._num_agents) if j != i}
-            self._step_acc[i] = {
-                j: [] for j in range(self._num_agents) if j != i
-            }
+            self._step_acc[i] = {j: [] for j in range(self._num_agents) if j != i}
 
     def reset_episode(self):
         self._episode_steps = 0
         self._episode_acc = {}
         for i in range(self._num_agents):
-            self._episode_acc[i] = {
-                j: [] for j in range(self._num_agents) if j != i
-            }
+            self._episode_acc[i] = {j: [] for j in range(self._num_agents) if j != i}
 
     def get_episode(self) -> AgentStatisticsMap:
         if self._step_limit is not None:
@@ -470,11 +457,11 @@ class BayesAccuracyTracker(Tracker):
         for i in range(self._num_agents):
             stats[i] = {
                 f"bayes_accuracy_{i}_mean": np.nan,
-                f"bayes_accuracy_{i}_std": np.nan
+                f"bayes_accuracy_{i}_std": np.nan,
             }
             for j, acc in self._episode_acc[i].items():
-                stats[i][f"bayes_accuracy_{j}_mean"] = np.mean(acc, axis=0)
-                stats[i][f"bayes_accuracy_{j}_std"] = np.std(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_mean"] = np.nanmean(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_std"] = np.nanstd(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -501,11 +488,11 @@ class BayesAccuracyTracker(Tracker):
         for i in range(self._num_agents):
             stats[i] = {
                 f"bayes_accuracy_{i}_mean": np.nan,
-                f"bayes_accuracy_{i}_std": np.nan
+                f"bayes_accuracy_{i}_std": np.nan,
             }
             for j, acc in self._acc[i].items():
-                stats[i][f"bayes_accuracy_{j}_mean"] = np.mean(acc, axis=0)
-                stats[i][f"bayes_accuracy_{j}_std"] = np.std(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_mean"] = np.nanmean(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_std"] = np.nanstd(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -519,8 +506,10 @@ class BayesAccuracyTracker(Tracker):
                             accs_by_t[t].append(v)
 
                     for t in range(num_steps):
-                        stats[i][f"bayes_accuracy_{j}_{t}_mean"] = np.mean(accs_by_t[t])
-                        stats[i][f"bayes_accuracy_{j}_{t}_std"] = np.std(accs_by_t[t])
+                        mean_acc = np.nanmean(accs_by_t[t])
+                        stats[i][f"bayes_accuracy_{j}_{t}_mean"] = mean_acc
+                        std_acc = np.nanstd(accs_by_t[t])
+                        stats[i][f"bayes_accuracy_{j}_{t}_std"] = std_acc
 
         return stats
 
@@ -536,10 +525,9 @@ class BeliefStateAccuracyTracker(Tracker):
 
     """
 
-    def __init__(self,
-                 num_agents: int,
-                 track_per_step: bool,
-                 step_limit: Optional[int] = None):
+    def __init__(
+        self, num_agents: int, track_per_step: bool, step_limit: Optional[int] = None
+    ):
         self._num_agents = num_agents
         self._track_per_step = track_per_step
         self._step_limit = step_limit
@@ -555,13 +543,15 @@ class BeliefStateAccuracyTracker(Tracker):
 
         self.reset()
 
-    def step(self,
-             episode_t: int,
-             env: posggym.Env,
-             timestep: M.JointTimestep,
-             action: M.JointAction,
-             policies: Sequence[P.BasePolicy],
-             episode_end: bool):
+    def step(
+        self,
+        episode_t: int,
+        env: posggym.Env,
+        timestep: M.JointTimestep,
+        action: M.JointAction,
+        policies: Sequence[P.BasePolicy],
+        episode_end: bool,
+    ):
         if episode_t == 0:
             self._prev_state = env.state
             return
@@ -585,7 +575,7 @@ class BeliefStateAccuracyTracker(Tracker):
             self._num_episodes += 1
             self._steps.append(self._episode_steps)
             for i in range(self._num_agents):
-                self._acc[i].append(np.mean(self._episode_acc[i], axis=0))
+                self._acc[i].append(np.nanmean(self._episode_acc[i], axis=0))
                 if self._track_per_step:
                     self._step_acc[i].append(self._episode_acc[i])
 
@@ -618,8 +608,8 @@ class BeliefStateAccuracyTracker(Tracker):
         for i in range(self._num_agents):
             acc = self._episode_acc[i]
             stats[i] = {
-                "state_accuracy_mean": np.mean(acc, axis=0),
-                "state_accuracy_std": np.std(acc, axis=0)
+                "state_accuracy_mean": np.nanmean(acc, axis=0),
+                "state_accuracy_std": np.nanstd(acc, axis=0),
             }
 
             if self._track_per_step:
@@ -641,8 +631,8 @@ class BeliefStateAccuracyTracker(Tracker):
         stats = {}
         for i in range(self._num_agents):
             stats[i] = {
-                "state_accuracy_mean": np.mean(self._acc[i], axis=0),
-                "state_accuracy_std": np.std(self._acc[i], axis=0)
+                "state_accuracy_mean": np.nanmean(self._acc[i], axis=0),
+                "state_accuracy_std": np.nanstd(self._acc[i], axis=0),
             }
 
             if self._track_per_step:
@@ -653,8 +643,8 @@ class BeliefStateAccuracyTracker(Tracker):
                         accs_by_t[t].append(v)
 
                 for t in range(num_steps):
-                    stats[i][f"state_accuracy_{t}_mean"] = np.mean(accs_by_t[t])
-                    stats[i][f"state_accuracy_{t}_std"] = np.std(accs_by_t[t])
+                    stats[i][f"state_accuracy_{t}_mean"] = np.nanmean(accs_by_t[t])
+                    stats[i][f"state_accuracy_{t}_std"] = np.nanstd(accs_by_t[t])
 
         return stats
 
@@ -670,10 +660,9 @@ class BeliefHistoryAccuracyTracker(Tracker):
 
     """
 
-    def __init__(self,
-                 num_agents: int,
-                 track_per_step: bool,
-                 step_limit: Optional[int] = None):
+    def __init__(
+        self, num_agents: int, track_per_step: bool, step_limit: Optional[int] = None
+    ):
         self._num_agents = num_agents
         self._track_per_step = track_per_step
         self._step_limit = step_limit
@@ -684,19 +673,19 @@ class BeliefHistoryAccuracyTracker(Tracker):
 
         self._steps: List[int] = []
         self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
-        self._step_acc: Dict[
-            M.AgentID, Dict[M.AgentID, List[List[float]]]
-        ] = {}
+        self._step_acc: Dict[M.AgentID, Dict[M.AgentID, List[List[float]]]] = {}
 
         self.reset()
 
-    def step(self,
-             episode_t: int,
-             env: posggym.Env,
-             timestep: M.JointTimestep,
-             action: M.JointAction,
-             policies: Sequence[P.BasePolicy],
-             episode_end: bool):
+    def step(
+        self,
+        episode_t: int,
+        env: posggym.Env,
+        timestep: M.JointTimestep,
+        action: M.JointAction,
+        policies: Sequence[P.BasePolicy],
+        episode_end: bool,
+    ):
         if episode_t == 0:
             return
 
@@ -722,7 +711,7 @@ class BeliefHistoryAccuracyTracker(Tracker):
             self._steps.append(self._episode_steps)
             for i in range(self._num_agents):
                 for j, acc in self._episode_acc[i].items():
-                    self._acc[i][j].append(np.mean(acc, axis=0))
+                    self._acc[i][j].append(np.nanmean(acc, axis=0))
                 if self._track_per_step:
                     self._step_acc[i][j].append(acc)
 
@@ -733,17 +722,13 @@ class BeliefHistoryAccuracyTracker(Tracker):
         self._acc = {}
         for i in range(self._num_agents):
             self._acc[i] = {j: [] for j in range(self._num_agents) if j != i}
-            self._step_acc[i] = {
-                j: [] for j in range(self._num_agents) if j != i
-            }
+            self._step_acc[i] = {j: [] for j in range(self._num_agents) if j != i}
 
     def reset_episode(self):
         self._episode_steps = 0
         self._episode_acc = {}
         for i in range(self._num_agents):
-            self._episode_acc[i] = {
-                j: [] for j in range(self._num_agents) if j != i
-            }
+            self._episode_acc[i] = {j: [] for j in range(self._num_agents) if j != i}
 
     def get_episode(self) -> AgentStatisticsMap:
         if self._step_limit is not None:
@@ -758,11 +743,11 @@ class BeliefHistoryAccuracyTracker(Tracker):
         for i in range(self._num_agents):
             stats[i] = {
                 f"history_accuracy_{i}_mean": np.nan,
-                f"history_accuracy_{i}_std": np.nan
+                f"history_accuracy_{i}_std": np.nan,
             }
             for j, acc in self._acc[i].items():
-                stats[i][f"history_accuracy_{j}_mean"] = np.mean(acc, axis=0)
-                stats[i][f"history_accuracy_{j}_std"] = np.std(acc, axis=0)
+                stats[i][f"history_accuracy_{j}_mean"] = np.nanmean(acc, axis=0)
+                stats[i][f"history_accuracy_{j}_std"] = np.nanstd(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -789,11 +774,11 @@ class BeliefHistoryAccuracyTracker(Tracker):
         for i in range(self._num_agents):
             stats[i] = {
                 f"history_accuracy_{i}_mean": np.nan,
-                f"history_accuracy_{i}_std": np.nan
+                f"history_accuracy_{i}_std": np.nan,
             }
             for j, acc in self._acc[i].items():
-                stats[i][f"history_accuracy_{j}_mean"] = np.mean(acc, axis=0)
-                stats[i][f"history_accuracy_{j}_std"] = np.std(acc, axis=0)
+                stats[i][f"history_accuracy_{j}_mean"] = np.nanmean(acc, axis=0)
+                stats[i][f"history_accuracy_{j}_std"] = np.nanstd(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -807,9 +792,9 @@ class BeliefHistoryAccuracyTracker(Tracker):
                             accs_by_t[t].append(v)
 
                     for t in range(num_steps):
-                        mean_acc = np.mean(accs_by_t[t])
+                        mean_acc = np.nanmean(accs_by_t[t])
                         stats[i][f"history_accuracy_{j}_{t}_mean"] = mean_acc
-                        std_acc = np.std(accs_by_t[t])
+                        std_acc = np.nanstd(accs_by_t[t])
                         stats[i][f"history_accuracy_{j}_{t}_std"] = std_acc
 
         return stats
@@ -834,10 +819,9 @@ class ActionDistributionDistanceTracker(Tracker):
 
     """
 
-    def __init__(self,
-                 num_agents: int,
-                 track_per_step: bool,
-                 step_limit: Optional[int] = None):
+    def __init__(
+        self, num_agents: int, track_per_step: bool, step_limit: Optional[int] = None
+    ):
         self._num_agents = num_agents
         self._track_per_step = track_per_step
         self._step_limit = step_limit
@@ -848,19 +832,19 @@ class ActionDistributionDistanceTracker(Tracker):
 
         self._steps: List[int] = []
         self._acc: Dict[M.AgentID, Dict[M.AgentID, List[float]]] = {}
-        self._step_acc: Dict[
-            M.AgentID, Dict[M.AgentID, List[List[float]]]
-        ] = {}
+        self._step_acc: Dict[M.AgentID, Dict[M.AgentID, List[List[float]]]] = {}
 
         self.reset()
 
-    def step(self,
-             episode_t: int,
-             env: posggym.Env,
-             timestep: M.JointTimestep,
-             action: M.JointAction,
-             policies: Sequence[P.BasePolicy],
-             episode_end: bool):
+    def step(
+        self,
+        episode_t: int,
+        env: posggym.Env,
+        timestep: M.JointTimestep,
+        action: M.JointAction,
+        policies: Sequence[P.BasePolicy],
+        episode_end: bool,
+    ):
         if episode_t == 0:
             return
 
@@ -870,9 +854,7 @@ class ActionDistributionDistanceTracker(Tracker):
             if not isinstance(policies[i], tree_lib.BAPOSGMCP):
                 continue
 
-            other_action_dists = tree_lib.get_other_agent_action_dist(
-                policies[i]
-            )
+            other_action_dists = tree_lib.get_other_agent_action_dist(policies[i])
             if other_action_dists is None:
                 continue
 
@@ -889,9 +871,9 @@ class ActionDistributionDistanceTracker(Tracker):
             self._steps.append(self._episode_steps)
             for i in range(self._num_agents):
                 for j, acc in self._episode_acc[i].items():
-                    self._acc[i][j].append(np.mean(acc, axis=0))
-                if self._track_per_step:
-                    self._step_acc[i][j].append(acc)
+                    self._acc[i][j].append(np.nanmean(acc, axis=0))
+                    if self._track_per_step:
+                        self._step_acc[i][j].append(acc)
 
     def reset(self):
         self.reset_episode()
@@ -900,17 +882,13 @@ class ActionDistributionDistanceTracker(Tracker):
         self._acc = {}
         for i in range(self._num_agents):
             self._acc[i] = {j: [] for j in range(self._num_agents) if j != i}
-            self._step_acc[i] = {
-                j: [] for j in range(self._num_agents) if j != i
-            }
+            self._step_acc[i] = {j: [] for j in range(self._num_agents) if j != i}
 
     def reset_episode(self):
         self._episode_steps = 0
         self._episode_acc = {}
         for i in range(self._num_agents):
-            self._episode_acc[i] = {
-                j: [] for j in range(self._num_agents) if j != i
-            }
+            self._episode_acc[i] = {j: [] for j in range(self._num_agents) if j != i}
 
     def get_episode(self) -> AgentStatisticsMap:
         if self._step_limit is not None:
@@ -925,11 +903,11 @@ class ActionDistributionDistanceTracker(Tracker):
         for i in range(self._num_agents):
             stats[i] = {
                 f"action_dist_distance_{i}_mean": np.nan,
-                f"action_dist_distance_{i}_std": np.nan
+                f"action_dist_distance_{i}_std": np.nan,
             }
             for j, acc in self._episode_acc[i].items():
-                stats[i][f"action_dist_distance_{j}_mean"] = np.mean(acc, axis=0)
-                stats[i][f"action_dist_distance_{j}_std"] = np.std(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_mean"] = np.nanmean(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_std"] = np.nanstd(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -956,11 +934,11 @@ class ActionDistributionDistanceTracker(Tracker):
         for i in range(self._num_agents):
             stats[i] = {
                 f"action_dist_distance_{i}_mean": np.nan,
-                f"action_dist_distance_{i}_std": np.nan
+                f"action_dist_distance_{i}_std": np.nan,
             }
             for j, acc in self._acc[i].items():
-                stats[i][f"action_dist_distance_{j}_mean"] = np.mean(acc, axis=0)
-                stats[i][f"action_dist_distance_{j}_std"] = np.std(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_mean"] = np.nanmean(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_std"] = np.nanstd(acc, axis=0)
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -974,9 +952,9 @@ class ActionDistributionDistanceTracker(Tracker):
                             accs_by_t[t].append(v)
 
                     for t in range(num_steps):
-                        mean_acc = np.mean(accs_by_t[t])
+                        mean_acc = np.nanmean(accs_by_t[t])
                         stats[i][f"action_dist_distance_{j}_{t}_mean"] = mean_acc
-                        std_acc = np.std(accs_by_t[t])
+                        std_acc = np.nanstd(accs_by_t[t])
                         stats[i][f"action_dist_distance_{j}_{t}_std"] = std_acc
 
         return stats
