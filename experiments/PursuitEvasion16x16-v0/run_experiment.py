@@ -18,7 +18,7 @@ BAPOSGMCP_AGENT_ID = 0
 OTHER_AGENT_ID = 1
 
 # DEBUG - Delete/comment this
-NUM_SIMS = [2, 5]
+# NUM_SIMS = [2, 5]
 
 # NOTE There are 5 policies available (K=4) but we assume the other agent is
 # only using 4 (K=3), but we have all (K=4) policies available for the
