@@ -1,6 +1,7 @@
 """Run BAPOSGMCP experiment in Driving env with KLR policies."""
 import copy
 from pprint import pprint
+from typing import Any, Dict, List
 
 import baposgmcp.baselines as baseline_lib
 import baposgmcp.run as run_lib
@@ -40,22 +41,26 @@ POLICY_IDS = {
     ],
 }
 # Defined for K=3
+# Gotta wrap it as algs expect Dict[ID, prior]
 POLICY_PRIOR_MAP = {
     0: {
-        f"{ENV_ID}/klr_k0_seed{POLICY_SEED}_i0-v0": 1 / 4,
-        f"{ENV_ID}/klr_k1_seed{POLICY_SEED}_i0-v0": 1 / 4,
-        f"{ENV_ID}/klr_k2_seed{POLICY_SEED}_i0-v0": 1 / 4,
-        f"{ENV_ID}/klr_k3_seed{POLICY_SEED}_i0-v0": 1 / 4,
+        0: {
+            f"{ENV_ID}/klr_k0_seed{POLICY_SEED}_i0-v0": 1 / 4,
+            f"{ENV_ID}/klr_k1_seed{POLICY_SEED}_i0-v0": 1 / 4,
+            f"{ENV_ID}/klr_k2_seed{POLICY_SEED}_i0-v0": 1 / 4,
+            f"{ENV_ID}/klr_k3_seed{POLICY_SEED}_i0-v0": 1 / 4,
+        },
     },
     1: {
-        f"{ENV_ID}/klr_k0_seed{POLICY_SEED}_i1-v0": 1 / 4,
-        f"{ENV_ID}/klr_k1_seed{POLICY_SEED}_i1-v0": 1 / 4,
-        f"{ENV_ID}/klr_k2_seed{POLICY_SEED}_i1-v0": 1 / 4,
-        f"{ENV_ID}/klr_k3_seed{POLICY_SEED}_i1-v0": 1 / 4,
-    },
+        1: {
+            f"{ENV_ID}/klr_k0_seed{POLICY_SEED}_i1-v0": 1 / 4,
+            f"{ENV_ID}/klr_k1_seed{POLICY_SEED}_i1-v0": 1 / 4,
+            f"{ENV_ID}/klr_k2_seed{POLICY_SEED}_i1-v0": 1 / 4,
+            f"{ENV_ID}/klr_k3_seed{POLICY_SEED}_i1-v0": 1 / 4,
+        },
+    }
 }
-# Gotta wrap it as algs expect Dict[ID, prior]
-POLICY_PRIOR_MAP = {0: {0: POLICY_PRIOR_MAP[0]}, 1: {1: POLICY_PRIOR_MAP[1]}}
+
 # Defined for policy states with (K=3) and meta-policy (K=4)
 PAIRWISE_RETURNS = {
     0: {
@@ -197,7 +202,7 @@ def get_baselines(agent_id: int, other_agent_id: int):  # noqa
 
 
 def get_baposgmcps(agent_id: int, other_agent_id: int):  # noqa
-    variable_params = {"num_sims": NUM_SIMS, "truncated": [True]}
+    variable_params: Dict[str, List[Any]] = {"num_sims": NUM_SIMS, "truncated": [True]}
 
     meta_pis = [
         ("greedy", GREEDY_META_POLICY_MAP[agent_id]),
@@ -225,23 +230,24 @@ def get_baposgmcps(agent_id: int, other_agent_id: int):  # noqa
 
 
 def get_fixed_baposgmcps(agent_id: int, other_agent_id: int):  # noqa
-    random_variable_params = {
-        "num_sims": NUM_SIMS,
-        "truncated": [False],  # added so it's clearly visible in policy id
-    }
     random_kwargs = copy.deepcopy(BAPOSGMCP_PUCT_KWARGS)
     random_kwargs["truncated"] = False
     baposgmcp_params = baseline_lib.load_random_baposgmcp_params(
-        variable_params=random_variable_params,
+        variable_params={
+            "num_sims": NUM_SIMS,
+            "truncated": [False],  # added so it's clearly visible in policy id
+        },
         baposgmcp_kwargs=random_kwargs,
         policy_prior_map=POLICY_PRIOR_MAP[other_agent_id],
         base_policy_id=f"baposgmcp-random_i{agent_id}",
     )
 
-    fixed_variable_params = {"num_sims": NUM_SIMS, "truncated": [True]}
     baposgmcp_params.extend(
         baseline_lib.load_fixed_pi_baposgmcp_params(
-            variable_params=fixed_variable_params,
+            variable_params={
+                "num_sims": NUM_SIMS,
+                "truncated": [True],
+            },
             fixed_policy_ids=POLICY_IDS[agent_id],
             baposgmcp_kwargs=BAPOSGMCP_PUCT_KWARGS,
             policy_prior_map=POLICY_PRIOR_MAP[other_agent_id],
@@ -267,24 +273,22 @@ def get_ucb_mcps(agent_id: int, other_agent_id: int):  # noqa
     ucb_kwargs["c_init"] = UCB_C
     ucb_kwargs["action_selection"] = "ucb"
 
-    meta_variable_params = {"num_sims": NUM_SIMS, "truncated": [True]}
     ucb_params = run_lib.load_baposgmcp_params(
-        variable_params=meta_variable_params,
+        variable_params={"num_sims": NUM_SIMS, "truncated": [True]},
         baposgmcp_kwargs=ucb_kwargs,
         policy_prior_map=POLICY_PRIOR_MAP[other_agent_id],
         meta_policy_dict=BEST_META_PI_MAP[agent_id],
-        base_policy_id=f"ucbmcp_meta{BEST_META_PI_NAME}",
+        base_policy_id=f"ucbmcp_meta{BEST_META_PI_NAME}_i{agent_id}",
     )
 
-    random_variable_params = {"num_sims": NUM_SIMS, "truncated": [False]}
     random_kwargs = copy.deepcopy(ucb_kwargs)
     random_kwargs["truncated"] = False
     ucb_params.extend(
         baseline_lib.load_random_baposgmcp_params(
-            variable_params=random_variable_params,
+            variable_params={"num_sims": NUM_SIMS, "truncated": [False]},
             baposgmcp_kwargs=random_kwargs,
             policy_prior_map=POLICY_PRIOR_MAP[other_agent_id],
-            base_policy_id="ucbmcp-random",
+            base_policy_id=f"ucbmcp-random_i{agent_id}",
         )
     )
 
