@@ -173,14 +173,16 @@ def main(parent_dir: str, n_procs: int = 1):   # noqa
             print(f"Column {k} missing")
 
     for k in belief_stat_keys:
-        if k in columns:
+        if k not in columns:
+            print(f"Column {k} missing")
+        elif k.endswith("_mean") or k.endswith("_std"):
+            agg_dict[f"{k}"] = pd.NamedAgg(column=k, aggfunc="mean")
+        else:
             agg_dict[f"{k}_mean"] = pd.NamedAgg(column=k, aggfunc="mean")
             agg_dict[f"{k}_std"] = pd.NamedAgg(column=k, aggfunc="std")
             # get count of non nan values since this varies for belief stats
             # based on step number
             agg_dict[f"{k}_n"] = pd.NamedAgg(column=k, aggfunc="count")
-        else:
-            print(f"Column {k} missing")
 
     print("Aggregating data")
     gb_agg = gb.agg(**agg_dict)
