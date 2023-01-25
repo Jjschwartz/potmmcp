@@ -59,18 +59,10 @@ def _read_and_concat_multiple_files(filepaths):
     return main_df
 
 
-def compile_result_files(save_dir: str,
-                         result_filepaths: List[str],
-                         extra_output_dir: Optional[str] = None,
-                         compiled_results_filename: Optional[str] = None,
+def compile_result_files(result_filepaths: List[str],
                          verbose: bool = True,
-                         n_procs: int = 1,
-                         ) -> str:
-    """Compile list of results files into a single file."""
-    if not compiled_results_filename:
-        compiled_results_filename = COMPILED_RESULTS_FNAME
-    concat_resultspath = os.path.join(save_dir, compiled_results_filename)
-
+                         n_procs: int = 1) -> pd.DataFrame:
+    """Compile list of results files into a single pandas dataframe."""
     num_files = len(result_filepaths)
     if verbose:
         print(f"Loading and concatting {num_files} files")
@@ -96,10 +88,26 @@ def compile_result_files(save_dir: str,
         for df in chunk_dfs[1:]:
             concat_df = _do_concat_df(concat_df, df)
 
-    if verbose:
-        print(f"Writing compiled results to files: {concat_resultspath}")
+    return concat_df
 
-    concat_df.to_csv(concat_resultspath, index=False)
+
+def compile_and_save_result_files(save_dir: str,
+                                  result_filepaths: List[str],
+                                  extra_output_dir: Optional[str] = None,
+                                  compiled_results_filename: Optional[str] = None,
+                                  verbose: bool = True,
+                                  n_procs: int = 1,
+                                  ) -> str:
+    """Compile list of results files into a single file."""
+    if not compiled_results_filename:
+        compiled_results_filename = COMPILED_RESULTS_FNAME
+    concat_resultspath = os.path.join(save_dir, compiled_results_filename)
+
+    num_files = len(result_filepaths)
+    if verbose:
+        print(f"Loading and concatting {num_files} files")
+
+    concat_df = compile_result_files(result_filepaths, verbose=verbose, n_procs=n_procs)
 
     if extra_output_dir:
         extra_results_filepath = os.path.join(
@@ -129,8 +137,12 @@ def compile_results(result_dir: str,
         )
     ]
 
-    concat_resultspath = compile_result_files(
-        result_dir, result_filepaths, extra_output_dir
+    concat_resultspath = compile_and_save_result_files(
+        save_dir=result_dir,
+        result_filepaths=result_filepaths,
+        extra_output_dir=extra_output_dir,
+        verbose=True,
+        n_procs=1
     )
     return concat_resultspath
 

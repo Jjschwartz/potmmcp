@@ -1,4 +1,5 @@
 """Script for generating aggregate results from episode results file."""
+import os
 import argparse
 import os.path as osp
 from datetime import datetime
@@ -6,6 +7,7 @@ from datetime import datetime
 import pandas as pd
 
 import baposgmcp.plot as plot_utils
+from baposgmcp.run import compile_result_files
 
 # Keys which DF is grouped by
 group_keys = [
@@ -26,16 +28,15 @@ constants = [
     "action_selection",
     "dirichlet_alpha",
     "root_exploration_fraction",
+    "reinvigorator",
     "known_bounds",
     "extra_particles_prop",
     "step_limit",
     "epsilon",
-    "belief_size",
-    "other_policy_dist",
-    "policy_prior_map",
     "meta_policy_dict",
     "num_sims",
     "num_episodes",
+    "policy_prior_map",
     "fixed_policy_id"
 ]
 
@@ -93,13 +94,17 @@ def parse_na(row):  # noqa
     return int(row["episode_outcome"] not in ('WIN', 'LOSS', 'DRAW'))
 
 
-def main(results_filepath):   # noqa
-    print(f"Aggregating results in file '{results_filepath}'")
-    results_dir = osp.dirname(results_filepath)
-    print(f"Saving aggregated results to dir '{results_dir}'")
+def main(parent_dir: str, n_procs: int = 1):   # noqa
+    print(f"Compiling results from subdirectories of {parent_dir=}")
+    print(f"Saving aggregated results to dir '{parent_dir}'")
 
     print("Importing data")
-    ep_df = pd.read_csv(results_filepath)
+    result_filepaths = []
+    for dirpath, dirnames, filenames in os.walk(parent_dir):
+        for fname in filenames:
+            if fname.endswith("episodes.csv"):
+                result_filepaths.append(os.path.join(dirpath, fname))
+    ep_df = compile_result_files(result_filepaths, verbose=True, n_procs=n_procs)
 
     print("Adding coplayer policy id column.")
     if len(ep_df["agent_id"].unique().tolist()) == 2:
@@ -144,19 +149,19 @@ def main(results_filepath):   # noqa
         if k in columns:
             agg_dict[k] = pd.NamedAgg(column=k, aggfunc="min")
         else:
-            print(f"Columnn {k} missing")
+            print(f"Column {k} missing")
 
     for k in constants:
         if k in columns:
             agg_dict[k] = pd.NamedAgg(column=k, aggfunc="first")
         else:
-            print(f"Columnn {k} missing")
+            print(f"Column {k} missing")
 
     for k in sum_keys:
         if k in columns:
             agg_dict[f"num_{k}"] = pd.NamedAgg(column=k, aggfunc="sum")
         else:
-            print(f"Columnn {k} missing")
+            print(f"Column {k} missing")
 
     for k in mean_keys:
         if k in columns:
@@ -165,7 +170,7 @@ def main(results_filepath):   # noqa
             agg_dict[f"{k}_min"] = pd.NamedAgg(column=k, aggfunc="min")
             agg_dict[f"{k}_max"] = pd.NamedAgg(column=k, aggfunc="max")
         else:
-            print(f"Columnn {k} missing")
+            print(f"Column {k} missing")
 
     for k in belief_stat_keys:
         if k in columns:
@@ -175,7 +180,7 @@ def main(results_filepath):   # noqa
             # based on step number
             agg_dict[f"{k}_n"] = pd.NamedAgg(column=k, aggfunc="count")
         else:
-            print(f"Columnn {k} missing")
+            print(f"Column {k} missing")
 
     print("Aggregating data")
     gb_agg = gb.agg(**agg_dict)
@@ -183,7 +188,7 @@ def main(results_filepath):   # noqa
 
     time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
     output_filename = f"aggregated_results_{time_str}.csv"
-    output_filepath = osp.join(results_dir, output_filename)
+    output_filepath = osp.join(parent_dir, output_filename)
     print(f"Saving aggregated results to file '{output_filepath}'")
     compiled_df.to_csv(output_filepath, index=False)
 
@@ -193,7 +198,8 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "results_filepath", type=str,
-        help="Path to episode results file."
+        "parent_dir", type=str,
+        help="Path to parent directory."
     )
+    parser.add_argument("--n_procs", type=int, default=1)
     main(**vars(parser.parse_args()))

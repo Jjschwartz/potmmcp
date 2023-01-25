@@ -3,7 +3,7 @@ import os
 import argparse
 
 from baposgmcp.run import (
-    compile_results, compile_result_files, COMPILED_RESULTS_FNAME
+    compile_results, compile_and_save_result_files, COMPILED_RESULTS_FNAME
 )
 
 
@@ -26,7 +26,7 @@ def _main(args):
             continue
         result_filepaths.append(child_resultpath)
 
-    result_filepath = compile_result_files(parent_dir, result_filepaths)
+    result_filepath = compile_and_save_result_files(parent_dir, result_filepaths)
     print(f"Results compiled. Results file={result_filepath}")
 
 
