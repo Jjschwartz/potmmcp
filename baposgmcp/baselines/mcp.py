@@ -62,7 +62,7 @@ def load_random_baposgmcp_params(variable_params: Dict[str, List],
                                      P.AgentPolicyDist,
                                      Dict[P.PolicyState, float]
                                  ],
-                                 base_policy_id: str = "baposgmcp_random"
+                                 base_policy_id: str = "mcp-random"
                                  ) -> List[PolicyParams]:
     """Load params for BAPOSGMCP using random policy for evaluation.
 
@@ -114,7 +114,7 @@ def load_fixed_pi_baposgmcp_params(variable_params: Dict[str, List],
                                        P.AgentPolicyDist,
                                        Dict[P.PolicyState, float]
                                    ],
-                                   base_policy_id: str = "baposgmcp_fixed"
+                                   base_policy_id: str = "mcp-fixed"
                                    ) -> List[PolicyParams]:
     """Load params for BAPOSGMCP using fixed policy for evaluation.
 
