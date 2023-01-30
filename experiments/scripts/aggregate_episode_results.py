@@ -22,6 +22,7 @@ constants = [
     "time_limit",
     "episode_step_limit",
     "discount",
+    "c",
     "c_init",
     "c_base",
     "truncated",

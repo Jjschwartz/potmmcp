@@ -158,8 +158,7 @@ BEST_META_PI_MAP = SOFTMAX_META_POLICY_MAP
 
 BAPOSGMCP_PUCT_KWARGS = {
     "discount": DISCOUNT,
-    "c_init": 1.25,
-    "c_base": 20000,
+    "c": 1.25,
     # "truncated": True,   # added as variable param like num sims
     "action_selection": "pucb",
     "dirichlet_alpha": 0.4,  # 4 actions / 10
@@ -270,7 +269,7 @@ def get_ucb_mcps(agent_id: int, other_agent_id: int):  # noqa
     - UCB MCP Random (UCB + Random) [Untruncated]
     """
     ucb_kwargs = copy.deepcopy(BAPOSGMCP_PUCT_KWARGS)
-    ucb_kwargs["c_init"] = UCB_C
+    ucb_kwargs["c"] = UCB_C
     ucb_kwargs["action_selection"] = "ucb"
 
     ucb_params = run_lib.load_baposgmcp_params(

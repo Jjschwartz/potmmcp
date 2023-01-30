@@ -36,8 +36,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
                  num_sims: int,
                  other_policy_prior: PolicyPrior,
                  meta_policy: MetaPolicy,
-                 c_init: float,
-                 c_base: float,
+                 c: float,
                  truncated: bool,
                  reinvigorator: Optional[BeliefReinvigorator] = None,
                  action_selection: str = "pucb",
@@ -66,8 +65,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
 
         self._meta_policy = meta_policy
         self._other_policy_prior = other_policy_prior
-        self._c_init = c_init
-        self._c_base = c_base
+        self._c = c
         self._known_bounds = known_bounds
         self._min_max_stats = MinMaxStats(known_bounds)
         self._truncated = truncated
@@ -598,22 +596,21 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             )[0]
 
         sqrt_n = math.sqrt(obs_node.visits)
-        exploration_rate = self._c_init
-        exploration_rate += math.log(
-            (1 + obs_node.visits + self._c_base) / self._c_base
-        )
 
         max_v = -float('inf')
         max_action = obs_node.children[0].action
         prior = self._get_exploration_prior(obs_node.policy)
         for action_node in obs_node.children:
-            pucb_c = (sqrt_n / (1 + action_node.visits)) * exploration_rate
-            prior_score = prior[action_node.action] * pucb_c
+            explore_v = (
+                self._c
+                * prior[action_node.action]
+                * (sqrt_n / (1 + action_node.visits))
+            )
             if action_node.visits > 0:
                 action_v = self._min_max_stats.normalize(action_node.value)
             else:
                 action_v = 0
-            action_v = action_v + prior_score
+            action_v = action_v + explore_v
             if action_v > max_v:
                 max_v = action_v
                 max_action = action_node.action
@@ -631,7 +628,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         for action_node in obs_node.children:
             if action_node.visits == 0:
                 return action_node.action
-            explore_v = self._c_init * (sqrt_n / math.sqrt(action_node.visits))
+            explore_v = self._c * (sqrt_n / math.sqrt(action_node.visits))
             action_v = self._min_max_stats.normalize(action_node.value) + explore_v
             if action_v > max_v:
                 max_v = action_v

@@ -69,8 +69,7 @@ BEST_META_PI_MAP = UNIFORM_META_POLICY_MAP
 
 BAPOSGMCP_PUCT_KWARGS = {
     "discount": DISCOUNT,
-    "c_init": 1.25,
-    "c_base": 20000,
+    "c": 1.25,
     "truncated": False,
     "action_selection": "pucb",
     "dirichlet_alpha": 0.6,  # 6 actions / 10
@@ -178,7 +177,7 @@ def get_ucb_mcps():  # noqa
     - IPOMCP Random (UCB + Random) [Untruncated]
     """
     ucb_kwargs = copy.deepcopy(BAPOSGMCP_PUCT_KWARGS)
-    ucb_kwargs["c_init"] = UCB_C
+    ucb_kwargs["c"] = UCB_C
     ucb_kwargs["action_selection"] = "ucb"
 
     meta_variable_params = {"num_sims": NUM_SIMS, "truncated": [False]}
