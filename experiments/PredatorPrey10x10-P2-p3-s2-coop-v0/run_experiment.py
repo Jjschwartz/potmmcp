@@ -1,5 +1,6 @@
 """Run BAPOSGMCP experiment in PP env with teams of SP agents."""
 import copy
+import math
 from pprint import pprint
 
 import baposgmcp.baselines as baseline_lib
@@ -111,7 +112,7 @@ BAPOSGMCP_PUCT_KWARGS = {
     "step_limit": ENV_STEP_LIMIT,
     "epsilon": 0.01,
 }
-UCB_C = 2.0  # as per OG paper/standard parameter
+UCB_C = math.sqrt(2.0)  # as per OG paper/standard parameter
 
 
 def get_metabaseline():  # noqa

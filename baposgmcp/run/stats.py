@@ -425,7 +425,11 @@ class BayesAccuracyTracker(Tracker):
             self._steps.append(self._episode_steps)
             for i in range(self._num_agents):
                 for j, acc in self._episode_acc[i].items():
-                    self._acc[i][j].append(np.nanmean(acc, axis=0))
+                    if i == j or len(acc) == 0:
+                        mean_acc = np.nan
+                    else:
+                        mean_acc = np.nanmean(acc, axis=0)
+                    self._acc[i][j].append(mean_acc)
                     if self._track_per_step:
                         self._step_acc[i][j].append(acc)
 
@@ -460,8 +464,14 @@ class BayesAccuracyTracker(Tracker):
                 f"bayes_accuracy_{i}_std": np.nan,
             }
             for j, acc in self._episode_acc[i].items():
-                stats[i][f"bayes_accuracy_{j}_mean"] = np.nanmean(acc, axis=0)
-                stats[i][f"bayes_accuracy_{j}_std"] = np.nanstd(acc, axis=0)
+                if i == j or len(acc) == 0:
+                    mean_acc = np.nan
+                    std_acc = np.nan
+                else:
+                    mean_acc = np.nanmean(acc, axis=0)
+                    std_acc = np.nanstd(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_mean"] = mean_acc
+                stats[i][f"bayes_accuracy_{j}_std"] = std_acc
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -491,8 +501,14 @@ class BayesAccuracyTracker(Tracker):
                 f"bayes_accuracy_{i}_std": np.nan,
             }
             for j, acc in self._acc[i].items():
-                stats[i][f"bayes_accuracy_{j}_mean"] = np.nanmean(acc, axis=0)
-                stats[i][f"bayes_accuracy_{j}_std"] = np.nanstd(acc, axis=0)
+                if i == j or len(acc) == 0:
+                    mean_acc = np.nan
+                    std_acc = np.nan
+                else:
+                    mean_acc = np.nanmean(acc, axis=0)
+                    std_acc = np.nanstd(acc, axis=0)
+                stats[i][f"bayes_accuracy_{j}_mean"] = mean_acc
+                stats[i][f"bayes_accuracy_{j}_std"] = std_acc
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -506,11 +522,14 @@ class BayesAccuracyTracker(Tracker):
                             accs_by_t[t].append(v)
 
                     for t in range(num_steps):
-                        mean_acc = np.nanmean(accs_by_t[t])
+                        if i == j or len(acc) == 0:
+                            mean_acc = np.nan
+                            std_acc = np.nan
+                        else:
+                            mean_acc = np.nanmean(accs_by_t[t])
+                            std_acc = np.nanstd(accs_by_t[t])
                         stats[i][f"bayes_accuracy_{j}_{t}_mean"] = mean_acc
-                        std_acc = np.nanstd(accs_by_t[t])
                         stats[i][f"bayes_accuracy_{j}_{t}_std"] = std_acc
-
         return stats
 
 
@@ -871,7 +890,11 @@ class ActionDistributionDistanceTracker(Tracker):
             self._steps.append(self._episode_steps)
             for i in range(self._num_agents):
                 for j, acc in self._episode_acc[i].items():
-                    self._acc[i][j].append(np.nanmean(acc, axis=0))
+                    if i == j or len(acc) == 0:
+                        mean_acc = np.nan
+                    else:
+                        mean_acc = np.nanmean(acc, axis=0)
+                    self._acc[i][j].append(mean_acc)
                     if self._track_per_step:
                         self._step_acc[i][j].append(acc)
 
@@ -906,8 +929,14 @@ class ActionDistributionDistanceTracker(Tracker):
                 f"action_dist_distance_{i}_std": np.nan,
             }
             for j, acc in self._episode_acc[i].items():
-                stats[i][f"action_dist_distance_{j}_mean"] = np.nanmean(acc, axis=0)
-                stats[i][f"action_dist_distance_{j}_std"] = np.nanstd(acc, axis=0)
+                if i == j or len(acc) == 0:
+                    mean_acc = np.nan
+                    std_acc = np.nan
+                else:
+                    mean_acc = np.nanmean(acc, axis=0)
+                    std_acc = np.nanstd(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_mean"] = mean_acc
+                stats[i][f"action_dist_distance_{j}_std"] = std_acc
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -937,8 +966,14 @@ class ActionDistributionDistanceTracker(Tracker):
                 f"action_dist_distance_{i}_std": np.nan,
             }
             for j, acc in self._acc[i].items():
-                stats[i][f"action_dist_distance_{j}_mean"] = np.nanmean(acc, axis=0)
-                stats[i][f"action_dist_distance_{j}_std"] = np.nanstd(acc, axis=0)
+                if i == j or len(acc) == 0:
+                    mean_acc = np.nan
+                    std_acc = np.nan
+                else:
+                    mean_acc = np.nanmean(acc, axis=0)
+                    std_acc = np.nanstd(acc, axis=0)
+                stats[i][f"action_dist_distance_{j}_mean"] = mean_acc
+                stats[i][f"action_dist_distance_{j}_std"] = std_acc
 
             if self._track_per_step:
                 for t in range(num_steps):
@@ -952,9 +987,12 @@ class ActionDistributionDistanceTracker(Tracker):
                             accs_by_t[t].append(v)
 
                     for t in range(num_steps):
-                        mean_acc = np.nanmean(accs_by_t[t])
+                        if i == j or len(accs_by_t) == 0:
+                            mean_acc = np.nan
+                            std_acc = np.nan
+                        else:
+                            mean_acc = np.nanmean(accs_by_t[t])
+                            std_acc = np.nanstd(accs_by_t[t])
                         stats[i][f"action_dist_distance_{j}_{t}_mean"] = mean_acc
-                        std_acc = np.nanstd(accs_by_t[t])
                         stats[i][f"action_dist_distance_{j}_{t}_std"] = std_acc
-
         return stats

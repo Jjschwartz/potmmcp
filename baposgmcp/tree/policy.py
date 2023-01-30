@@ -100,7 +100,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
             self._final_action_selection = self.max_visit_action_selection
         elif action_selection == "ucb":
             self._search_action_selection = self.ucb_action_selection
-            self._final_action_selection = self.max_visit_action_selection
+            self._final_action_selection = self.max_value_action_selection
         elif action_selection == "uniform":
             self._search_action_selection = self.min_visit_action_selection
             self._final_action_selection = self.max_value_action_selection
@@ -180,6 +180,7 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
 
         self._last_action = self.get_action()
         self._step_num += 1
+
         return self._last_action
 
     #######################################################
@@ -621,14 +622,14 @@ class BAPOSGMCP(P.BAPOSGMCPBasePolicy):
         if obs_node.visits == 0:
             return random.choice(self.action_space)
 
-        sqrt_n = math.sqrt(obs_node.visits)
+        log_n = math.log(obs_node.visits)
 
         max_v = -float('inf')
         max_action = obs_node.children[0].action
         for action_node in obs_node.children:
             if action_node.visits == 0:
                 return action_node.action
-            explore_v = self._c * (sqrt_n / math.sqrt(action_node.visits))
+            explore_v = self._c * math.sqrt(log_n / action_node.visits)
             action_v = self._min_max_stats.normalize(action_node.value) + explore_v
             if action_v > max_v:
                 max_v = action_v

@@ -32,3 +32,6 @@ class MinMaxStats:
             # Normalize only when we have set the maximum and minimum values.
             return (value - self.minimum) / (self.maximum - self.minimum)
         return value
+
+    def __str__(self):
+        return f"MinMaxState: (minimum: {self.minimum}, maximum: {self.maximum})"

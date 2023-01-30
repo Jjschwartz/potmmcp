@@ -18,6 +18,7 @@ Experiments
   - Uniform
 
 """
+import math
 import copy
 from pprint import pprint
 
@@ -111,7 +112,7 @@ BAPOSGMCP_PUCT_KWARGS = {
     "step_limit": ENV_STEP_LIMIT,
     "epsilon": 0.01,
 }
-UCB_C = 2.0  # as per OG paper/standard parameter
+UCB_C = math.sqrt(2.0)  # as per OG paper/standard parameter
 
 
 def get_metabaseline():  # noqa
