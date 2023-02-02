@@ -115,13 +115,18 @@ BAPOSGMCP_PUCT_KWARGS = {
 UCB_C = math.sqrt(2.0)  # as per OG paper/standard parameter
 
 
-def get_metabaseline():  # noqa
+def get_metabaseline(best_only: bool = False):  # noqa
+    if best_only:
+        meta_policies = [(BEST_META_PI_NAME, BEST_META_PI_MAP)]
+    else:
+        meta_policies = [
+            ("greedy", GREEDY_META_POLICY_MAP),
+            ("softmax", SOFTMAX_META_POLICY_MAP),
+            ("uniform", UNIFORM_META_POLICY_MAP),
+        ]
+
     baseline_params = []
-    for (name, meta_policy_map) in [
-        ("greedy", GREEDY_META_POLICY_MAP),
-        ("softmax", SOFTMAX_META_POLICY_MAP),
-        ("uniform", UNIFORM_META_POLICY_MAP),
-    ]:
+    for (name, meta_policy_map) in meta_policies:
         # Meta Baseline Policy
         policy_id = f"metabaseline_{name}"
         policy_params = run_lib.PolicyParams(
@@ -137,9 +142,7 @@ def get_metabaseline():  # noqa
 
     # Num exps:
     # = |Meta|
-    # = 3
-    n_meta = 3
-    assert len(baseline_params) == n_meta
+    assert len(baseline_params) == len(meta_policies)
     return baseline_params
 
 
@@ -288,7 +291,7 @@ def main(args):  # noqa
     #   - Greedy
     #   - Softmax
     #   - Uniform
-    policy_params.extend(get_metabaseline())
+    policy_params.extend(get_metabaseline(best_only=False))
 
     exp_params_list = run_lib.get_pairwise_exp_params(
         ENV_ID,

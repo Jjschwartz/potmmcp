@@ -160,6 +160,7 @@ BEST_META_PI_MAP = SOFTMAX_META_POLICY_MAP
 BAPOSGMCP_PUCT_KWARGS = {
     "discount": DISCOUNT,
     "c": 1.25,
+    "search_time_limit": None,   # use num_sims
     # "truncated": True,   # added as variable param like num sims
     "action_selection": "pucb",
     "dirichlet_alpha": 0.4,  # 4 actions / 10
@@ -173,13 +174,18 @@ BAPOSGMCP_PUCT_KWARGS = {
 UCB_C = math.sqrt(2.0)  # as per OG paper/standard parameter
 
 
-def get_baselines(agent_id: int, other_agent_id: int):  # noqa
+def get_baselines(agent_id: int, other_agent_id: int, best_only: bool = False):  # noqa
+    if best_only:
+        meta_policies = [(BEST_META_PI_NAME, BEST_META_PI_MAP[agent_id])]
+    else:
+        meta_policies = [
+            ("greedy", GREEDY_META_POLICY_MAP[agent_id]),
+            ("softmax", SOFTMAX_META_POLICY_MAP[agent_id]),
+            ("uniform", UNIFORM_META_POLICY_MAP[agent_id]),
+        ]
+
     baseline_params = []
-    for (name, meta_policy_map) in [
-        ("greedy", GREEDY_META_POLICY_MAP[agent_id]),
-        ("softmax", SOFTMAX_META_POLICY_MAP[agent_id]),
-        ("uniform", UNIFORM_META_POLICY_MAP[agent_id]),
-    ]:
+    for (name, meta_policy_map) in meta_policies:
         # Meta Baseline Policy
         policy_id = f"metabaseline_{name}_i{agent_id}"
         policy_params = run_lib.PolicyParams(
@@ -195,9 +201,7 @@ def get_baselines(agent_id: int, other_agent_id: int):  # noqa
 
     # Num exps:
     # = |Meta|
-    # = 3
-    n_meta = 3
-    assert len(baseline_params) == n_meta
+    assert len(baseline_params) == len(meta_policies)
     return baseline_params
 
 
@@ -328,7 +332,7 @@ def main(args):  # noqa
         #   - Greedy
         #   - Softmax
         #   - Uniform
-        policy_params.extend(get_baselines(i, j))
+        policy_params.extend(get_baselines(i, j, best_only=False))
 
         if i == 0:
             agent_0_params = policy_params
