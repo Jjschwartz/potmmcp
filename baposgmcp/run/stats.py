@@ -274,6 +274,7 @@ class SearchTimeTracker(Tracker):
         "policy_calls",
         "inference_time",
         "search_depth",
+        "num_sims",
         "min_value",
         "max_value",
     ]
@@ -311,7 +312,7 @@ class SearchTimeTracker(Tracker):
             statistics = policies[i].statistics
             for time_key in self.TIME_KEYS:
                 self._current_episode_times[i][time_key].append(
-                    statistics.get(time_key, 0.0)
+                    statistics.get(time_key, np.nan)
                 )
 
         if episode_end:
@@ -324,7 +325,7 @@ class SearchTimeTracker(Tracker):
                 else:
                     for k in self.TIME_KEYS:
                         key_step_times = self._current_episode_times[i][k]
-                        self._times[i][k].append(np.mean(key_step_times))
+                        self._times[i][k].append(np.nanmean(key_step_times))
 
     def reset(self):
         self.reset_episode()
@@ -345,7 +346,11 @@ class SearchTimeTracker(Tracker):
         for i in range(self._num_agents):
             agent_stats = {}
             for key, step_times in self._current_episode_times[i].items():
-                agent_stats[key] = np.mean(step_times, axis=0)
+                if len(step_times) == 0 or np.isnan(np.sum(step_times)):
+                    mean_val = np.nan
+                else:
+                    mean_val = np.nanmean(step_times, axis=0)
+                agent_stats[key] = mean_val
             stats[i] = agent_stats
 
         return stats
@@ -355,8 +360,14 @@ class SearchTimeTracker(Tracker):
         for i in range(self._num_agents):
             agent_stats = {}
             for key, values in self._times[i].items():
-                agent_stats[f"{key}_mean"] = np.mean(values, axis=0)
-                agent_stats[f"{key}_std"] = np.std(values, axis=0)
+                if len(values) == 0 or np.isnan(np.sum(values)):
+                    mean_val = np.nan
+                    std_val = np.nan
+                else:
+                    mean_val = np.nanmean(values, axis=0)
+                    std_val = np.nanstd(values, axis=0)
+                agent_stats[f"{key}_mean"] = mean_val
+                agent_stats[f"{key}_std"] = std_val
             stats[i] = agent_stats
         return stats
 
