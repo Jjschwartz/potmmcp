@@ -9,12 +9,6 @@ import pandas as pd
 import baposgmcp.plot as plot_utils
 from baposgmcp.run import compile_result_files
 
-# Keys which DF is grouped by
-group_keys = [
-    "policy_id",
-    # "coplayer_policy_id"    # added based on num agents in the env
-]
-
 # keys that have constant value across groups
 constants = [
     "agent_id",
@@ -34,11 +28,12 @@ constants = [
     "extra_particles_prop",
     "step_limit",
     "epsilon",
-    "meta_policy_dict",
     "num_sims",
+    "search_time_limit",
     "num_episodes",
     "policy_prior_map",
-    "fixed_policy_id"
+    "fixed_policy_id",
+    "meta_policy_dict",
 ]
 
 replaced = [
@@ -75,7 +70,7 @@ mean_keys = [
     'episode_return',
     'episode_discounted_return',
     'episode_steps',
-    'episode_time'
+    'episode_time',
 ]
 
 
@@ -106,6 +101,12 @@ def main(parent_dir: str, n_procs: int = 1):   # noqa
             if fname.endswith("episodes.csv"):
                 result_filepaths.append(os.path.join(dirpath, fname))
     ep_df = compile_result_files(result_filepaths, verbose=True, n_procs=n_procs)
+
+    # Keys which DF is grouped by
+    group_keys = [
+        "policy_id",
+        # "coplayer_policy_id"    # added based on num agents in the env
+    ]
 
     print("Adding coplayer policy id column.")
     if len(ep_df["agent_id"].unique().tolist()) == 2:
