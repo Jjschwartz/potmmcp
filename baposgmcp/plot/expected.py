@@ -1,8 +1,8 @@
 from typing import Sequence
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 from baposgmcp.plot.pairwise import get_pairwise_values
 
@@ -19,27 +19,27 @@ def get_uniform_expected_agg_map(df):
 
     # values that will be summed across groups
     sum_keys = [
-        k for k in df.columns
+        k
+        for k in df.columns
         if k != "num_sims" and (k.endswith("_n") or k.startswith("num_"))
     ]
 
     min_keys = [k for k in df.columns if k.endswith("_min")]
     max_keys = [k for k in df.columns if k.endswith("_max")]
     mean_keys = [
-        k for k in df.columns
+        k
+        for k in df.columns
         if (
             any(k.endswith(v) for v in ["_mean", "_std", "_CI"])
             or any(
-                k.startswith(v) for v in [
-                    "prop_", "bayes_accuracy", "action_dist_distance"
-                ]
+                k.startswith(v)
+                for v in ["prop_", "bayes_accuracy", "action_dist_distance"]
             )
         )
     ]
 
     assigned_keys = set(
-        group_keys + first_keys + sum_keys + min_keys
-        + max_keys + mean_keys
+        group_keys + first_keys + sum_keys + min_keys + max_keys + mean_keys
     )
     # keys that have constant value across groups
     constants = [k for k in df.columns if k not in assigned_keys]
@@ -54,8 +54,7 @@ def get_uniform_expected_agg_map(df):
         (min_keys, "min"),
         (max_keys, "max"),
         # TODO change this to weighted mean for non-uniform prior
-        (mean_keys, "mean")
-
+        (mean_keys, "mean"),
     ]:
         for k in key_list:
             if k in columns:
@@ -66,9 +65,11 @@ def get_uniform_expected_agg_map(df):
     return agg_dict
 
 
-def get_uniform_expected_df(df,
-                            coplayer_policies: Sequence[str],
-                            coplayer_policy_key: str = "coplayer_policy_id"):
+def get_uniform_expected_df(
+    df,
+    coplayer_policies: Sequence[str],
+    coplayer_policy_key: str = "coplayer_policy_id",
+):
     """Get DF with expected values w.r.t policy prior for each policy."""
     agg_dict = get_uniform_expected_agg_map(df)
 
@@ -85,13 +86,15 @@ def get_uniform_expected_df(df,
     return exp_df
 
 
-def get_expected_values_by_prior(plot_df,
-                                 y_key: str,
-                                 y_err_key: str,
-                                 policy_prior,
-                                 policy_key: str = "policy_id",
-                                 coplayer_policy_key: str = "coplayer_policy_id",   # noqa
-                                 other_agent_id: int = 1):
+def get_expected_values_by_prior(
+    plot_df,
+    y_key: str,
+    y_err_key: str,
+    policy_prior,
+    policy_key: str = "policy_id",
+    coplayer_policy_key: str = "coplayer_policy_id",  # noqa
+    other_agent_id: int = 1,
+):
     """Get expected value w.r.t policy prior for each policy."""
     pw_values, (row_policy_ids, col_policy_ids) = get_pairwise_values(
         plot_df,
@@ -99,7 +102,7 @@ def get_expected_values_by_prior(plot_df,
         policy_key=policy_key,
         coplayer_policy_key=coplayer_policy_key,
         average_duplicates=True,
-        duplicate_warning=False
+        duplicate_warning=False,
     )
     pw_err_values, _ = get_pairwise_values(
         plot_df,
@@ -107,7 +110,7 @@ def get_expected_values_by_prior(plot_df,
         policy_key=policy_key,
         coplayer_policy_key=coplayer_policy_key,
         average_duplicates=True,
-        duplicate_warning=False
+        duplicate_warning=False,
     )
 
     expected_values = np.zeros(len(row_policy_ids))
@@ -125,12 +128,14 @@ def get_expected_values_by_prior(plot_df,
     return expected_values, expected_err_values, row_policy_ids
 
 
-def plot_expected_values_by_num_sims(y_key: str,
-                                     expected_values,
-                                     expected_err_values,
-                                     policy_ids,
-                                     policies_with_sims,
-                                     policies_without_sims):
+def plot_expected_values_by_num_sims(
+    y_key: str,
+    expected_values,
+    expected_err_values,
+    policy_ids,
+    policies_with_sims,
+    policies_without_sims,
+):
     """Plot expected values by num_sims.
 
     Assumes policies with sims have IDs that end with "_[num_sims]".
@@ -165,7 +170,7 @@ def plot_expected_values_by_num_sims(y_key: str,
         y_err = np.array([y_err_map[n] for n in num_sims])
 
         ax.plot(num_sims, y, label=policy_prefix)
-        plt.fill_between(num_sims, y-y_err, y+y_err, alpha=0.2)
+        plt.fill_between(num_sims, y - y_err, y + y_err, alpha=0.2)
 
     for policy_id in policies_without_sims:
         i = policy_ids.index(policy_id)
@@ -174,7 +179,7 @@ def plot_expected_values_by_num_sims(y_key: str,
 
         y = np.full(len(all_num_sims), value)
         ax.plot(num_sims, y, label=policy_id)
-        plt.fill_between(num_sims, y-y_err, y+y_err, alpha=0.2)
+        plt.fill_between(num_sims, y - y_err, y + y_err, alpha=0.2)
 
     ax.set_ylabel(y_key)
     ax.set_xlabel("num sims")
@@ -182,20 +187,22 @@ def plot_expected_values_by_num_sims(y_key: str,
     plt.show()
 
 
-def get_and_plot_expected_values_by_num_sims(plot_df,
-                                             y_key: str,
-                                             y_err_key: str,
-                                             policy_key: str,
-                                             policy_prior,
-                                             policies_with_sims,
-                                             policies_without_sims):
+def get_and_plot_expected_values_by_num_sims(
+    plot_df,
+    y_key: str,
+    y_err_key: str,
+    policy_key: str,
+    policy_prior,
+    policies_with_sims,
+    policies_without_sims,
+):
     """Get and then plot expected values."""
     exp_values, exp_err_values, policy_ids = get_expected_values_by_prior(
         plot_df,
         y_key=y_key,
         y_err_key=y_err_key,
         policy_key=policy_key,
-        policy_prior=policy_prior
+        policy_prior=policy_prior,
     )
     plot_expected_values_by_num_sims(
         y_key=y_key,
@@ -203,5 +210,5 @@ def get_and_plot_expected_values_by_num_sims(plot_df,
         expected_err_values=exp_err_values,
         policy_ids=policy_ids,
         policies_with_sims=policies_with_sims,
-        policies_without_sims=policies_without_sims
+        policies_without_sims=policies_without_sims,
     )

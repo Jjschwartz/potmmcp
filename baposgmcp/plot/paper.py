@@ -7,14 +7,18 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+TINY_SIZE = 10
+SMALL_SIZE = 12
+MEDIUM_SIZE = 14
+BIGGER_SIZE = 16
 
-plt.rc("font", size=18)  # controls default text size
-plt.rc("axes", titlesize=18)  # fontsize of the title
-plt.rc("axes", labelsize=18)  # fontsize of the x and y labels
-plt.rc("xtick", labelsize=12)  # fontsize of the x tick labels
-plt.rc("ytick", labelsize=12)  # fontsize of the y tick labels
-plt.rc("legend", fontsize=18)  # fontsize of the legend
-plt.rc("legend", title_fontsize=16)  # fontsize of the legend title
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=TINY_SIZE)     # fontsize of the tick labels
+plt.rc('ytick', labelsize=TINY_SIZE)     # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
 def get_base_plot_kwargs():
