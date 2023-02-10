@@ -131,6 +131,21 @@ def clean_num_sims(df):
     return df
 
 
+def clean_search_time_limit(df):
+    """Get search time limit in float format."""
+
+    def clean(row):
+        try:
+            return float(row["search_time_limit"])
+        except (KeyError, ValueError, TypeError):
+            pass
+        return np.nan
+
+    df["search_time_limit"] = df.apply(clean, axis=1)
+    df = df.astype({"search_time_limit": float})
+    return df
+
+
 def clean_truncated(df):
     """Get truncated in bool format.
 
@@ -184,6 +199,7 @@ def import_results(result_file: str,
     df = add_95CI(df)
     df = add_outcome_proportions(df)
     df = clean_num_sims(df)
+    df = clean_search_time_limit(df)
     df = clean_truncated(df)
 
     if clean_policy_id:

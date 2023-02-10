@@ -7,106 +7,114 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+
+algname = "POTMMCP"
+baselinealgname = "I-POMCP-PF"
+
+# For UAI paper formatting
+PAGE_WIDTH = 6.75  # inches
+PAGE_COL_WIDTH = (6.75 - 0.25) / 2
+
 TINY_SIZE = 10
 SMALL_SIZE = 12
 MEDIUM_SIZE = 14
 BIGGER_SIZE = 16
 
-plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
-plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
-plt.rc('xtick', labelsize=TINY_SIZE)     # fontsize of the tick labels
-plt.rc('ytick', labelsize=TINY_SIZE)     # fontsize of the tick labels
-plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
-plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+plt.rc("font", size=SMALL_SIZE)  # controls default text sizes
+plt.rc("axes", titlesize=SMALL_SIZE)  # fontsize of the axes title
+plt.rc("axes", labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
+plt.rc("xtick", labelsize=TINY_SIZE)  # fontsize of the tick labels
+plt.rc("ytick", labelsize=TINY_SIZE)  # fontsize of the tick labels
+plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
+plt.rc("figure", titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
 def get_base_plot_kwargs():
     """Get base formatting kwargs for plot."""
-    fig_kwargs = {"figsize": (6, 6)}
     base_plot_kwargs = {
         "subplot_kwargs": {
             "xlabel": "Number of Simulations",
         },
-        "legend_kwargs": {"fontsize": 14, "title_fontsize": 14},
-        "fig_kwargs": fig_kwargs,
+        "legend_kwargs": {},
+        "fig_kwargs": {"figsize": (6, 6)},
     }
     return base_plot_kwargs
 
 
-def plot_performance_vs_num_sims(
+def plot_performance(
     plot_df: pd.DataFrame,
     ax: Axes,
+    x_key: str,
     y_key: str,
     y_err_key: str,
     policy_key: str,
     policy_prefixes: List[str],
     pi_label_map: Optional[Dict[str, str]] = None,
+    constant_policy_prefixes: Optional[List[str]] = None,
 ):
-    """Plot expected values for different policies by num_sims.
-
-    Assumes policies with sims have IDs that include
-    "_numsims<n>"
-    """
+    """Plot expected values for different policies by x key."""
     policy_ids = plot_df[policy_key].unique().tolist()
     policy_ids.sort()
 
     if pi_label_map is None:
         pi_label_map = {}
 
+    if constant_policy_prefixes is None:
+        constant_policy_prefixes = []
+
     values_by_pi = {}
-    all_num_sims = set()
+    x_values = set()
     for prefix in policy_prefixes:
-        values_by_pi[prefix] = {"y": {}, "y_err": {}}
+        values_by_pi[prefix] = {"y": [], "y_err": []}
         for i, policy_id in enumerate(policy_ids):
             if not policy_id.startswith(prefix):
                 continue
 
-            tokens = policy_id.split("_")
-            num_sims = None
-            for t in tokens:
-                if t.startswith("numsims"):
-                    num_sims = int(t.replace("numsims", ""))
-
-            if num_sims is not None:
-                all_num_sims.add(num_sims)
-
             pi_df = plot_df[plot_df[policy_key] == policy_id]
-            value = pi_df[y_key].values[0]
-            err_value = pi_df[y_err_key].values[0]
-            values_by_pi[prefix]["y"][num_sims] = value
-            values_by_pi[prefix]["y_err"][num_sims] = err_value
 
-    all_num_sims = list(all_num_sims)
-    all_num_sims.sort()
+            if any(policy_id.startswith(p) for p in constant_policy_prefixes):
+                x = None
+            else:
+                x = pi_df[x_key].values[0]
+                x_values.add(x)
+
+            values_by_pi[prefix]["y"].append((x, pi_df[y_key].values[0]))
+            values_by_pi[prefix]["y_err"].append((x, pi_df[y_err_key].values[0]))
+
+    all_x_values = list(x_values)
+    all_x_values.sort()
 
     for prefix in policy_prefixes:
-        y_map = values_by_pi[prefix]["y"]
-        y_err_map = values_by_pi[prefix]["y_err"]
-        num_sims = list(y_map)
-        num_sims.sort()
+        y_list = values_by_pi[prefix]["y"]
+        y_err_list = values_by_pi[prefix]["y_err"]
+        y_list.sort()
+        y_err_list.sort()
 
-        if len(num_sims) == 1:
+        if len(y_list) == 1:
             # non-sim policy
-            y = np.full(len(all_num_sims), y_map[None])
-            y_err = np.full(len(all_num_sims), y_err_map[None])
-            num_sims = all_num_sims
+            y = np.full(len(all_x_values), y_list[0][1])
+            x = all_x_values
+            y_err = np.full(len(all_x_values), y_err_list[0][1])
         else:
-            y = np.array([y_map[n] for n in num_sims])
-            y_err = np.array([y_err_map[n] for n in num_sims])
+            y = np.array([v[1] for v in y_list])
+            x = np.array([v[0] for v in y_list])
+            y_err = np.array([v[1] for v in y_err_list])
 
         label = pi_label_map.get(prefix, prefix)
 
-        ax.plot(num_sims, y, label=label)
-        ax.fill_between(num_sims, y - y_err, y + y_err, alpha=0.2)
+        ax.plot(x, y, label=label)
+        ax.fill_between(x, y - y_err, y + y_err, alpha=0.2)
 
 
-def plot_multiple_performance_vs_num_sims(
+def plot_multiple_performance(
     plot_df: pd.DataFrame,
+    x_key: str,
     y_key: str,
     y_err_key: str,
-    policy_prefixes,
-    pi_label_map=None,
+    policy_prefixes: List[str],
+    pi_label_map: Optional[Dict[str, str]] = None,
+    constant_policy_prefixes: Optional[List[str]] = None,
+    policy_key: str = "policy_id",
     subplot_kwargs=None,
     legend_kwargs=None,
     fig_kwargs=None,
@@ -134,14 +142,16 @@ def plot_multiple_performance_vs_num_sims(
 
     for row_axs, prefix_list in zip(axs, policy_prefixes):
         ax = row_axs[0]
-        plot_performance_vs_num_sims(
+        plot_performance(
             plot_df,
             ax,
+            x_key=x_key,
             y_key=y_key,
             y_err_key=y_err_key,
-            policy_key="policy_id",
+            policy_key=policy_key,
             policy_prefixes=prefix_list,
             pi_label_map=pi_label_map,
+            constant_policy_prefixes=constant_policy_prefixes
         )
         ax.legend(**legend_kwargs)
 
@@ -394,6 +404,7 @@ def plot_action_selection_vs_num_sims(
 def plot_expected_belief_stat_by_step(
     plot_df: pd.DataFrame,
     ax: Axes,
+    z_key: str,
     y_key_prefix: str,
     step_limit: int,
     other_agent_id: int,
@@ -404,28 +415,29 @@ def plot_expected_belief_stat_by_step(
     xs = np.arange(0, step_limit)
 
     y_keys = [f"{y_key_prefix}_{other_agent_id}_{t}" for t in range(step_limit)]
-    num_sims = plot_df["num_sims"].unique().tolist()
-    num_sims.sort()
+    zs = plot_df[z_key].unique().tolist()
+    zs.sort()
 
-    for n in num_sims:
-        n_df = plot_df[plot_df["num_sims"] == n]
+    for z in zs:
+        z_df = plot_df[plot_df[z_key] == z]
         y = np.zeros(step_limit)
         y_err = np.zeros(step_limit)
 
         for t in range(step_limit):
-            y_t = n_df[f"{y_keys[t]}_{y_suffix}"]
-            y_err_t = n_df[f"{y_keys[t]}_{y_err_suffix}"]
+            y_t = z_df[f"{y_keys[t]}_{y_suffix}"]
+            y_err_t = z_df[f"{y_keys[t]}_{y_err_suffix}"]
             if len(y_t):
                 assert len(y_t) == 1, f"{y_t}"
                 y[t] = y_t.values[0]
                 y_err[t] = y_err_t.values[0]
 
-        ax.plot(xs, y, label=n)
+        ax.plot(xs, y, label=z)
         ax.fill_between(xs, y - y_err, y + y_err, alpha=0.2)
 
 
 def plot_multiple_belief_stats(
     plot_df: pd.DataFrame,
+    z_key: str,
     y_key_prefix: str,
     step_limit: int,
     other_agent_id: int,
@@ -437,7 +449,7 @@ def plot_multiple_belief_stats(
     fig_kwargs=None,
     set_title: bool = False,
 ) -> Tuple[Figure, List[List[Axes]]]:
-    """Create multiple belief stat vs step by num sims plots."""
+    """Create multiple belief stat vs step by z_key plots."""
     alg_ids = plot_df[alg_id_key].unique().tolist()
     alg_ids.sort()
 
@@ -464,6 +476,7 @@ def plot_multiple_belief_stats(
         plot_expected_belief_stat_by_step(
             alg_df,
             ax,
+            z_key=z_key,
             y_key_prefix=y_key_prefix,
             step_limit=step_limit,
             other_agent_id=other_agent_id,
@@ -474,115 +487,5 @@ def plot_multiple_belief_stats(
 
         if set_title:
             ax.set_title(alg_id)
-
-    return fig, axs
-
-
-def plot_performance_vs_search_time(
-    plot_df: pd.DataFrame,
-    ax: Axes,
-    y_key: str,
-    y_err_key: str,
-    policy_key: str,
-    policy_prefixes: List[str],
-    pi_label_map: Optional[Dict[str, str]] = None,
-):
-    """Plot expected values for different policies by mean search time."""
-    policy_ids = plot_df[policy_key].unique().tolist()
-    policy_ids.sort()
-
-    if pi_label_map is None:
-        pi_label_map = {}
-
-    values_by_pi = {}
-    min_time, max_time = float("inf"), -1.0
-    for prefix in policy_prefixes:
-        values_by_pi[prefix] = {"y": [], "y_err": []}
-        for i, policy_id in enumerate(policy_ids):
-            if not policy_id.startswith(prefix):
-                continue
-
-            pi_df = plot_df[plot_df[policy_key] == policy_id]
-            search_time = pi_df["search_time_mean"].values[0]
-
-            if search_time < min_time:
-                min_time = search_time
-            if search_time > max_time:
-                max_time = search_time
-
-            value = pi_df[y_key].values[0]
-            err_value = pi_df[y_err_key].values[0]
-            values_by_pi[prefix]["y"].append((search_time, value))
-            values_by_pi[prefix]["y_err"].append((search_time, err_value))
-
-    xs = np.linspace(min_time, max_time, num=10)
-
-    for prefix in policy_prefixes:
-        y_list = values_by_pi[prefix]["y"]
-        y_err_list = values_by_pi[prefix]["y_err"]
-        y_list.sort()
-        y_err_list.sort()
-
-        if len(y_list) == 1:
-            # non-sim policy
-            y = np.full(len(xs), y_list[0][1])
-            y_times = xs
-            y_err = np.full(len(xs), y_err_list[0][1])
-            y_err_times = xs
-        else:
-            y = np.array([v[1] for v in y_list])
-            y_times = np.array([v[0] for v in y_list])
-            y_err = np.array([v[1] for v in y_err_list])
-            y_err_times = np.array([v[0] for v in y_err_list])
-
-        label = pi_label_map.get(prefix, prefix)
-
-        ax.plot(y_times, y, label=label)
-        ax.fill_between(y_err_times, y - y_err, y + y_err, alpha=0.2)
-
-
-def plot_multiple_performance_vs_search_time(
-    plot_df: pd.DataFrame,
-    y_key: str,
-    y_err_key: str,
-    policy_prefixes,
-    pi_label_map=None,
-    subplot_kwargs=None,
-    legend_kwargs=None,
-    fig_kwargs=None,
-):
-    """Create multiple performance vs num sims plots."""
-    if not isinstance(policy_prefixes[0], list):
-        policy_prefixes = [policy_prefixes]
-
-    if not subplot_kwargs:
-        subplot_kwargs = {}
-
-    if not legend_kwargs:
-        legend_kwargs = {}
-
-    num_rows = len(policy_prefixes)
-    num_cols = 1
-
-    fig, axs = plt.subplots(
-        nrows=num_rows,
-        ncols=num_cols,
-        squeeze=False,
-        subplot_kw=subplot_kwargs,
-        **fig_kwargs,
-    )
-
-    for row_axs, prefix_list in zip(axs, policy_prefixes):
-        ax = row_axs[0]
-        plot_performance_vs_search_time(
-            plot_df,
-            ax,
-            y_key=y_key,
-            y_err_key=y_err_key,
-            policy_key="policy_id",
-            policy_prefixes=prefix_list,
-            pi_label_map=pi_label_map,
-        )
-        ax.legend(**legend_kwargs)
 
     return fig, axs
