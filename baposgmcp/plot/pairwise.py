@@ -78,9 +78,9 @@ def plot_pairwise_comparison(plot_df,
     if valfmt is None:
         valfmt = "{x:.2f}"
 
-    ncols = 2 if y_err_key else 1
+    nrows = 2 if y_err_key else 1
     fig, axs = plt.subplots(
-        nrows=1, ncols=ncols, figsize=figsize, squeeze=False, sharey=True
+        nrows=nrows, ncols=1, figsize=figsize, squeeze=False, sharey=False
     )
 
     pw_values, (row_policies, col_policies) = get_pairwise_values(
@@ -93,6 +93,9 @@ def plot_pairwise_comparison(plot_df,
         average_duplicates=average_duplicates,
         duplicate_warning=duplicate_warning
     )
+
+    if vrange is None:
+        vrange = (np.nanmin(pw_values), np.nanmax(pw_values))
 
     if policy_labels:
         row_policy_labels = [policy_labels.get(k, k) for k in row_policies]
@@ -122,12 +125,14 @@ def plot_pairwise_comparison(plot_df,
             duplicate_warning=duplicate_warning
         )
 
+        err_vrange = (0, vrange[1] - vrange[0])
+
         plot_pairwise_heatmap(
-            axs[0][1],
+            axs[1][0],
             (row_policy_labels, col_policy_labels),
             pw_err_values,
             title=None,
-            vrange=None,
+            vrange=err_vrange,
             valfmt=valfmt
         )
         fig.tight_layout()

@@ -158,13 +158,14 @@ def plot_multiple_performance(
     return fig, axs
 
 
-def plot_meta_policy_vs_num_sims(
+def plot_meta_policy_performance(
     plot_df: pd.DataFrame,
     ax: Axes,
+    x_key: str,
     y_key: str,
     y_err_key: str,
     alg_id_key: str = "alg_id",
-    meta_pi_label_map=None,
+    meta_pi_label_map: Optional[Dict[str, str]] = None,
 ):
     """Plot expected values for different meta-policies by num_sims."""
     assert len(plot_df[alg_id_key].unique()) == 1
@@ -176,9 +177,9 @@ def plot_meta_policy_vs_num_sims(
 
     for meta_pi in all_meta_pis:
         a_df = plot_df[plot_df["meta_pi"] == meta_pi]
-        a_df = a_df.sort_values(by="num_sims")
+        a_df = a_df.sort_values(by=x_key)
 
-        x = a_df["num_sims"]
+        x = a_df[x_key]
         y = a_df[y_key]
         y_err = a_df[y_err_key]
         label = meta_pi_label_map.get(meta_pi, meta_pi)
@@ -187,13 +188,13 @@ def plot_meta_policy_vs_num_sims(
         ax.fill_between(x, y - y_err, y + y_err, alpha=0.2)
 
 
-def plot_meta_policy_for_nonsim(
+def bar_plot_meta_policy_performance(
     plot_df: pd.DataFrame,
     ax: Axes,
     y_key: str,
     y_err_key: str,
     alg_id_key: str = "alg_id",
-    meta_pi_label_map=None,
+    meta_pi_label_map: Optional[Dict[str, str]] = None,
 ):
     """Plot expected values vs meta-policies for non-sim policies."""
     assert len(plot_df[alg_id_key].unique()) == 1
@@ -211,12 +212,13 @@ def plot_meta_policy_for_nonsim(
     ax.bar(xs, ys, yerr=y_errs, tick_label=labels)
 
 
-def plot_multiple_meta_policy_vs_num_sims(
+def plot_multiple_meta_policy_performance(
     plot_df: pd.DataFrame,
+    x_key: str,
     y_key: str,
     y_err_key: str,
     alg_id_key: str = "alg_id",
-    meta_pi_label_map=None,
+    meta_pi_label_map: Optional[Dict[str, str]] = None,
     subplot_kwargs=None,
     legend_kwargs=None,
     fig_kwargs=None,
@@ -247,8 +249,8 @@ def plot_multiple_meta_policy_vs_num_sims(
         ax = row_axs[0]
         alg_df = plot_df[plot_df[alg_id_key] == alg_id]
 
-        if len(alg_df["num_sims"].unique()) == 1:
-            plot_meta_policy_for_nonsim(
+        if len(alg_df[x_key].unique()) == 1:
+            bar_plot_meta_policy_performance(
                 alg_df,
                 ax,
                 y_key=y_key,
@@ -257,9 +259,10 @@ def plot_multiple_meta_policy_vs_num_sims(
                 meta_pi_label_map=meta_pi_label_map,
             )
         else:
-            plot_meta_policy_vs_num_sims(
+            plot_meta_policy_performance(
                 alg_df,
                 ax,
+                x_key=x_key,
                 y_key=y_key,
                 y_err_key=y_err_key,
                 alg_id_key=alg_id_key,

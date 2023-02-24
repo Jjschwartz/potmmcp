@@ -4,7 +4,6 @@ import random
 from typing import Dict, List, Sequence
 
 import gym
-
 import posggym.model as M
 
 import baposgmcp.policy as P
@@ -17,10 +16,9 @@ class MetaPolicy(abc.ABC):
     agents) to a policy for the ego agent.
     """
 
-    def __init__(self,
-                 model: M.POSGModel,
-                 ego_agent: M.AgentID,
-                 ego_policies: P.PolicyMap):
+    def __init__(
+        self, model: M.POSGModel, ego_agent: M.AgentID, ego_policies: P.PolicyMap
+    ):
         self.model = model
         self.ego_agent = ego_agent
         self.num_agents = model.n_agents
@@ -44,9 +42,9 @@ class MetaPolicy(abc.ABC):
     def get_policy_dist(self, policy_state: P.PolicyState) -> P.PolicyDist:
         """Get distribution over ego policies given other agents policies."""
 
-    def get_exp_policy_dist(self,
-                            policy_state_dist: Dict[P.PolicyState, float]
-                            ) -> P.PolicyDist:
+    def get_exp_policy_dist(
+        self, policy_state_dist: Dict[P.PolicyState, float]
+    ) -> P.PolicyDist:
         """Get meta-distribution given distribution of other agent policies."""
         exp_dist = {pi_id: 0.0 for pi_id in self.ego_policies}
         for policy_state, prob in policy_state_dist.items():
@@ -64,12 +62,11 @@ class MetaPolicy(abc.ABC):
     def get_uniform_policy_dist(self) -> P.PolicyDist:
         """Get uniform distribution over ego policies."""
         n = len(self.ego_policies)
-        return {pi_id: 1/n for pi_id in self.ego_policies}
+        return {pi_id: 1 / n for pi_id in self.ego_policies}
 
-    def get_exp_action_dist(self,
-                            policy_dist: P.PolicyDist,
-                            hidden_states: P.PolicyHiddenStateMap
-                            ) -> P.ActionDist:
+    def get_exp_action_dist(
+        self, policy_dist: P.PolicyDist, hidden_states: P.PolicyHiddenStateMap
+    ) -> P.ActionDist:
         """Get the expected action distribution over ego policies."""
         assert len(policy_dist) == len(hidden_states)
         assert set(hidden_states).issubset(policy_dist)
@@ -92,10 +89,9 @@ class MetaPolicy(abc.ABC):
 class SingleMetaPolicy(MetaPolicy):
     """A Meta-Policy with only a single policy."""
 
-    def __init__(self,
-                 model: M.POSGModel,
-                 ego_agent: M.AgentID,
-                 ego_policies: P.PolicyMap):
+    def __init__(
+        self, model: M.POSGModel, ego_agent: M.AgentID, ego_policies: P.PolicyMap
+    ):
         super().__init__(model, ego_agent, ego_policies)
         assert len(ego_policies) == 1
         self._policy_id = list(ego_policies.keys())[0]
@@ -105,10 +101,11 @@ class SingleMetaPolicy(MetaPolicy):
         return {self._policy_id: 1.0}
 
     @staticmethod
-    def load_possgym_agents_meta_policy(model: M.POSGModel,
-                                        agent_id: M.AgentID,
-                                        policy_id: str) -> MetaPolicy:
+    def load_possgym_agents_meta_policy(
+        model: M.POSGModel, agent_id: M.AgentID, policy_id: str
+    ) -> MetaPolicy:
         import posggym_agents
+
         policies = {policy_id: posggym_agents.make(policy_id, model, agent_id)}
         return SingleMetaPolicy(model, agent_id, policies)
 
@@ -128,11 +125,13 @@ class DictMetaPolicy(MetaPolicy):
     policies.
     """
 
-    def __init__(self,
-                 model: M.POSGModel,
-                 ego_agent: M.AgentID,
-                 ego_policies: P.PolicyMap,
-                 meta_policy_dict: Dict[P.PolicyState, P.PolicyDist]):
+    def __init__(
+        self,
+        model: M.POSGModel,
+        ego_agent: M.AgentID,
+        ego_policies: P.PolicyMap,
+        meta_policy_dict: Dict[P.PolicyState, P.PolicyDist],
+    ):
         super().__init__(model, ego_agent, ego_policies)
         self._meta_policy_dict = meta_policy_dict
 
@@ -144,32 +143,29 @@ class DictMetaPolicy(MetaPolicy):
         return meta_policy
 
     @staticmethod
-    def load_possgym_agents_meta_policy(model: M.POSGModel,
-                                        agent_id: M.AgentID,
-                                        meta_policy_dict: [
-                                            Dict[P.PolicyState, P.PolicyDist]
-                                        ]
-                                        ) -> MetaPolicy:
+    def load_possgym_agents_meta_policy(
+        model: M.POSGModel,
+        agent_id: M.AgentID,
+        meta_policy_dict: [Dict[P.PolicyState, P.PolicyDist]],
+    ) -> MetaPolicy:
         import posggym_agents
 
         policy_ids = set()
         for policy_dist in meta_policy_dict.values():
             policy_ids.update(policy_dist)
 
-        policies = {
-            id: posggym_agents.make(id, model, agent_id) for id in policy_ids
-        }
+        policies = {id: posggym_agents.make(id, model, agent_id) for id in policy_ids}
         return DictMetaPolicy(model, agent_id, policies, meta_policy_dict)
 
 
-def get_greedy_policy_dict(pairwise_returns: Dict[
-                               P.PolicyState, Dict[P.PolicyID, float]]
-                           ) -> [Dict[P.PolicyState, P.PolicyDist]]:
+def get_greedy_policy_dict(
+    pairwise_returns: Dict[P.PolicyState, Dict[P.PolicyID, float]]
+) -> [Dict[P.PolicyState, P.PolicyDist]]:
     """Get Greedy Meta-Policy Dict from pairwise returns."""
     greedy_policy = {}
     for pi_state, policy_returns in pairwise_returns.items():
         max_policies = []
-        max_return = -float('inf')
+        max_return = -float("inf")
         for pi_id, ret in policy_returns.items():
             if ret > max_return:
                 max_return = ret
@@ -178,21 +174,20 @@ def get_greedy_policy_dict(pairwise_returns: Dict[
                 max_policies.append(pi_id)
 
         greedy_policy[pi_state] = {
-            pi_id: 1.0/len(max_policies) for pi_id in max_policies
+            pi_id: 1.0 / len(max_policies) for pi_id in max_policies
         }
     return greedy_policy
 
 
 def softmax(values: Sequence[float], temperature: float) -> List[float]:
     """Get softmax of array of values."""
-    sum_e = sum(math.e**(z/temperature) for z in values)
-    return [(math.e**(z/temperature)) / sum_e for z in values]
+    sum_e = sum(math.e ** (z / temperature) for z in values)
+    return [(math.e ** (z / temperature)) / sum_e for z in values]
 
 
-def get_softmax_policy_dict(pairwise_returns: Dict[
-                                P.PolicyState, Dict[P.PolicyID, float]],
-                            temperature: float
-                            ) -> [Dict[P.PolicyState, P.PolicyDist]]:
+def get_softmax_policy_dict(
+    pairwise_returns: Dict[P.PolicyState, Dict[P.PolicyID, float]], temperature: float
+) -> [Dict[P.PolicyState, P.PolicyDist]]:
     """Get Softmax Meta-Policy Dict from pairwise returns."""
     softmax_policy = {}
     for pi_state, policy_returns in pairwise_returns.items():
@@ -203,9 +198,9 @@ def get_softmax_policy_dict(pairwise_returns: Dict[
     return softmax_policy
 
 
-def get_uniform_policy_dict(pairwise_returns: Dict[
-                                P.PolicyState, Dict[P.PolicyID, float]],
-                            ) -> [Dict[P.PolicyState, P.PolicyDist]]:
+def get_uniform_policy_dict(
+    pairwise_returns: Dict[P.PolicyState, Dict[P.PolicyID, float]],
+) -> [Dict[P.PolicyState, P.PolicyDist]]:
     """Get Uniform Meta-Policy Dict from pairwise returns."""
     uniform_policy = {}
     for pi_state, policy_returns in pairwise_returns.items():
