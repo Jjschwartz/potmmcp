@@ -1,4 +1,4 @@
-"""baposgmcp package install info."""
+"""potmmcp package install info."""
 
 import pathlib
 
@@ -9,7 +9,7 @@ CWD = pathlib.Path(__file__).absolute().parent
 
 def get_version():
     """Gets the posggym version."""
-    path = CWD / "baposgmcp" / "__init__.py"
+    path = CWD / "potmmcp" / "__init__.py"
     content = path.read_text()
 
     for line in content.splitlines():
@@ -18,4 +18,4 @@ def get_version():
     raise RuntimeError("bad version data in __init__.py")
 
 
-setup(name="baposgmcp", version=get_version())
+setup(name="potmmcp", version=get_version())

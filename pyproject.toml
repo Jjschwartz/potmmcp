@@ -5,8 +5,8 @@ requires = ["setuptools >= 61.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "baposgmcp"
-description = "Bayes Adaptive Monte-Carlo Planning for Partially Observable Stochastic Games."
+name = "potmmcp"
+description = "Partially Observable Type-based Meta Monte-Carlo Planning."
 readme = "README.md"
 requires-python = ">= 3.8"
 authors = [{ name = "Jonathon Schwartz", email = "jonathon.schwartz@anu.edu.au" }]
@@ -24,8 +24,8 @@ classifiers = [
 dependencies = [
     "torch>=1.11, < 2",
 	"ray[rllib]==1.12",
-	"posggym[all]==0.1.0",
-	"posggym-agents[all]==0.1.0",
+	'posggym @ git+https://github.com/RDLLab/posggym.git@v0.1.0',
+	"posggym-agents @ git+https://github.com/Jjschwartz/posggym-agents.git@v0.1.2",
     "numpy >=1.22.0",
 	"matplotlib>=3.5",
     "networkx==2.8.2",
@@ -41,16 +41,15 @@ dynamic = ["version"]
 testing = ["pytest >=7.2"]
 
 [project.urls]
-Homepage = "https://github.com/RDLLab/posggym"
-Repository = "https://github.com/RDLLab/posggym/"
-Documentation = "https://posggym.readthedocs.io/"
-"Bug Report" = "https://github.com/RDLLab/posggym/issues"
+Homepage = "https://github.com/Jjschwartz/potmmcp"
+Repository = "https://github.com/Jjschwartz/potmmcp"
+"Bug Report" = "https://github.com/Jjschwartz/potmmcp/issues"
 
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["baposgmcp", "baposgmcp.*"]
+include = ["potmmcp", "potmmcp.*"]
 
 [tool.setuptools.package-data]
 posggym = [
@@ -65,7 +64,7 @@ line-length = 88
 [tool.isort]
 atomic = true
 profile = "black"
-src_paths = ["baposgmcp", "tests"]
+src_paths = ["potmmcp", "tests"]
 extra_standard_library = ["typing_extensions"]
 indent = 4
 lines_after_imports = 2

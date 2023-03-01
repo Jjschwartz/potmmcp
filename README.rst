@@ -1,41 +1,84 @@
-BA-POSGMCP
-###########
+POTMMCP
+#######
 
-Bayes Adaptive Monte-Carlo Planning algorithm for Partially Observable Stochastic Games
+This repository contains the implementation of the **Partially Observable Type-based Meta Monte-Carlo Planning (POTMMCP) algorithm.
 
 
 Installation
 ------------
 
-Installing this library requires installing three main dependencies:
+The library is implemented in ``python 3.8`` and has the following main dependencies:
 
-1. Pytorch
-2. Rllib (version 1.12)
-3. baposgmcp (this projec)
-4. posggym
+1. `Pytorch <https://pytorch.org>`_ >=1.11,<2.0
+2. `Rllib <https://github.com/ray-project/ray/tree/1.12.0>`_ == 1.12
+3. `posggym <https://github.com/RDLLab/posggym/tree/v0.1.0>`_ == 0.1.0
+4. `posggym-agents <https://github.com/Jjschwartz/posggym-agents/tree/v0.1.2>`_ == 0.1.2
 
-Both ``pytorch`` and ``rllib`` will need to be installed before installing ``baposgmcp``. Instructions for installing these can be found on the relevant websites: https://pytorch.org and https://docs.ray.io/en/master/rllib/.
+As with any python package we recomment using a virtual environment (e.g. `Conda <https://docs.conda.io/en/latest/>`_).
 
-**Note** Make sure to install ``rllib`` version ``1.12.0``. Using ``pip`` this can be installed with the following command:
-
-.. code-block:: bash
-
-   pip install "ray[rllib]==1.12"
-
-
-After ``pytorch`` and ``rllib`` are both installed, to install ``baposgmcp`` you must first clone the git repo then from the root repo directory (called ``ba-posgmcp``) install using ``pip``:
+**Installation** of ``potmmcp`` requires cloning the repo then installing using pip:
 
 .. code-block:: bash
 
-   pip install -e .
+    git clone git@github.com:Jjschwartz/potmmcp.git
+	cd potmmcp
+    pip install -e .
 
-``posggym`` can be installed by first cloning the repo from https://github.com/RDLLab/posggym and then installing locally as above.
+
+This will install the ``potmmcp`` package along with the necessary dependencies.
 
 
-And voila.
+The codebase
+------------
+
+There are two main parts to the codebase:
+
+1. The ``potmmcp`` directory containing the ``potmmcp`` python package
+2. The ``experiments`` directory containing scripts and Jupyter notebooks for running and analysing the experiments used in the paper. The results are also store here.
+
+
+potmmcp
+```````
+
+The ``potmmcp`` python package contains a few main parts:
+
+1. ``baselines`` - implementation code for the different baselines used in the paper
+2. ``plot`` - code used for generating plots and running analysis
+3. ``run`` - code for running and tracking experiments
+4. ``tree`` - the implementation of the **POTMMCP** algorithm
+5. ``meta-policy.py`` - classes and functions implementing the meta-policy
+6. ``policy_prior.py`` - classes and functions implementing the prior over policies
+
+The main implementation of the **POTMMCP** algorithm is contained in the ``potmmcp/tree/policy.py`` file.
+
+experiments
+```````````
+
+This directory contains scripts for running the experiments in each environment as well as Jupyter notebooks for analysing the results and the actual results files.
 
 
 Results
 -------
 
-By default experiment results are saved to the ``~/baposgmcp_results`` directory.
+If you run any of the experiment scripts, by default experiment results are saved to the ``~/potmmcp_results`` directory.
+
+
+Questions or Issues
+-------------------
+
+If you have any questions or issues please email jonathon.schwartz@anu.edu.au or create an issue in the issue section on github.
+
+
+Authors
+-------
+
+- Jonathon Schwartz (primary author and code writer/maintainer)
+- Hanna Kurniwati
+- Marcus Hutter
+
+Please Cite
+-----------
+
+If you use the code in this repository or the **POTMMCP** algorithm, consider citing::
+
+   TODO

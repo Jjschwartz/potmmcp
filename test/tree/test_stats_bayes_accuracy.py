@@ -1,6 +1,6 @@
 import posggym
 
-import baposgmcp.run as run_lib
+import potmmcp.run as run_lib
 
 import utils as test_utils
 
@@ -36,8 +36,8 @@ def test_bayes_accuracy_deterministic():
     # Opponent always plays first action "ROCK"
     agent_0_policy = test_utils.get_deterministic_policies(env, 0)["pi_0"]
 
-    # BAPOSGMCP has an opponent policy for each action
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    # POTMMCP has an opponent policy for each action
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=test_utils.get_deterministic_other_policy_prior(
@@ -56,7 +56,7 @@ def test_bayes_accuracy_deterministic():
 def test_bayes_accuracy_stochastic_uniform():
     """Test bayes accuracy on RPS with stochastic opponent policy.
 
-    If we give BAPOSGMCP the three deterministic policies for the opponent,
+    If we give POTMMCP the three deterministic policies for the opponent,
     then BAPOSMGPC would put all probability in one policy based on the first
     observation.
     """
@@ -65,14 +65,14 @@ def test_bayes_accuracy_stochastic_uniform():
     rps_step_limit = 100
 
     # Opponent always plays uniform random
-    # Need to give this policy same ID as a policy in BAPOSGMCP other agent
+    # Need to give this policy same ID as a policy in POTMMCP other agent
     # policies so the BayesAccuracy tracker can track it properly
     agent_0_policy = test_utils.get_random_policy(env, 0)
-    # give it same ID as a policy in BAPOSGMCP policies
+    # give it same ID as a policy in POTMMCP policies
     agent_0_policy.policy_id = "pi_0"
 
-    # BAPOSGMCP has an opponent policy for each action
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    # POTMMCP has an opponent policy for each action
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=test_utils.get_deterministic_other_policy_prior(
@@ -91,7 +91,7 @@ def test_bayes_accuracy_stochastic_uniform():
 def test_bayes_accuracy_stochastic_biased():
     """Test bayes accuracy on RPS with biased stochastic opponent policy.
 
-    Here we give BAPOSGMCP three stochastic policies for the opponent, each
+    Here we give POTMMCP three stochastic policies for the opponent, each
     with a strong bias towards one of the three actions.
     """
     env_id = "RockPaperScissors-v0"
@@ -100,7 +100,7 @@ def test_bayes_accuracy_stochastic_biased():
 
     # Opponent always plays biased towards "ROCK" policy
     agent_0_policy = test_utils.get_biased_policies(env, 0, 0.3)["pi_0"]
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=test_utils.get_biased_other_policy_prior(

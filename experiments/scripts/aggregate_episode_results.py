@@ -1,13 +1,14 @@
 """Script for generating aggregate results from episode results file."""
-import os
 import argparse
+import os
 import os.path as osp
 from datetime import datetime
 
 import pandas as pd
 
-import baposgmcp.plot as plot_utils
-from baposgmcp.run import compile_result_files
+import potmmcp.plot as plot_utils
+from potmmcp.run import compile_result_files
+
 
 # keys that have constant value across groups
 constants = [
@@ -58,39 +59,39 @@ outcome_col_names = ["WIN", "LOSS", "DRAW", "NA"]
 sum_keys = outcome_col_names
 
 mean_keys = [
-    'search_time',
-    'update_time',
-    'reinvigoration_time',
-    'evaluation_time',
-    'policy_calls',
-    'inference_time',
-    'search_depth',
-    'min_value',
-    'max_value',
-    'episode_return',
-    'episode_discounted_return',
-    'episode_steps',
-    'episode_time',
+    "search_time",
+    "update_time",
+    "reinvigoration_time",
+    "evaluation_time",
+    "policy_calls",
+    "inference_time",
+    "search_depth",
+    "min_value",
+    "max_value",
+    "episode_return",
+    "episode_discounted_return",
+    "episode_steps",
+    "episode_time",
 ]
 
 
 def parse_win(row):  # noqa
-    return int(row["episode_outcome"] == 'WIN')
+    return int(row["episode_outcome"] == "WIN")
 
 
 def parse_loss(row):  # noqa
-    return int(row["episode_outcome"] == 'LOSS')
+    return int(row["episode_outcome"] == "LOSS")
 
 
 def parse_draw(row):  # noqa
-    return int(row["episode_outcome"] == 'DRAW')
+    return int(row["episode_outcome"] == "DRAW")
 
 
 def parse_na(row):  # noqa
-    return int(row["episode_outcome"] not in ('WIN', 'LOSS', 'DRAW'))
+    return int(row["episode_outcome"] not in ("WIN", "LOSS", "DRAW"))
 
 
-def main(parent_dir: str, n_procs: int = 1):   # noqa
+def main(parent_dir: str, n_procs: int = 1):  # noqa
     print(f"Compiling results from subdirectories of {parent_dir=}")
     print(f"Saving aggregated results to dir '{parent_dir}'")
 
@@ -124,15 +125,11 @@ def main(parent_dir: str, n_procs: int = 1):   # noqa
 
     print("Cleaning data")
     # replace num_episodes with actual number of episodes completed
-    ep_df["num_episodes"] = (
-        ep_df.groupby(group_keys)["num_episodes"].transform(len)
-    )
+    ep_df["num_episodes"] = ep_df.groupby(group_keys)["num_episodes"].transform(len)
 
     # parse episode outcomes into seperate columns
     outcome_col_names = ["WIN", "LOSS", "DRAW", "NA"]
-    for k, fn in zip(
-        outcome_col_names, [parse_win, parse_loss, parse_draw, parse_na]
-    ):
+    for k, fn in zip(outcome_col_names, [parse_win, parse_loss, parse_draw, parse_na]):
         ep_df[k] = ep_df.apply(fn, axis=1)
 
     # unassigned keys belong to belief statistics
@@ -201,9 +198,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument(
-        "parent_dir", type=str,
-        help="Path to parent directory."
-    )
+    parser.add_argument("parent_dir", type=str, help="Path to parent directory.")
     parser.add_argument("--n_procs", type=int, default=1)
     main(**vars(parser.parse_args()))

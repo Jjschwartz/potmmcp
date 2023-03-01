@@ -1,8 +1,6 @@
 # My additions
-archive
 !.gitkeep
 *.png
-posggym-agents
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

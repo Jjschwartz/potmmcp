@@ -2,8 +2,8 @@ from collections import defaultdict
 
 import posggym
 
-import baposgmcp.run as run_lib
-from baposgmcp.meta_policy import DictMetaPolicy
+import potmmcp.run as run_lib
+from potmmcp.meta_policy import DictMetaPolicy
 
 import utils as test_utils
 
@@ -24,12 +24,12 @@ def _run_sims(env, policies, num_episodes=10, step_limit=None):
 
 
 def test_with_single_random_policy():
-    """Test BAPOSGMCP tree with only a single random other agent policy."""
+    """Test POTMMCP tree with only a single random other agent policy."""
     env_id = "TwoPaths3x3-v0"
     env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=None,
@@ -43,13 +43,13 @@ def test_with_single_random_policy():
 
 
 def test_action_first_with_single_random_policy():
-    """Test BAPOSGMCP in action first env with a random other agent policy."""
+    """Test POTMMCP in action first env with a random other agent policy."""
     env_id = "RockPaperScissors-v0"
     env = posggym.make(env_id)
     rps_step_limit = 10
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env, 1,
         other_policy_prior=None,
         meta_policy=None,
@@ -63,12 +63,12 @@ def test_action_first_with_single_random_policy():
 
 
 def test_with_single_random_policy_truncated():
-    """Test BAPOSGMCP tree with only a single random other agent policy."""
+    """Test POTMMCP tree with only a single random other agent policy."""
     env_id = "TwoPaths3x3-v0"
     env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=None,
@@ -83,14 +83,14 @@ def test_with_single_random_policy_truncated():
 
 
 def test_with_multiple_random_policies():
-    """Test BAPOSGMCP tree with multiple random other agent policies."""
+    """Test POTMMCP tree with multiple random other agent policies."""
     env_id = "TwoPaths3x3-v0"
     env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
 
     other_policy_prior = test_utils.get_biased_other_policy_prior(env, 1, 0.2)
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=other_policy_prior,
@@ -105,7 +105,7 @@ def test_with_multiple_random_policies():
 
 
 def test_with_multiple_random_opponent_and_rollout_policies():
-    """Test BAPOSGMCP tree with multiple random other agent policies."""
+    """Test POTMMCP tree with multiple random other agent policies."""
     env_id = "TwoPaths3x3-v0"
     env = posggym.make(env_id)
 
@@ -118,7 +118,7 @@ def test_with_multiple_random_opponent_and_rollout_policies():
     meta_policy = DictMetaPolicy(
         env.model, 1, ego_policies, defaultdict(lambda: meta_default)
     )
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=other_policy_prior,
@@ -133,13 +133,13 @@ def test_with_multiple_random_opponent_and_rollout_policies():
 
 
 def test_with_three_other_agents():
-    """Test BAPOSGMCP tree with multiple random other agent policies."""
+    """Test POTMMCP tree with multiple random other agent policies."""
     env_id = "Driving4x4Intersection-n3-v0"
     env = posggym.make(env_id)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_policy(env, 1)
-    agent_2_policy = test_utils.get_random_baposgmcp(
+    agent_2_policy = test_utils.get_random_potmmcp(
         env,
         2,
         other_policy_prior=None,

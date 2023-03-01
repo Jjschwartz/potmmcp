@@ -1,6 +1,6 @@
 import posggym
 
-import baposgmcp.run as run_lib
+import potmmcp.run as run_lib
 
 import utils as test_utils
 
@@ -34,7 +34,7 @@ def test_state_accuracy_single_state():
     rps_step_limit = 10
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=None,
@@ -55,7 +55,7 @@ def test_state_accuracy_small():
     rps_step_limit = 10
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=None,

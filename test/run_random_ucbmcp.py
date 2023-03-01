@@ -8,12 +8,12 @@ import posggym
 import posggym.model as M
 import posggym_agents
 
-import baposgmcp.run as run_lib
-import baposgmcp.run.stats as stats_lib
-from baposgmcp.meta_policy import SingleMetaPolicy
-from baposgmcp.policy_prior import load_posggym_agents_policy_prior
-from baposgmcp.run.render import EpisodeRenderer
-from baposgmcp.tree import BAPOSGMCP
+import potmmcp.run as run_lib
+import potmmcp.run.stats as stats_lib
+from potmmcp.meta_policy import SingleMetaPolicy
+from potmmcp.policy_prior import load_posggym_agents_policy_prior
+from potmmcp.run.render import EpisodeRenderer
+from potmmcp.tree import POTMMCP
 
 
 DISCOUNT = 0.99
@@ -50,7 +50,7 @@ def get_ucb_planner(
         model, agent_id, {i: {"random-v0": 1.0} for i in other_agent_ids}
     )
 
-    ucb_planner = BAPOSGMCP(
+    ucb_planner = POTMMCP(
         model,
         agent_id,
         num_sims=num_sims,

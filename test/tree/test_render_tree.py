@@ -3,8 +3,8 @@ from collections import defaultdict
 
 import posggym
 
-import baposgmcp.run as run_lib
-from baposgmcp.meta_policy import DictMetaPolicy
+import potmmcp.run as run_lib
+from potmmcp.meta_policy import DictMetaPolicy
 
 import utils as test_utils
 
@@ -34,7 +34,7 @@ def _run_sims(env, policies):
 
 
 def test_with_multiple_random_opponent_and_rollout_policies():
-    """Test BAPOSGMCP tree with multiple random other agent policies."""
+    """Test POTMMCP tree with multiple random other agent policies."""
     env_id = "TwoPaths3x3-v0"
     env = posggym.make(env_id)
 
@@ -47,7 +47,7 @@ def test_with_multiple_random_opponent_and_rollout_policies():
     meta_policy = DictMetaPolicy(
         env.model, 1, ego_policies, defaultdict(lambda: meta_default)
     )
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=other_policy_prior,

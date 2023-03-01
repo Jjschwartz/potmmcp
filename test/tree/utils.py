@@ -9,10 +9,10 @@ from posggym_agents.agents.random import RandomPolicy
 from posggym_agents.agents.random import FixedDistributionPolicy
 from posggym_agents.policy import PolicyHiddenState
 
-import baposgmcp.run as run_lib
-import baposgmcp.tree as tree_lib
-from baposgmcp.meta_policy import DictMetaPolicy
-from baposgmcp.policy_prior import UniformPolicyPrior
+import potmmcp.run as run_lib
+import potmmcp.tree as tree_lib
+from potmmcp.meta_policy import DictMetaPolicy
+from potmmcp.policy_prior import UniformPolicyPrior
 
 
 class RandomPolicyWithValue(RandomPolicy):
@@ -133,7 +133,7 @@ def get_random_meta_policy(env, ego_agent, value=1.0):  # noqa
     )
 
 
-def get_random_baposgmcp(env,
+def get_random_potmmcp(env,
                          ego_agent,
                          other_policy_prior,
                          meta_policy,
@@ -147,7 +147,7 @@ def get_random_baposgmcp(env,
     if meta_policy is None:
         meta_policy = get_random_meta_policy(env, ego_agent, value)
 
-    return tree_lib.BAPOSGMCP(
+    return tree_lib.POTMMCP(
         env.model,
         agent_id=ego_agent,
         discount=0.9,

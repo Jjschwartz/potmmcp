@@ -1,6 +1,6 @@
 import posggym
 
-import baposgmcp.run as run_lib
+import potmmcp.run as run_lib
 
 import utils as test_utils
 
@@ -29,7 +29,7 @@ def _run_sims(env, policies, num_episodes, step_limit):
 def test_action_dist_distance_single_policy():
     """Test action distribution accuracy on RPS.
 
-    In this case the BAPOSGMCP other agent policy matches exactly the true
+    In this case the POTMMCP other agent policy matches exactly the true
     other agent policy so the distance should be 0.0 for all steps.
     """
     env_id = "RockPaperScissors-v0"
@@ -37,7 +37,7 @@ def test_action_dist_distance_single_policy():
     rps_step_limit = 10
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=None,
@@ -64,8 +64,8 @@ def test_action_dist_distance_rps_deterministic():
     # Opponent always plays first action "ROCK"
     agent_0_policy = test_utils.get_deterministic_policies(env, 0)["pi_0"]
 
-    # BAPOSGMCP has an opponent policy for each action
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    # POTMMCP has an opponent policy for each action
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=test_utils.get_deterministic_other_policy_prior(
@@ -84,11 +84,11 @@ def test_action_dist_distance_rps_deterministic():
 def test_action_dist_distance_rps_stochastic_biased():
     """Test action distance on RPS with biased stochastic opponent policy.
 
-    Here we give BAPOSGMCP three stochastic policies for the opponent, each
+    Here we give POTMMCP three stochastic policies for the opponent, each
     with a strong bias towards one of the three actions.
 
     Since the true opponent policy is one of the policies in the belief of the
-    BAPOSGMCP agent, the distance should drop to 0.0, but it will take more
+    POTMMCP agent, the distance should drop to 0.0, but it will take more
     steps.
     """
     env_id = "RockPaperScissors-v0"
@@ -96,7 +96,7 @@ def test_action_dist_distance_rps_stochastic_biased():
     rps_step_limit = 100
 
     agent_0_policy = test_utils.get_biased_policies(env, 0, 0.3)["pi_0"]
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=test_utils.get_biased_other_policy_prior(
@@ -113,9 +113,9 @@ def test_action_dist_distance_rps_stochastic_biased():
 
 
 def test_action_dist_distance_rps_stochastic_biased2():
-    """Test same as above except BAPOSGMCP doesnt have true policy in belief.
+    """Test same as above except POTMMCP doesnt have true policy in belief.
 
-    Here we give BAPOSGMCP three stochastic policies for the opponent, each
+    Here we give POTMMCP three stochastic policies for the opponent, each
     with a strong bias towards one of the three actions.
 
     The true policy is also biased but less so. So here we expect the distance
@@ -130,7 +130,7 @@ def test_action_dist_distance_rps_stochastic_biased2():
     # Opponent always plays biased towards "ROCK" policy
     # Bias is different to bias in other_agent_policies
     agent_0_policy = test_utils.get_biased_policies(env, 0, 0.15)["pi_0"]
-    agent_1_policy = test_utils.get_random_baposgmcp(
+    agent_1_policy = test_utils.get_random_potmmcp(
         env,
         1,
         other_policy_prior=test_utils.get_biased_other_policy_prior(
