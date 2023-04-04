@@ -28,8 +28,6 @@ dependencies = [
 	"posggym-agents @ git+https://github.com/Jjschwartz/posggym-agents.git@v0.1.2",
     "numpy >=1.22.0",
 	"matplotlib>=3.5",
-    "networkx==2.8.2",
-    "pygraphviz==1.9",
     "typing-extensions >=4.3.0",
 	"pandas >=1.4",
     "prettytable >=3.3"
@@ -38,6 +36,11 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
+# additional dependencies for visualizations such as viewing the tree
+viz = [
+	"networkx==2.8.2",
+    "pygraphviz==1.9",
+]
 testing = ["pytest >=7.2"]
 
 [project.urls]

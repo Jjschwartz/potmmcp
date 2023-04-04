@@ -4,11 +4,9 @@ from typing import Any, Dict, Iterable, Sequence
 
 import matplotlib
 import matplotlib.pyplot as plt
-import networkx as nx
 import posggym
 import posggym.model as M
 from matplotlib import cm
-from networkx.drawing.nx_agraph import graphviz_layout
 
 import potmmcp.policy as P
 import potmmcp.tree as tree_lib
@@ -183,6 +181,17 @@ class SearchTreeRenderer(Renderer):
     def _render_tree(
         self, potmmcp: tree_lib.POTMMCP, action: M.Action, reward: float
     ) -> None:
+
+        try:
+            import networkx as nx
+            from networkx.drawing.nx_agraph import graphviz_layout
+        except ImportError as e:
+            raise ImportError(
+                "Missing dependencies 'networkx' and 'pygraphviz' for visualizing "
+                "search trees. Run `pip install -e .[viz]` from potmmcp root directory "
+                "to install."
+            ) from e
+
         # if self._fig is None:
         self._fig, self._ax = plt.subplots(
             nrows=1, ncols=1, squeeze=True, figsize=(9, 9)
@@ -215,7 +224,7 @@ class SearchTreeRenderer(Renderer):
         self._fig.tight_layout()
 
     def _recursively_build_tree(
-        self, graph: nx.DiGraph, parent: tree_lib.Node, depth: int
+        self, graph, parent: tree_lib.Node, depth: int
     ):
         if len(parent.children) == 0 or depth == self._tree_depth:
             return
