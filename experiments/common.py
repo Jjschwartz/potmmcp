@@ -19,7 +19,7 @@ Includes functionallity for running experiments with:
 import math
 from dataclasses import dataclass, field
 from pprint import pprint
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 import potmmcp.baselines as baseline_lib
 import potmmcp.policy as P
@@ -48,7 +48,7 @@ class EnvExperimentParams:
     pucb_c: float = 1.25
     ucb_c: float = math.sqrt(2)  # as per OG paper/standard parameter
     dirichlet_alpha_denom: float = 10
-    root_exploration_fraction: float = 0.5  # half actions valid/useful at any step
+    root_exploration_fraction: Union[float, List[float]] = 0.5
     reinvigorator = None  # Use default rejection sampler
     known_bounds = None
     extra_particles_prop: float = 1.0 / 16
@@ -58,10 +58,19 @@ class EnvExperimentParams:
 
     search_time_limits: List[float] = field(default_factory=lambda: [0.1, 1, 5, 10, 20])
 
+    include_meta_baseline: bool = True
+    include_ipomcp_baseline: bool = True
+
     def set_test_run(self):
         self.search_time_limits = [0.05]
 
     def get_potmmcp_kwargs(self) -> Dict[str, Any]:
+        if isinstance(self.root_exploration_fraction, list):
+            # will be added as variable later, in get_potmmcp_params fn
+            root_exploration_fraction = self.root_exploration_fraction[0]
+        else:
+            root_exploration_fraction = self.root_exploration_fraction
+
         return {
             "discount": self.discount,
             # use search_time_limit instead, added later
@@ -70,7 +79,7 @@ class EnvExperimentParams:
             "truncated": True,
             "action_selection": "pucb",
             "dirichlet_alpha": self.num_actions / self.dirichlet_alpha_denom,
-            "root_exploration_fraction": self.root_exploration_fraction,
+            "root_exploration_fraction": root_exploration_fraction,
             "reinvigorator": self.reinvigorator,
             "known_bounds": self.known_bounds,
             "extra_particles_prop": self.extra_particles_prop,
@@ -163,34 +172,57 @@ class EnvExperimentParams:
         - POTMMCP (PUCB + Random) [Untruncated]
         - POTMMCP (PUCB + Fixed policies) [Truncated]
 
+        Will also get params for different root_exploration_params if they are given
+        as a list.
+
         """
         agent_id_suffix = self.get_agent_id_suffix()
+
+        variable_params: Dict[str, List[Any]] = {
+            "search_time_limit": self.search_time_limits,
+            "truncated": [True],
+        }
+
+        if isinstance(self.root_exploration_fraction, list):
+            variable_params["root_exploration_fraction"] = (
+                self.root_exploration_fraction
+            )
 
         potmmcp_params = []
         meta_policy_maps = self.get_meta_policy_maps(best_only)
         for name, meta_policy_map in meta_policy_maps.items():
             potmmcp_params.extend(
                 run_lib.load_potmmcp_params(
-                    variable_params={
-                        "search_time_limit": self.search_time_limits,
-                        "truncated": [True],
-                    },
+                    variable_params=variable_params,
                     potmmcp_kwargs=self.get_potmmcp_kwargs(),
                     policy_prior_map=self.policy_prior_map,
                     meta_policy_dict=meta_policy_map,
                     base_policy_id=f"potmmcp_meta{name}{agent_id_suffix}",
                 )
             )
-        # |TIMES| * |META|
-        expected_num_params = len(self.search_time_limits) * len(meta_policy_maps)
+        if isinstance(self.root_exploration_fraction, list):
+            # |TIMES| * |META| * |lambda|
+            expected_num_params = (
+                len(self.search_time_limits)
+                * len(meta_policy_maps)
+                * len(self.root_exploration_fraction)
+            )
+        else:
+            # |TIMES| * |META|
+            expected_num_params = len(self.search_time_limits) * len(meta_policy_maps)
 
         if include_random:
+            variable_params["truncated"] = [False]
+            if isinstance(self.root_exploration_fraction, list):
+                # this has no effect since prior is uniform, so would be adding uniform
+                # to uniform
+                variable_params["root_exploration_fraction"] = (
+                    [self.root_exploration_fraction[0]]
+                )
+
             potmmcp_params.extend(
                 baseline_lib.load_random_potmmcp_params(
-                    variable_params={
-                        "search_time_limit": self.search_time_limits,
-                        "truncated": [False],
-                    },
+                    variable_params=variable_params,
                     potmmcp_kwargs=self.get_potmmcp_random_kwargs(),
                     policy_prior_map=self.policy_prior_map,
                     base_policy_id=f"potmmcp-random{agent_id_suffix}",
@@ -200,21 +232,34 @@ class EnvExperimentParams:
             expected_num_params += len(self.search_time_limits)
 
         if include_fixed:
+            variable_params["truncated"] = [True]
+            if isinstance(self.root_exploration_fraction, list):
+                variable_params["root_exploration_fraction"] = (
+                    self.root_exploration_fraction
+                )
+
             fixed_policy_ids = self.policy_ids[self.planning_agent_id]
             potmmcp_params.extend(
                 baseline_lib.load_fixed_pi_potmmcp_params(
-                    variable_params={
-                        "search_time_limit": self.search_time_limits,
-                        "truncated": [True],
-                    },
+                    variable_params=variable_params,
                     fixed_policy_ids=fixed_policy_ids,
                     potmmcp_kwargs=self.get_potmmcp_kwargs(),
                     policy_prior_map=self.policy_prior_map,
                     base_policy_id=f"potmmcp-fixed{agent_id_suffix}",
                 )
             )
-            # |TIMES| * |PI|
-            expected_num_params += len(self.search_time_limits) * len(fixed_policy_ids)
+            if isinstance(self.root_exploration_fraction, list):
+                # |TIMES| * |PI| * |lambda|
+                expected_num_params += (
+                    len(self.search_time_limits)
+                    * len(fixed_policy_ids)
+                    * len(self.root_exploration_fraction)
+                )
+            else:
+                # |TIMES| * |PI|
+                expected_num_params += (
+                    len(self.search_time_limits) * len(fixed_policy_ids)
+                )
 
         # Num exps:
         assert len(potmmcp_params) == expected_num_params
@@ -290,8 +335,62 @@ class EnvExperimentParams:
     ) -> List[run_lib.ExpParams]:
         """Get list of params for each individual experiment run."""
         planning_params = self.get_potmmcp_params()
-        planning_params.extend(self.get_ipomcppf_params())
-        planning_params.extend(self.get_meta_baseline_params())
+        if self.include_ipomcp_baseline:
+            planning_params.extend(self.get_ipomcppf_params())
+        if self.include_meta_baseline:
+            planning_params.extend(self.get_meta_baseline_params())
+
+        other_params = self.get_other_agent_policy_params()
+        print(f"Number of planning agent params = {len(planning_params)}.")
+        print(f"Number of other agent params = {len(other_params)}.")
+
+        exp_params_list: List[run_lib.ExpParams] = []
+        for joint_policy in other_params:
+            joint_policy.insert(self.planning_agent_id, planning_params)
+            exp_params = run_lib.get_pairwise_exp_params(
+                env_id=self.env_id,
+                policy_params=joint_policy,
+                init_seed=init_seed,
+                num_seeds=num_seeds,
+                num_episodes=num_episodes,
+                discount=self.discount,
+                time_limit=time_limit,
+                exp_id_init=len(exp_params_list),
+                tracker_fn=run_lib.belief_tracker_fn,
+                tracker_fn_kwargs={
+                    "num_agents": self.n_agents,
+                    "step_limit": self.env_step_limit,
+                    "discount": self.discount,
+                },
+                renderer_fn=None,
+                record_env=record_env,
+            )
+            exp_params_list.extend(exp_params)
+
+        return exp_params_list
+
+    def get_lambda_experiments(
+        self,
+        init_seed: int,
+        num_seeds: int,
+        num_episodes: int,
+        time_limit: Optional[int] = None,
+        record_env: bool = False,
+    ) -> List[run_lib.ExpParams]:
+        """Get list of params for each individual experiment run."""
+        self.root_exploration_fraction = [0.0, 1/4, 1/3, 1/2, 1.0]
+        self.include_ipomcp_baseline = False
+        self.include_meta_baseline = False
+
+        if self.search_time_limits == [0.1, 1, 5, 10, 20]:
+            # only change if using default
+            self.search_time_limits = [0.1, 1, 5, 10]
+
+        planning_params = self.get_potmmcp_params(
+            best_only=True,
+            include_fixed=False,
+            include_random=False
+        )
 
         other_params = self.get_other_agent_policy_params()
         print(f"Number of planning agent params = {len(planning_params)}.")
@@ -391,9 +490,22 @@ def run_env_experiments(env_exp_params: EnvExperimentParams):
         help="Compute and display number of experiments without running them.",
     )
     parser.add_argument(
+        "--run_lambda_experiment",
+        action="store_true",
+        help="Run lambda experiment, instead of main experiment.",
+    )
+    parser.add_argument(
         "--test_run",
         action="store_true",
         help="Do a test run with reduced # and time for exps.",
+    )
+    parser.add_argument(
+        "--enumerate_exps",
+        action="store_true",
+        help=(
+            "Enumerate the experiments without running them. Useful for finding ID of "
+            "specific experiment, e.g. for recording video."
+        ),
     )
     args = parser.parse_args()
 
@@ -404,13 +516,30 @@ def run_env_experiments(env_exp_params: EnvExperimentParams):
         env_exp_params.set_test_run()
 
     print("== Creating Experiments ==")
-    exp_params_list = env_exp_params.get_experiments(
-        args.init_seed,
-        args.num_seeds,
-        args.num_episodes,
-        args.time_limit,
-        args.record_env,
-    )
+    if args.run_lambda_experiment:
+        exp_params_list = env_exp_params.get_lambda_experiments(
+            args.init_seed,
+            args.num_seeds,
+            args.num_episodes,
+            args.time_limit,
+            args.record_env,
+        )
+    else:
+        exp_params_list = env_exp_params.get_experiments(
+            args.init_seed,
+            args.num_seeds,
+            args.num_episodes,
+            args.time_limit,
+            args.record_env,
+        )
+
+    if args.enumerate_exps:
+        for p in exp_params_list:
+            print(f"\nexp_id={p.exp_id}")
+            for pi in p.policy_params_list:
+                print(pi.id)
+            input("Press enter for next experiment")
+        return
 
     if args.get_num_exps:
         print(f"Number of experiments = {len(exp_params_list)}")

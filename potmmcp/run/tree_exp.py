@@ -73,7 +73,10 @@ def load_potmmcp_params(
         for k, v in zip(param_names, values):
             kwargs[k] = v
             # remove _ so it's easier to parse when doing analysis
-            policy_id += f"_{k.replace('_', '')}{v}"
+            if isinstance(v, float):
+                policy_id += f"_{k.replace('_', '')}{v:.4f}"
+            else:
+                policy_id += f"_{k.replace('_', '')}{v}"
         kwargs["policy_id"] = policy_id
 
         potmmcp_params = PolicyParams(
