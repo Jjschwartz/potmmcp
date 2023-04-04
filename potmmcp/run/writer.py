@@ -110,6 +110,7 @@ def compile_and_save_result_files(
         print(f"Loading and concatting {num_files} files")
 
     concat_df = compile_result_files(result_filepaths, verbose=verbose, n_procs=n_procs)
+    concat_df.to_csv(concat_resultspath, index=False)
 
     if extra_output_dir:
         extra_results_filepath = os.path.join(extra_output_dir, COMPILED_RESULTS_FNAME)

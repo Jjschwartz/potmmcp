@@ -62,7 +62,7 @@ class EnvExperimentParams:
     include_ipomcp_baseline: bool = True
 
     def set_test_run(self):
-        self.search_time_limits = [0.05]
+        self.search_time_limits = [0.01, 0.05]
 
     def get_potmmcp_kwargs(self) -> Dict[str, Any]:
         if isinstance(self.root_exploration_fraction, list):
@@ -378,7 +378,7 @@ class EnvExperimentParams:
         record_env: bool = False,
     ) -> List[run_lib.ExpParams]:
         """Get list of params for each individual experiment run."""
-        self.root_exploration_fraction = [0.0, 1/4, 1/3, 1/2, 1.0]
+        self.root_exploration_fraction = [0.0, 1/4, 1/3, 1/2]
         self.include_ipomcp_baseline = False
         self.include_meta_baseline = False
 

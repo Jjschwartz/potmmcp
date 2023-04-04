@@ -143,6 +143,51 @@ def bar_plot_meta_policy_performance(
     ax.bar(xs, ys, yerr=y_errs, tick_label=labels)
 
 
+def plot_lambda_performance(
+    plot_df: pd.DataFrame,
+    ax: Axes,
+    x_key: str,
+    y_key: str,
+    y_err_key: str,
+    lambda_key: str,
+):
+    """Plot expected values for different lambda by x key."""
+    lambda_vals = plot_df[lambda_key].unique().tolist()
+    lambda_vals.sort()
+
+    values_by_lambda = {}  # type: ignore
+    x_values = set()
+    for lambda_v in lambda_vals:
+        values_by_lambda[lambda_v] = {"y": [], "y_err": []}
+        v_df = plot_df[plot_df[lambda_key] == lambda_v]
+
+        xs = v_df[x_key].values
+        ys = v_df[y_key].values
+        y_errs = v_df[y_err_key].values
+        for x, y, y_err in zip(xs, ys, y_errs):
+            x_values.add(x)
+            values_by_lambda[lambda_v]["y"].append((x, y))
+            values_by_lambda[lambda_v]["y_err"].append((x, y_err))
+
+    all_x_values = list(x_values)
+    all_x_values.sort()
+
+    for lambda_v in lambda_vals:
+        y_list = values_by_lambda[lambda_v]["y"]
+        y_err_list = values_by_lambda[lambda_v]["y_err"]
+        y_list.sort()
+        y_err_list.sort()
+
+        y = np.array([v[1] for v in y_list])
+        x = np.array([v[0] for v in y_list])
+        y_err = np.array([v[1] for v in y_err_list])
+
+        label = f"{float(lambda_v):.2f}"
+
+        ax.plot(x, y, label=label)
+        ax.fill_between(x, y - y_err, y + y_err, alpha=0.2)
+
+
 def plot_expected_belief_stat_by_step(
     plot_df: pd.DataFrame,
     ax: Axes,
