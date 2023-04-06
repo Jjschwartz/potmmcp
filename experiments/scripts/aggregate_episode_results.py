@@ -6,13 +6,12 @@ from datetime import datetime
 
 import pandas as pd
 
-import potmmcp.plot as plot_utils
+import potmmcp.plot.utils as plot_utils
 from potmmcp.run import compile_result_files
 
 
 # keys that have constant value across groups
 constants = [
-    "agent_id",
     "env_id",
     "time_limit",
     "episode_step_limit",
@@ -103,23 +102,18 @@ def main(parent_dir: str, n_procs: int = 1):  # noqa
                 result_filepaths.append(os.path.join(dirpath, fname))
     ep_df = compile_result_files(result_filepaths, verbose=True, n_procs=n_procs)
 
+    print("Adding coplayer policy ids column.")
+    ep_df = plot_utils.add_df_coplayer_policy_ids(ep_df)
+
     # Keys which DF is grouped by
     group_keys = [
+        "agent_id",
         "policy_id",
-        # "coplayer_policy_id"    # added based on num agents in the env
     ]
-
-    print("Adding coplayer policy id column.")
-    if len(ep_df["agent_id"].unique().tolist()) == 2:
-        ep_df = plot_utils.add_df_coplayer_policy_id(ep_df)
-        group_keys.append("coplayer_policy_id")
-    else:
-        ep_df = plot_utils.add_df_multiple_coplayer_policy_id(ep_df)
-        for c in ep_df.columns:
-            if c.startswith("coplayer_policy_id"):
-                group_keys.append(c)
-        group_keys.append("agent_id")
-        constants.remove("agent_id")
+    for c in ep_df.columns:
+        if c.startswith("coplayer_policy_id"):
+            group_keys.append(c)
+    group_keys.append("co_team_id")
 
     print(f"{group_keys=}")
 
