@@ -18,10 +18,14 @@ Includes functionallity for running experiments with:
 """
 import math
 from dataclasses import dataclass, field
+from itertools import product
 from pprint import pprint
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, no_type_check
+
+import pandas as pd
 
 import potmmcp.baselines as baseline_lib
+import potmmcp.plot as plot_utils
 import potmmcp.policy as P
 import potmmcp.run as run_lib
 from potmmcp import meta_policy
@@ -122,6 +126,11 @@ class EnvExperimentParams:
             return ""
         return f"_i{self.planning_agent_id}"
 
+    def get_other_agent_id_suffix(self, agent_id: int) -> str:
+        if self.symmetric_env:
+            return ""
+        return f"_i{agent_id}"
+
     def get_meta_baseline_params(
         self, best_only: bool = False
     ) -> List[run_lib.PolicyParams]:
@@ -184,9 +193,9 @@ class EnvExperimentParams:
         }
 
         if isinstance(self.root_exploration_fraction, list):
-            variable_params["root_exploration_fraction"] = (
-                self.root_exploration_fraction
-            )
+            variable_params[
+                "root_exploration_fraction"
+            ] = self.root_exploration_fraction
 
         potmmcp_params = []
         meta_policy_maps = self.get_meta_policy_maps(best_only)
@@ -216,9 +225,9 @@ class EnvExperimentParams:
             if isinstance(self.root_exploration_fraction, list):
                 # this has no effect since prior is uniform, so would be adding uniform
                 # to uniform
-                variable_params["root_exploration_fraction"] = (
-                    [self.root_exploration_fraction[0]]
-                )
+                variable_params["root_exploration_fraction"] = [
+                    self.root_exploration_fraction[0]
+                ]
 
             potmmcp_params.extend(
                 baseline_lib.load_random_potmmcp_params(
@@ -234,9 +243,9 @@ class EnvExperimentParams:
         if include_fixed:
             variable_params["truncated"] = [True]
             if isinstance(self.root_exploration_fraction, list):
-                variable_params["root_exploration_fraction"] = (
-                    self.root_exploration_fraction
-                )
+                variable_params[
+                    "root_exploration_fraction"
+                ] = self.root_exploration_fraction
 
             fixed_policy_ids = self.policy_ids[self.planning_agent_id]
             potmmcp_params.extend(
@@ -257,8 +266,8 @@ class EnvExperimentParams:
                 )
             else:
                 # |TIMES| * |PI|
-                expected_num_params += (
-                    len(self.search_time_limits) * len(fixed_policy_ids)
+                expected_num_params += len(self.search_time_limits) * len(
+                    fixed_policy_ids
                 )
 
         # Num exps:
@@ -325,6 +334,51 @@ class EnvExperimentParams:
             other_params.append(joint_pi)
         return other_params
 
+    def get_other_agent_mixed_policy_params(self) -> List[List[run_lib.PolicyParams]]:
+        """Get other agent experiment mixed policy params.
+
+        The mixed policy is a single policy which selects a new policy to use each
+        episode based on a distribution.
+
+        Uses a uniform distribution over the available policies for each agent.
+
+        Outputs a joint policy for the other agents (i.e. one mixed policy per agent).
+        The entries are in order of the policy ID of the other agent, with the joint
+        policy entry for the planning agent missing.
+
+        """
+        policies: Dict[int, Set[str]] = {
+            i: set() for i in range(self.n_agents) if i != self.planning_agent_id
+        }
+        for pi_state in self.policy_prior_map:
+            assert len(pi_state) == self.n_agents
+            for i, pi_id in enumerate(pi_state):
+                if i == self.planning_agent_id:
+                    continue
+                policies[i].add(pi_id)
+
+        policy_dist = {}
+        for i, pi_ids in policies.items():
+            prob = 1.0 / len(pi_ids)
+            policy_dist[i] = {pi_id: prob for pi_id in pi_ids}
+
+        joint_pi = []
+        for i, pi_dist in policy_dist.items():
+            if i == self.planning_agent_id:
+                continue
+            agent_id_suffix = self.get_other_agent_id_suffix(i)
+            policy_id = f"mixed_{agent_id_suffix}"
+            policy_params = run_lib.PolicyParams(
+                id=policy_id,
+                entry_point=baseline_lib.MixedPolicy.posggym_agents_entry_point,
+                kwargs={
+                    "policy_id": policy_id,
+                    "policy_dist": pi_dist,
+                },
+            )
+            joint_pi.append([policy_params])
+        return joint_pi
+
     def get_experiments(
         self,
         init_seed: int,
@@ -378,7 +432,7 @@ class EnvExperimentParams:
         record_env: bool = False,
     ) -> List[run_lib.ExpParams]:
         """Get list of params for each individual experiment run."""
-        self.root_exploration_fraction = [0.0, 1/4, 1/3, 1/2]
+        self.root_exploration_fraction = [0.0, 1 / 4, 1 / 3, 1 / 2]
         self.include_ipomcp_baseline = False
         self.include_meta_baseline = False
 
@@ -387,9 +441,7 @@ class EnvExperimentParams:
             self.search_time_limits = [0.1, 1, 5, 10]
 
         planning_params = self.get_potmmcp_params(
-            best_only=True,
-            include_fixed=False,
-            include_random=False
+            best_only=True, include_fixed=False, include_random=False
         )
 
         other_params = self.get_other_agent_policy_params()
@@ -418,6 +470,58 @@ class EnvExperimentParams:
                 record_env=record_env,
             )
             exp_params_list.extend(exp_params)
+
+        return exp_params_list
+
+    def get_many_pi_experiments(
+        self,
+        init_seed: int,
+        num_seeds: int,
+        num_episodes: int,
+        time_limit: Optional[int] = None,
+        record_env: bool = False,
+    ) -> List[run_lib.ExpParams]:
+        """Get list of params for each individual experiment run."""
+        self.include_ipomcp_baseline = False
+        self.include_meta_baseline = True
+
+        if self.search_time_limits == [0.1, 1, 5, 10, 20]:
+            # only change if using default
+            self.search_time_limits = [0.1, 1, 5, 10]
+
+        planning_params = self.get_potmmcp_params(
+            best_only=False, include_fixed=False, include_random=False
+        )
+        if self.include_meta_baseline:
+            planning_params.extend(self.get_meta_baseline_params())
+
+        other_params = self.get_other_agent_mixed_policy_params()
+        print(f"Number of planning agent params = {len(planning_params)}.")
+        print(f"Number of other agent params = {len(other_params)}.")
+
+        exp_params_list: List[run_lib.ExpParams] = []
+        joint_policy = other_params
+
+        joint_policy.insert(self.planning_agent_id, planning_params)
+        exp_params = run_lib.get_pairwise_exp_params(
+            env_id=self.env_id,
+            policy_params=joint_policy,
+            init_seed=init_seed,
+            num_seeds=num_seeds,
+            num_episodes=num_episodes,
+            discount=self.discount,
+            time_limit=time_limit,
+            exp_id_init=len(exp_params_list),
+            tracker_fn=run_lib.belief_tracker_fn,
+            tracker_fn_kwargs={
+                "num_agents": self.n_agents,
+                "step_limit": self.env_step_limit,
+                "discount": self.discount,
+            },
+            renderer_fn=None,
+            record_env=record_env,
+        )
+        exp_params_list.extend(exp_params)
 
         return exp_params_list
 
@@ -495,6 +599,11 @@ def run_env_experiments(env_exp_params: EnvExperimentParams):
         help="Run lambda experiment, instead of main experiment.",
     )
     parser.add_argument(
+        "--run_many_pi_experiment",
+        action="store_true",
+        help="Run Many pi experiment, instead of main/lambda experiment.",
+    )
+    parser.add_argument(
         "--test_run",
         action="store_true",
         help="Do a test run with reduced # and time for exps.",
@@ -518,6 +627,14 @@ def run_env_experiments(env_exp_params: EnvExperimentParams):
     print("== Creating Experiments ==")
     if args.run_lambda_experiment:
         exp_params_list = env_exp_params.get_lambda_experiments(
+            args.init_seed,
+            args.num_seeds,
+            args.num_episodes,
+            args.time_limit,
+            args.record_env,
+        )
+    elif args.run_many_pi_experiment:
+        exp_params_list = env_exp_params.get_many_pi_experiments(
             args.init_seed,
             args.num_seeds,
             args.num_episodes,
@@ -565,3 +682,103 @@ def run_env_experiments(env_exp_params: EnvExperimentParams):
         run_exp_id=args.run_exp_id,
     )
     print("== All done ==")
+
+
+@no_type_check
+def get_policy_set_values(
+    policy_results_file: str,
+    env_id: str,
+    planning_agent_id: int,
+    env_symmetric: bool,
+    excluded_policy_prefixes: List[str],
+    excluded_other_policy_prefixes: List[str],
+) -> Tuple[
+    Dict[int, List[str]],
+    Dict[P.PolicyState, float],
+    Dict[P.PolicyState, Dict[P.PolicyID, float]],
+]:
+    """Get policy set values for an experiments.
+
+    Returns
+    -------
+    policy_ids
+    policy_prior_map
+    pairwise_returns
+
+    """
+    df = plot_utils.import_results(policy_results_file)
+
+    if env_symmetric:
+        # for symmetric env we need to make sure there is a row for planning agent for
+        # all (policy_id, co_team_id)
+        # in asymmetric env, just drop rows for non-planning agent
+        next_exp_id = df["exp_id"].max() + 1
+        new_rows = []
+        for pi_id, co_team_id in product(
+            df["policy_id"].unique(), df["co_team_id"].unique()
+        ):
+            pair_df = df[(df["policy_id"] == pi_id) & (df["co_team_id"] == co_team_id)]
+            if len(pair_df) == 0:
+                print(f"missing entry for ({pi_id}, {co_team_id}")
+                continue
+            elif planning_agent_id in pair_df["agent_id"].unique():
+                # already in df with correct agent id
+                continue
+            # take first entry (there should only be one)
+            pair_row = df.loc[
+                (df["policy_id"] == pi_id) & (df["co_team_id"] == co_team_id)
+            ].copy()
+            pair_row["agent_id"] = planning_agent_id
+            pair_row["exp_id"] = next_exp_id
+            next_exp_id += 1
+            new_rows.append(pair_row)
+
+        if len(new_rows):
+            print(f"\nAdding {len(new_rows)} rows for agent_id={planning_agent_id}")
+            new_pairs_df = pd.concat(new_rows, axis="rows").reset_index(drop=True)
+            df = pd.concat([df, new_pairs_df], ignore_index=True)
+
+    # Drop rows for non-planning agent
+    df = df[df["agent_id"] == planning_agent_id]
+
+    # drop policies we don't want
+    for pi_id_prefix in excluded_policy_prefixes:
+        df = df[~df["policy_id"].str.startswith(pi_id_prefix)]
+        for column in df.columns:
+            if column.startswith("coplayer_policy"):
+                df = df[~df[column].str.startswith(pi_id_prefix)]
+
+    # convert into empiriacal pairwise returns map
+    col_ids = df["co_team_id"].unique().tolist()
+    col_ids.sort()
+    row_ids = df["policy_id"].unique().tolist()
+    row_ids.sort()
+
+    pairwise_returns: Dict[P.PolicyState, Dict[P.PolicyID, float]] = {}
+    for co_team_id in col_ids:
+        team_pis = list(co_team_id)
+        if any(
+            any(pi_id.startswith(prefix) for prefix in excluded_other_policy_prefixes)
+            for pi_id in team_pis
+        ):
+            continue
+
+        team_pis = [f"{env_id}/{co_pi_id}" for co_pi_id in co_team_id]
+        team_pis.insert(planning_agent_id, "-1")
+        pi_state = tuple(team_pis)
+
+        pairwise_returns[pi_state] = {}
+        for pi_id in row_ids:
+            mean_return = df[
+                (df["policy_id"] == pi_id) & (df["co_team_id"] == co_team_id)
+            ]["episode_return_mean"].values[0]
+
+            pairwise_returns[pi_state][f"{env_id}/{pi_id}"] = mean_return
+
+    policy_ids = {planning_agent_id: [f"{env_id}/{pi_id}" for pi_id in row_ids]}
+
+    policy_prior_map = {
+        pi_state: 1.0 / len(pairwise_returns) for pi_state in pairwise_returns
+    }
+
+    return policy_ids, policy_prior_map, pairwise_returns

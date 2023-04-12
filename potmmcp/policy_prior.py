@@ -3,7 +3,7 @@ import copy
 import math
 import random
 from itertools import product
-from typing import Dict, List, Union, Set
+from typing import Dict, List, Set, Union
 
 import posggym.model as M
 

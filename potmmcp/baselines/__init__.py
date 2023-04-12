@@ -4,3 +4,4 @@ from potmmcp.baselines.mcp import (
     load_random_potmmcp_params,
 )
 from potmmcp.baselines.meta import MetaBaselinePolicy
+from potmmcp.baselines.mixed import MixedPolicy
