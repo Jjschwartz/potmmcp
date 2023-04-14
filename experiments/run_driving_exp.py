@@ -4,8 +4,6 @@ import os.path as osp
 import posggym_agents
 from common import EnvExperimentParams, get_policy_set_values, run_env_experiments
 
-import potmmcp.plot as plot_utils
-
 
 ENV_ID = "Driving14x14WideRoundAbout-n2-v0"
 PLANNING_AGENT_ID = 0
@@ -18,7 +16,6 @@ POSGGYM_AGENTS_POLICY_RESULTS_FILE = osp.join(
     "results",
     "klrbr_results.csv",
 )
-policy_df = plot_utils.import_results(POSGGYM_AGENTS_POLICY_RESULTS_FILE)
 
 (
     many_pi_policy_ids,

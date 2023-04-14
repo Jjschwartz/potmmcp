@@ -1,10 +1,35 @@
 """Run POTMMCP experiment in PursuitEvasion env with KLR policies."""
-from common import EnvExperimentParams, run_env_experiments
+import os.path as osp
+
+import posggym_agents
+from common import EnvExperimentParams, get_policy_set_values, run_env_experiments
 
 
 ENV_ID = "PursuitEvasion16x16-v0"
 PLANNING_AGENT_ID = 0   # Evader
 POLICY_SEED = 0
+
+POSGGYM_AGENTS_POLICY_RESULTS_FILE = osp.join(
+    posggym_agents.config.BASE_DIR,
+    "agents",
+    "pursuitevasion16x16_v0",
+    "results",
+    "pairwise_results.csv",
+)
+
+(
+    many_pi_policy_ids,
+    many_pi_policy_prior_map,
+    many_pi_pairwise_returns,
+) = get_policy_set_values(
+    POSGGYM_AGENTS_POLICY_RESULTS_FILE,
+    ENV_ID,
+    PLANNING_AGENT_ID,
+    env_symmetric=False,
+    excluded_policy_prefixes=["klrbr", "random", "shortestpath", "sp_seed"],
+    excluded_other_policy_prefixes=["klr_k4_seed"],
+)
+
 
 PE_EVADER_EXP_PARAMS = EnvExperimentParams(
     env_id=ENV_ID,
@@ -75,7 +100,10 @@ PE_EVADER_EXP_PARAMS = EnvExperimentParams(
             f"{ENV_ID}/klr_k4_seed{POLICY_SEED}_i0-v0": 0.68,
         },
     },
-    planning_agent_id=PLANNING_AGENT_ID
+    planning_agent_id=PLANNING_AGENT_ID,
+    many_pi_policy_ids=many_pi_policy_ids,
+    many_pi_policy_prior_map=many_pi_policy_prior_map,
+    many_pi_pairwise_returns=many_pi_pairwise_returns
 )
 
 

@@ -59,6 +59,28 @@ class PolicyParams(NamedTuple):
     entry_point: Callable[..., P.BasePolicy]
     info: Optional[Dict[str, Any]] = None
 
+    def __str__(self):
+        kwarg_strs = []
+        for k, v in self.kwargs.items():
+            if not isinstance(v, (tuple, list, dict, set)):
+                kwarg_strs.append(f"{k}: {v}")
+            else:
+                kwarg_strs.append(f"{k}: ...")
+        kwarg_str = ",\n    ".join(kwarg_strs)
+
+        return (
+            f"{self.__class__.__name__}(\n"
+            f"  id={self.id}\n"
+            "  kwargs={\n"
+            f"    {kwarg_str}\n"
+            f"  entry_point={self.entry_point}\n"
+            f"  info={self.info}\n"
+            ")"
+        )
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class ExpParams(NamedTuple):
     """Params for a single experiment run."""
@@ -83,6 +105,21 @@ class ExpParams(NamedTuple):
     use_checkpointing: bool = True
     stream_log_level: int = logging.INFO
     file_log_level: int = logging.DEBUG
+
+    def __str__(self):
+        pi_params_str = "\n".join([str(pi) for pi in self.policy_params_list])
+
+        arg_strs = [
+            f"{k}={v}" for k, v in self._asdict().items() if k != "policy_params_list"
+        ]
+        arg_strs.append(f"policy_params_list=[\n{pi_params_str}\n  ]")
+
+        arg_str = "\n  ".join(arg_strs)
+        return (
+            f"{self.__class__.__name__}(\n"
+            f"  {arg_str}\n"
+            ")"
+        )
 
 
 def make_exp_result_dir(

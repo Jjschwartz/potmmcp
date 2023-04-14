@@ -536,6 +536,16 @@ class EnvExperimentParams:
             # only change if using default
             self.search_time_limits = [0.1, 1, 5, 10]
 
+        print("Many Pi policy params")
+        print("\nmany_pi_policy_ids")
+        pprint(self.many_pi_policy_ids)
+
+        print("\nmany_pi_policy_prior_map")
+        pprint(self.many_pi_policy_prior_map)
+
+        print("\nmany_pi_policy_pairwise_returns")
+        pprint(self.many_pi_pairwise_returns)
+
         planning_params = self.get_potmmcp_params(
             best_only=True, include_fixed=False, include_random=False, many_pi=True
         )
@@ -545,7 +555,7 @@ class EnvExperimentParams:
             )
 
         other_params = self.get_other_agent_mixed_policy_params(many_pi=True)
-        print(f"Number of planning agent params = {len(planning_params)}.")
+        print(f"\nNumber of planning agent params = {len(planning_params)}.")
         print(f"Number of other agent params = {len(other_params)}.")
 
         exp_params_list: List[run_lib.ExpParams] = []
@@ -731,9 +741,7 @@ def run_env_experiments(env_exp_params: EnvExperimentParams):
 
     if args.enumerate_exps:
         for p in exp_params_list:
-            print(f"\nexp_id={p.exp_id}")
-            for pi in p.policy_params_list:
-                print(pi.id)
+            print(p)
             input("Press enter for next experiment")
         return
 
