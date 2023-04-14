@@ -34,6 +34,7 @@ constants = [
     "policy_prior_map",
     "fixed_policy_id",
     "meta_policy_dict",
+    "policy_dist"
 ]
 
 replaced = [

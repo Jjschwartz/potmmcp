@@ -1,10 +1,38 @@
 """Run POTMMCP with the different meta-policies in Driving env with KLR policies."""
-from common import EnvExperimentParams, run_env_experiments
+import os.path as osp
+
+import posggym_agents
+from common import EnvExperimentParams, get_policy_set_values, run_env_experiments
+
+import potmmcp.plot as plot_utils
 
 
 ENV_ID = "Driving14x14WideRoundAbout-n2-v0"
 PLANNING_AGENT_ID = 0
 POLICY_SEED = 0
+
+POSGGYM_AGENTS_POLICY_RESULTS_FILE = osp.join(
+    posggym_agents.config.BASE_DIR,
+    "agents",
+    "driving14x14wideroundabout_n2_v0",
+    "results",
+    "klrbr_results.csv",
+)
+policy_df = plot_utils.import_results(POSGGYM_AGENTS_POLICY_RESULTS_FILE)
+
+(
+    many_pi_policy_ids,
+    many_pi_policy_prior_map,
+    many_pi_pairwise_returns,
+) = get_policy_set_values(
+    POSGGYM_AGENTS_POLICY_RESULTS_FILE,
+    ENV_ID,
+    PLANNING_AGENT_ID,
+    env_symmetric=True,
+    excluded_policy_prefixes=["klrbr", "uniform_random"],
+    excluded_other_policy_prefixes=["klr_k4_seed"],
+)
+
 
 DRIVING_EXP_PARAMS = EnvExperimentParams(
     env_id=ENV_ID,
@@ -60,6 +88,9 @@ DRIVING_EXP_PARAMS = EnvExperimentParams(
         },
     },
     planning_agent_id=PLANNING_AGENT_ID,
+    many_pi_policy_ids=many_pi_policy_ids,
+    many_pi_policy_prior_map=many_pi_policy_prior_map,
+    many_pi_pairwise_returns=many_pi_pairwise_returns
 )
 
 

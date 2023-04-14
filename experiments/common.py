@@ -46,6 +46,13 @@ class EnvExperimentParams:
     policy_prior_map: Dict[P.PolicyState, float]
     pairwise_returns: Dict[P.PolicyState, Dict[P.PolicyID, float]]
 
+    # For running many pi experiments
+    many_pi_policy_ids: Optional[Dict[int, List[str]]] = None
+    many_pi_policy_prior_map: Optional[Dict[P.PolicyState, float]] = None
+    many_pi_pairwise_returns: Optional[
+        Dict[P.PolicyState, Dict[P.PolicyID, float]]
+    ] = None
+
     planning_agent_id: int = 0
     discount: float = 0.99
     epsilon: float = 0.01
@@ -108,13 +115,19 @@ class EnvExperimentParams:
         return kwargs
 
     def get_meta_policy_maps(
-        self, best_only: bool = False
+        self, best_only: bool = False, many_pi: bool = False
     ) -> Dict[str, Dict[P.PolicyState, P.PolicyDist]]:
+        if many_pi:
+            assert self.many_pi_pairwise_returns is not None
+            pairwise_returns = self.many_pi_pairwise_returns
+        else:
+            pairwise_returns = self.pairwise_returns
+
         meta_policy_maps = {
-            "greedy": meta_policy.get_greedy_policy_dict(self.pairwise_returns),
-            "uniform": meta_policy.get_uniform_policy_dict(self.pairwise_returns),
+            "greedy": meta_policy.get_greedy_policy_dict(pairwise_returns),
+            "uniform": meta_policy.get_uniform_policy_dict(pairwise_returns),
             "softmax": meta_policy.get_softmax_policy_dict(
-                self.pairwise_returns, self.softmax_temperatur
+                pairwise_returns, self.softmax_temperatur
             ),
         }
         if best_only:
@@ -132,7 +145,7 @@ class EnvExperimentParams:
         return f"_i{agent_id}"
 
     def get_meta_baseline_params(
-        self, best_only: bool = False
+        self, best_only: bool = False, many_pi: bool = False
     ) -> List[run_lib.PolicyParams]:
         """Get Meta-Policy experiment policy params.
 
@@ -146,6 +159,12 @@ class EnvExperimentParams:
 
         agent_id_suffix = self.get_agent_id_suffix()
 
+        if many_pi:
+            assert self.many_pi_policy_prior_map is not None
+            policy_prior_map = self.many_pi_policy_prior_map
+        else:
+            policy_prior_map = self.policy_prior_map
+
         baseline_params = []
         for name, meta_policy_map in meta_policy_maps.items():
             # Meta Baseline Policy
@@ -155,7 +174,7 @@ class EnvExperimentParams:
                 entry_point=baseline_lib.MetaBaselinePolicy.posggym_agents_entry_point,
                 kwargs={
                     "policy_id": policy_id,
-                    "policy_prior_map": self.policy_prior_map,
+                    "policy_prior_map": policy_prior_map,
                     "meta_policy_dict": meta_policy_map,
                 },
             )
@@ -171,6 +190,7 @@ class EnvExperimentParams:
         best_only: bool = False,
         include_random: bool = True,
         include_fixed: bool = True,
+        many_pi: bool = False,
     ) -> List[run_lib.PolicyParams]:
         """Get POTMMCP experiment policy params.
 
@@ -197,14 +217,21 @@ class EnvExperimentParams:
                 "root_exploration_fraction"
             ] = self.root_exploration_fraction
 
+        if many_pi:
+            assert self.many_pi_policy_prior_map is not None
+            policy_prior_map = self.many_pi_policy_prior_map
+        else:
+            policy_prior_map = self.policy_prior_map
+
+        meta_policy_maps = self.get_meta_policy_maps(best_only, many_pi)
+
         potmmcp_params = []
-        meta_policy_maps = self.get_meta_policy_maps(best_only)
         for name, meta_policy_map in meta_policy_maps.items():
             potmmcp_params.extend(
                 run_lib.load_potmmcp_params(
                     variable_params=variable_params,
                     potmmcp_kwargs=self.get_potmmcp_kwargs(),
-                    policy_prior_map=self.policy_prior_map,
+                    policy_prior_map=policy_prior_map,
                     meta_policy_dict=meta_policy_map,
                     base_policy_id=f"potmmcp_meta{name}{agent_id_suffix}",
                 )
@@ -233,7 +260,7 @@ class EnvExperimentParams:
                 baseline_lib.load_random_potmmcp_params(
                     variable_params=variable_params,
                     potmmcp_kwargs=self.get_potmmcp_random_kwargs(),
-                    policy_prior_map=self.policy_prior_map,
+                    policy_prior_map=policy_prior_map,
                     base_policy_id=f"potmmcp-random{agent_id_suffix}",
                 )
             )
@@ -253,7 +280,7 @@ class EnvExperimentParams:
                     variable_params=variable_params,
                     fixed_policy_ids=fixed_policy_ids,
                     potmmcp_kwargs=self.get_potmmcp_kwargs(),
-                    policy_prior_map=self.policy_prior_map,
+                    policy_prior_map=policy_prior_map,
                     base_policy_id=f"potmmcp-fixed{agent_id_suffix}",
                 )
             )
@@ -315,7 +342,9 @@ class EnvExperimentParams:
         assert len(ipomcppf_params) == len(self.search_time_limits) * 2
         return ipomcppf_params
 
-    def get_other_agent_policy_params(self) -> List[List[List[run_lib.PolicyParams]]]:
+    def get_other_agent_policy_params(
+        self, many_pi: bool = False
+    ) -> List[List[List[run_lib.PolicyParams]]]:
         """Get other agent experiment policy params.
 
         Each entry is a joint policy for the other agents (i.e. one policy per agent).
@@ -323,8 +352,14 @@ class EnvExperimentParams:
         policy entry for the planning agent missing.
 
         """
+        if many_pi:
+            assert self.many_pi_policy_prior_map is not None
+            policy_prior_map = self.many_pi_policy_prior_map
+        else:
+            policy_prior_map = self.policy_prior_map
+
         other_params = []
-        for pi_state in self.policy_prior_map:
+        for pi_state in policy_prior_map:
             assert len(pi_state) == self.n_agents
             joint_pi = []
             for i, pi_id in enumerate(pi_state):
@@ -334,7 +369,9 @@ class EnvExperimentParams:
             other_params.append(joint_pi)
         return other_params
 
-    def get_other_agent_mixed_policy_params(self) -> List[List[run_lib.PolicyParams]]:
+    def get_other_agent_mixed_policy_params(
+        self, many_pi: bool
+    ) -> List[List[run_lib.PolicyParams]]:
         """Get other agent experiment mixed policy params.
 
         The mixed policy is a single policy which selects a new policy to use each
@@ -347,10 +384,16 @@ class EnvExperimentParams:
         policy entry for the planning agent missing.
 
         """
+        if many_pi:
+            assert self.many_pi_policy_prior_map is not None
+            policy_prior_map = self.many_pi_policy_prior_map
+        else:
+            policy_prior_map = self.policy_prior_map
+
         policies: Dict[int, Set[str]] = {
             i: set() for i in range(self.n_agents) if i != self.planning_agent_id
         }
-        for pi_state in self.policy_prior_map:
+        for pi_state in policy_prior_map:
             assert len(pi_state) == self.n_agents
             for i, pi_id in enumerate(pi_state):
                 if i == self.planning_agent_id:
@@ -367,7 +410,7 @@ class EnvExperimentParams:
             if i == self.planning_agent_id:
                 continue
             agent_id_suffix = self.get_other_agent_id_suffix(i)
-            policy_id = f"mixed_{agent_id_suffix}"
+            policy_id = f"mixed{agent_id_suffix}"
             policy_params = run_lib.PolicyParams(
                 id=policy_id,
                 entry_point=baseline_lib.MixedPolicy.posggym_agents_entry_point,
@@ -388,13 +431,17 @@ class EnvExperimentParams:
         record_env: bool = False,
     ) -> List[run_lib.ExpParams]:
         """Get list of params for each individual experiment run."""
-        planning_params = self.get_potmmcp_params()
+        planning_params = self.get_potmmcp_params(
+            best_only=False, include_random=True, include_fixed=True, many_pi=False
+        )
         if self.include_ipomcp_baseline:
             planning_params.extend(self.get_ipomcppf_params())
         if self.include_meta_baseline:
-            planning_params.extend(self.get_meta_baseline_params())
+            planning_params.extend(
+                self.get_meta_baseline_params(best_only=False, many_pi=False)
+            )
 
-        other_params = self.get_other_agent_policy_params()
+        other_params = self.get_other_agent_policy_params(many_pi=False)
         print(f"Number of planning agent params = {len(planning_params)}.")
         print(f"Number of other agent params = {len(other_params)}.")
 
@@ -441,7 +488,7 @@ class EnvExperimentParams:
             self.search_time_limits = [0.1, 1, 5, 10]
 
         planning_params = self.get_potmmcp_params(
-            best_only=True, include_fixed=False, include_random=False
+            best_only=True, include_fixed=False, include_random=False, many_pi=False
         )
 
         other_params = self.get_other_agent_policy_params()
@@ -490,12 +537,14 @@ class EnvExperimentParams:
             self.search_time_limits = [0.1, 1, 5, 10]
 
         planning_params = self.get_potmmcp_params(
-            best_only=False, include_fixed=False, include_random=False
+            best_only=True, include_fixed=False, include_random=False, many_pi=True
         )
         if self.include_meta_baseline:
-            planning_params.extend(self.get_meta_baseline_params())
+            planning_params.extend(
+                self.get_meta_baseline_params(best_only=True, many_pi=True)
+            )
 
-        other_params = self.get_other_agent_mixed_policy_params()
+        other_params = self.get_other_agent_mixed_policy_params(many_pi=True)
         print(f"Number of planning agent params = {len(planning_params)}.")
         print(f"Number of other agent params = {len(other_params)}.")
 
@@ -525,26 +574,50 @@ class EnvExperimentParams:
 
         return exp_params_list
 
-    def get_other_policy_ids(self, remove_env_id: bool = False) -> List[str]:
+    def get_other_policy_ids(
+        self, remove_env_id: bool = False, many_pi: bool = False
+    ) -> List[str]:
+        if many_pi:
+            assert self.many_pi_policy_ids is not None
+            policy_ids_map = self.many_pi_policy_ids
+        else:
+            policy_ids_map = self.policy_ids
+
         if self.symmetric_env:
-            policy_ids = self.policy_ids[self.planning_agent_id]
+            policy_ids = policy_ids_map[self.planning_agent_id]
         else:
             assert self.n_agents == 2
-            policy_ids = self.policy_ids[(self.planning_agent_id + 1) % 2]
+            policy_ids = policy_ids_map[(self.planning_agent_id + 1) % 2]
 
         if not remove_env_id:
             return policy_ids
         return [pi_id.split("/")[1] for pi_id in policy_ids]
 
-    def get_planning_policy_ids(self, remove_env_id: bool = False) -> List[str]:
-        policy_ids = self.policy_ids[self.planning_agent_id]
+    def get_planning_policy_ids(
+        self, remove_env_id: bool = False, many_pi: bool = False
+    ) -> List[str]:
+        if many_pi:
+            assert self.many_pi_policy_ids is not None
+            policy_ids_map = self.many_pi_policy_ids
+        else:
+            policy_ids_map = self.policy_ids
+
+        policy_ids = policy_ids_map[self.planning_agent_id]
         if not remove_env_id:
             return policy_ids
         return [pi_id.split("/")[1] for pi_id in policy_ids]
 
-    def get_all_policy_ids(self, remove_env_id: bool = False) -> List[str]:
+    def get_all_policy_ids(
+        self, remove_env_id: bool = False, many_pi: bool = False
+    ) -> List[str]:
+        if many_pi:
+            assert self.many_pi_policy_ids is not None
+            policy_ids_map = self.many_pi_policy_ids
+        else:
+            policy_ids_map = self.policy_ids
+
         policy_ids_set: Set[str] = set()
-        for pi_ids in self.policy_ids.values():
+        for pi_ids in policy_ids_map.values():
             policy_ids_set.update(pi_ids)
 
         policy_ids = list(policy_ids_set)
@@ -555,13 +628,19 @@ class EnvExperimentParams:
         return [pi_id.split("/")[1] for pi_id in policy_ids]
 
     def get_policy_prior_map(
-        self, remove_env_id: bool = False
+        self, remove_env_id: bool = False, many_pi: bool = False
     ) -> Dict[P.PolicyState, float]:
+        if many_pi:
+            assert self.many_pi_policy_prior_map is not None
+            policy_prior_map = self.many_pi_policy_prior_map
+        else:
+            policy_prior_map = self.policy_prior_map
+
         if not remove_env_id:
-            return self.policy_prior_map
+            return policy_prior_map
 
         prior_map = {}
-        for pi_state, prob in self.policy_prior_map.items():
+        for pi_state, prob in policy_prior_map.items():
             new_pi_state = []
             for pi_id in pi_state:
                 if pi_id == "-1":
@@ -572,9 +651,9 @@ class EnvExperimentParams:
         return prior_map
 
     def get_other_joint_policies(
-        self, remove_env_id: bool = False
+        self, remove_env_id: bool = False, many_pi: bool = False
     ) -> List[P.PolicyState]:
-        prior_map = self.get_policy_prior_map(remove_env_id)
+        prior_map = self.get_policy_prior_map(remove_env_id, many_pi)
 
         joint_pis = []
         for pi_state in prior_map:
