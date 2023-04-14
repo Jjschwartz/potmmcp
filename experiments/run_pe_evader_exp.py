@@ -30,6 +30,23 @@ POSGGYM_AGENTS_POLICY_RESULTS_FILE = osp.join(
     excluded_other_policy_prefixes=["klr_k4_seed"],
 )
 
+# Planning agent uses seed 0 policies,
+# Actual other agents use policies for other seeds (1-4)
+_, sensitivity_policy_prior_map, _ = get_policy_set_values(
+    POSGGYM_AGENTS_POLICY_RESULTS_FILE,
+    ENV_ID,
+    PLANNING_AGENT_ID,
+    env_symmetric=False,
+    excluded_policy_prefixes=["klrbr", "random", "shortestpath", "sp_seed"],
+    excluded_other_policy_prefixes=[
+        "klr_k4_seed",
+        "klr_k0_seed0",
+        "klr_k1_seed0",
+        "klr_k2_seed0",
+        "klr_k3_seed0"
+    ],
+)
+
 
 PE_EVADER_EXP_PARAMS = EnvExperimentParams(
     env_id=ENV_ID,
@@ -103,7 +120,8 @@ PE_EVADER_EXP_PARAMS = EnvExperimentParams(
     planning_agent_id=PLANNING_AGENT_ID,
     many_pi_policy_ids=many_pi_policy_ids,
     many_pi_policy_prior_map=many_pi_policy_prior_map,
-    many_pi_pairwise_returns=many_pi_pairwise_returns
+    many_pi_pairwise_returns=many_pi_pairwise_returns,
+    sensitivity_policy_prior_map=sensitivity_policy_prior_map
 )
 
 
