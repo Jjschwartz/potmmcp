@@ -53,6 +53,11 @@ class EnvExperimentParams:
         Dict[P.PolicyState, Dict[P.PolicyID, float]]
     ] = None
 
+    # For running sensitivity experiments
+    # policy prior for the actual other agent policies (not the ones used internally
+    # by planning agent)
+    sensitivity_policy_prior_map: Optional[Dict[P.PolicyState, float]] = None
+
     planning_agent_id: int = 0
     discount: float = 0.99
     epsilon: float = 0.01
@@ -370,7 +375,7 @@ class EnvExperimentParams:
         return other_params
 
     def get_other_agent_mixed_policy_params(
-        self, many_pi: bool
+        self, many_pi: bool, sensitivity_exp: bool = False
     ) -> List[List[run_lib.PolicyParams]]:
         """Get other agent experiment mixed policy params.
 
@@ -387,6 +392,9 @@ class EnvExperimentParams:
         if many_pi:
             assert self.many_pi_policy_prior_map is not None
             policy_prior_map = self.many_pi_policy_prior_map
+        elif sensitivity_exp:
+            assert self.sensitivity_policy_prior_map is not None
+            policy_prior_map = self.sensitivity_policy_prior_map
         else:
             policy_prior_map = self.policy_prior_map
 
@@ -434,12 +442,11 @@ class EnvExperimentParams:
         planning_params = self.get_potmmcp_params(
             best_only=False, include_random=True, include_fixed=True, many_pi=False
         )
-        if self.include_ipomcp_baseline:
-            planning_params.extend(self.get_ipomcppf_params())
-        if self.include_meta_baseline:
-            planning_params.extend(
-                self.get_meta_baseline_params(best_only=False, many_pi=False)
-            )
+
+        planning_params.extend(self.get_ipomcppf_params())
+        planning_params.extend(
+            self.get_meta_baseline_params(best_only=False, many_pi=False)
+        )
 
         other_params = self.get_other_agent_policy_params(many_pi=False)
         print(f"Number of planning agent params = {len(planning_params)}.")
@@ -480,8 +487,6 @@ class EnvExperimentParams:
     ) -> List[run_lib.ExpParams]:
         """Get list of params for each individual experiment run."""
         self.root_exploration_fraction = [0.0, 1 / 4, 1 / 3, 1 / 2]
-        self.include_ipomcp_baseline = False
-        self.include_meta_baseline = False
 
         if self.search_time_limits == [0.1, 1, 5, 10, 20]:
             # only change if using default
@@ -529,9 +534,6 @@ class EnvExperimentParams:
         record_env: bool = False,
     ) -> List[run_lib.ExpParams]:
         """Get list of params for each individual experiment run."""
-        self.include_ipomcp_baseline = False
-        self.include_meta_baseline = True
-
         if self.search_time_limits == [0.1, 1, 5, 10, 20]:
             # only change if using default
             self.search_time_limits = [0.1, 1, 5, 10]
@@ -549,13 +551,79 @@ class EnvExperimentParams:
         planning_params = self.get_potmmcp_params(
             best_only=True, include_fixed=False, include_random=False, many_pi=True
         )
-        if self.include_meta_baseline:
-            planning_params.extend(
-                self.get_meta_baseline_params(best_only=True, many_pi=True)
-            )
+        planning_params.extend(
+            self.get_meta_baseline_params(best_only=True, many_pi=True)
+        )
 
         other_params = self.get_other_agent_mixed_policy_params(many_pi=True)
         print(f"\nNumber of planning agent params = {len(planning_params)}.")
+        print(f"Number of other agent params = {len(other_params)}.")
+
+        exp_params_list: List[run_lib.ExpParams] = []
+        joint_policy = other_params
+
+        joint_policy.insert(self.planning_agent_id, planning_params)
+        exp_params = run_lib.get_pairwise_exp_params(
+            env_id=self.env_id,
+            policy_params=joint_policy,
+            init_seed=init_seed,
+            num_seeds=num_seeds,
+            num_episodes=num_episodes,
+            discount=self.discount,
+            time_limit=time_limit,
+            exp_id_init=len(exp_params_list),
+            tracker_fn=run_lib.belief_tracker_fn,
+            tracker_fn_kwargs={
+                "num_agents": self.n_agents,
+                "step_limit": self.env_step_limit,
+                "discount": self.discount,
+            },
+            renderer_fn=None,
+            record_env=record_env,
+        )
+        exp_params_list.extend(exp_params)
+
+        return exp_params_list
+
+    def get_sensitivity_experiments(
+        self,
+        init_seed: int,
+        num_seeds: int,
+        num_episodes: int,
+        time_limit: Optional[int] = None,
+        record_env: bool = False,
+    ) -> List[run_lib.ExpParams]:
+        """Get list of params for each individual experiment run."""
+        if self.search_time_limits == [0.1, 1, 5, 10, 20]:
+            # only change if using default
+            self.search_time_limits = [0.1, 1, 5, 10]
+
+        planning_params = self.get_potmmcp_params(
+            best_only=True, include_random=False, include_fixed=False, many_pi=False
+        )
+        planning_params.extend(self.get_ipomcppf_params())
+        planning_params.extend(
+            self.get_meta_baseline_params(best_only=True, many_pi=False)
+        )
+
+        other_params = self.get_other_agent_mixed_policy_params(
+            many_pi=False, sensitivity_exp=True
+        )
+
+        print("Sensitivity policy params")
+        print("\nPlanning agent meta-policy policy_ids")
+        pprint(self.policy_ids)
+
+        print("\nPlanning agent internal other agent policy prior map")
+        pprint(self.policy_prior_map)
+
+        print("\nActual other agent policy prior map")
+        pprint(self.sensitivity_policy_prior_map)
+
+        print("\nPlanning agent Meta-Policy Pairwise returns")
+        pprint(self.pairwise_returns)
+
+        print(f"Number of planning agent params = {len(planning_params)}.")
         print(f"Number of other agent params = {len(other_params)}.")
 
         exp_params_list: List[run_lib.ExpParams] = []
@@ -690,7 +758,12 @@ def run_env_experiments(env_exp_params: EnvExperimentParams):
     parser.add_argument(
         "--run_many_pi_experiment",
         action="store_true",
-        help="Run Many pi experiment, instead of main/lambda experiment.",
+        help="Run Many pi experiment, instead of main experiment.",
+    )
+    parser.add_argument(
+        "--run_sensitivity_experiment",
+        action="store_true",
+        help="Run sensitivity experiment, instead of main experiment.",
     )
     parser.add_argument(
         "--test_run",
@@ -714,30 +787,21 @@ def run_env_experiments(env_exp_params: EnvExperimentParams):
         env_exp_params.set_test_run()
 
     print("== Creating Experiments ==")
+    exp_param_args = [
+        args.init_seed,
+        args.num_seeds,
+        args.num_episodes,
+        args.time_limit,
+        args.record_env,
+    ]
     if args.run_lambda_experiment:
-        exp_params_list = env_exp_params.get_lambda_experiments(
-            args.init_seed,
-            args.num_seeds,
-            args.num_episodes,
-            args.time_limit,
-            args.record_env,
-        )
+        exp_params_list = env_exp_params.get_lambda_experiments(*exp_param_args)
     elif args.run_many_pi_experiment:
-        exp_params_list = env_exp_params.get_many_pi_experiments(
-            args.init_seed,
-            args.num_seeds,
-            args.num_episodes,
-            args.time_limit,
-            args.record_env,
-        )
+        exp_params_list = env_exp_params.get_many_pi_experiments(*exp_param_args)
+    elif args.run_sensitivity_experiment:
+        exp_params_list = env_exp_params.get_sensitivity_experiments(*exp_param_args)
     else:
-        exp_params_list = env_exp_params.get_experiments(
-            args.init_seed,
-            args.num_seeds,
-            args.num_episodes,
-            args.time_limit,
-            args.record_env,
-        )
+        exp_params_list = env_exp_params.get_experiments(*exp_param_args)
 
     if args.enumerate_exps:
         for p in exp_params_list:
@@ -821,7 +885,6 @@ def get_policy_set_values(
             new_rows.append(pair_row)
 
         if len(new_rows):
-            print(f"\nAdding {len(new_rows)} rows for agent_id={planning_agent_id}")
             new_pairs_df = pd.concat(new_rows, axis="rows").reset_index(drop=True)
             df = pd.concat([df, new_pairs_df], ignore_index=True)
 
