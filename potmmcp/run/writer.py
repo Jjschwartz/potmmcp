@@ -76,8 +76,9 @@ def compile_result_files(
 
         chunk_size = math.ceil(num_files / n_procs)
         chunks = [
-            result_filepaths[i * chunk_size : (i + 1) * chunk_size]
+            result_filepaths[i * chunk_size: (i + 1) * chunk_size]
             for i in range(n_procs)
+            if len(result_filepaths[i * chunk_size: (i + 1) * chunk_size])
         ]
         with mp.Pool(n_procs) as pool:
             chunk_dfs = pool.map(_read_and_concat_multiple_files, chunks)
