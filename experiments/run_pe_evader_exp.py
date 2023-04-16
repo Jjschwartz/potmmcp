@@ -32,7 +32,7 @@ POSGGYM_AGENTS_POLICY_RESULTS_FILE = osp.join(
 
 # Planning agent uses seed 0 policies,
 # Actual other agents use policies for other seeds (1-4)
-_, sensitivity_policy_prior_map, _ = get_policy_set_values(
+_, sensitivity_policy_prior_map, sensitivity_pairwise_returns = get_policy_set_values(
     POSGGYM_AGENTS_POLICY_RESULTS_FILE,
     ENV_ID,
     PLANNING_AGENT_ID,
@@ -121,7 +121,8 @@ PE_EVADER_EXP_PARAMS = EnvExperimentParams(
     many_pi_policy_ids=many_pi_policy_ids,
     many_pi_policy_prior_map=many_pi_policy_prior_map,
     many_pi_pairwise_returns=many_pi_pairwise_returns,
-    sensitivity_policy_prior_map=sensitivity_policy_prior_map
+    sensitivity_policy_prior_map=sensitivity_policy_prior_map,
+    sensitivity_pairwise_returns=sensitivity_pairwise_returns
 )
 
 

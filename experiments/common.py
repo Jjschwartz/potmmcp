@@ -56,7 +56,12 @@ class EnvExperimentParams:
     # For running sensitivity experiments
     # policy prior for the actual other agent policies (not the ones used internally
     # by planning agent)
+    # sensitivity pairwise returns contains pairwise returns for actual other agent
+    # policy set and is only used for plotting baselines
     sensitivity_policy_prior_map: Optional[Dict[P.PolicyState, float]] = None
+    sensitivity_pairwise_returns: Optional[
+        Dict[P.PolicyState, Dict[P.PolicyID, float]]
+    ] = None
 
     planning_agent_id: int = 0
     discount: float = 0.99
@@ -160,7 +165,7 @@ class EnvExperimentParams:
           - Uniform
 
         """
-        meta_policy_maps = self.get_meta_policy_maps(best_only)
+        meta_policy_maps = self.get_meta_policy_maps(best_only, many_pi)
 
         agent_id_suffix = self.get_agent_id_suffix()
 
@@ -315,7 +320,7 @@ class EnvExperimentParams:
         """
         agent_id_suffix = self.get_agent_id_suffix()
 
-        meta_policy_maps = self.get_meta_policy_maps(True)
+        meta_policy_maps = self.get_meta_policy_maps(best_only=True, many_pi=False)
 
         ipomcppf_params = run_lib.load_potmmcp_params(
             variable_params={
