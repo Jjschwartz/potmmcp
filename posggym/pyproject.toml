@@ -1,0 +1,49 @@
+# Package ######################################################################
+
+[build-system]
+requires = ["setuptools >= 61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "posggym"
+description = "A standard API and diverse set of reference environments for reinforcement learning and planning in Partially Observable Stochastic Games (POSGs)."
+readme = "README.md"
+requires-python = ">= 3.8"
+authors = [{ name = "Jonathon Schwartz", email = "jonathon.schwartz@anu.edu.au" }]
+license = { text = "MIT License" }
+keywords = ["reinforcement learning", "game", "RL", "AI", "planning", "posg"]
+classifiers = [
+	# change to `4 - Beta` when ready
+	# change to `5 - Production/Stable` maybe one day
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    'Intended Audience :: Science/Research',
+    'Topic :: Scientific/Engineering :: Artificial Intelligence',
+]
+dependencies = [
+	"gym==0.21",
+    "numpy >=1.21.0",
+	"typing-extensions >=4.3.0",
+	"matplotlib >=3.5"
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/RDLLab/posggym"
+Repository = "https://github.com/RDLLab/posggym/"
+"Bug Report" = "https://github.com/RDLLab/posggym/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["posggym", "posggym.*"]
+
+[tool.setuptools.package-data]
+posggym = [
+	"envs/grid_world/img/*.png",
+    "py.typed",
+]

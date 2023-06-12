@@ -24,8 +24,6 @@ classifiers = [
 dependencies = [
     "torch>=1.11, < 2",
 	"ray[rllib]==1.12",
-	'posggym @ git+https://github.com/RDLLab/posggym.git@v0.1.0',
-	"posggym-agents @ git+https://github.com/Jjschwartz/posggym-agents.git@v0.1.2",
     "numpy >=1.22.0",
 	"matplotlib>=3.5",
     "typing-extensions >=4.3.0",

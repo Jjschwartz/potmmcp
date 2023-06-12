@@ -11,17 +11,27 @@ The library is implemented in ``python 3.8`` and has the following main dependen
 
 1. `Pytorch <https://pytorch.org>`_ >=1.11,<2.0
 2. `Rllib <https://github.com/ray-project/ray/tree/1.12.0>`_ == 1.12
-3. `posggym <https://github.com/RDLLab/posggym/tree/v0.1.0>`_ == 0.1.0
-4. `posggym-agents <https://github.com/Jjschwartz/posggym-agents/tree/v0.1.2>`_ == 0.1.2
+3. `posggym <https://github.com/RDLLab/posggym/tree/v0.1.0>`_ (comes with repo)
+4. `posggym-agents <https://github.com/Jjschwartz/posggym-agents/tree/v0.1.2>`_  (comes with repo)
 
-As with any python package we recomment using a virtual environment (e.g. `Conda <https://docs.conda.io/en/latest/>`_).
+As with any python package we recommend using a virtual environment (e.g. `Conda <https://docs.conda.io/en/latest/>`_).
 
 **Installation** of ``potmmcp`` requires cloning the repo then installing using pip:
 
 .. code-block:: bash
 
     git clone git@github.com:Jjschwartz/potmmcp.git
-	cd potmmcp
+
+    # install posggym
+    cd potmmcp/posggym
+    pip install -e .
+    
+    # install posggym-agents
+    cd ../posggym-agents
+    pip install -e .
+
+    # install potmmcp
+	cd ..
     pip install -e .
 
 
@@ -72,7 +82,7 @@ If you have any questions or issues please email jonathon.schwartz@anu.edu.au or
 Authors
 -------
 
-- Jonathon Schwartz (primary author and code writer/maintainer)
+- Jonathon Schwartz (primary author)
 - Hanna Kurniwati
 - Marcus Hutter
 
@@ -81,4 +91,12 @@ Please Cite
 
 If you use the code in this repository or the **POTMMCP** algorithm, consider citing::
 
-   TODO
+.. code-block ::
+    
+    @article{schwartz2023combining,
+      title={Combining a Meta-Policy and Monte-Carlo Planning for Scalable Type-Based Reasoning in Partially Observable Environments}, 
+      author={Jonathon Schwartz and Hanna Kurniawati and Marcus Hutter},
+      year={2023},
+      journal={arXiv preprint arXiv:1905.05965},
+      eprint={2306.06067},
+    }
