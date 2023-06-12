@@ -89,9 +89,9 @@ Authors
 Please Cite
 -----------
 
-If you use the code in this repository or the **POTMMCP** algorithm, consider citing::
+If you use the code in this repository or the **POTMMCP** algorithm, consider citing:
 
-.. code-block::
+.. code-block:: bibtex
     
     @article{schwartz2023combining,
       title={Combining a Meta-Policy and Monte-Carlo Planning for Scalable Type-Based Reasoning in Partially Observable Environments}, 
