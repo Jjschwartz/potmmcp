@@ -94,9 +94,11 @@ If you use the code in this repository or the **POTMMCP** algorithm, consider ci
 .. code-block:: bibtex
     
     @article{schwartz2023combining,
-      title={Combining a Meta-Policy and Monte-Carlo Planning for Scalable Type-Based Reasoning in Partially Observable Environments}, 
-      author={Jonathon Schwartz and Hanna Kurniawati and Marcus Hutter},
-      year={2023},
-      journal={arXiv preprint arXiv:1905.05965},
-      eprint={2306.06067},
+      title = {Combining a Meta-Policy and Monte-Carlo Planning for Scalable Type-Based Reasoning in Partially Observable Environments}, 
+      author = {Jonathon Schwartz and Hanna Kurniawati and Marcus Hutter},
+      year = {2023},
+      journal = {arXiv preprint arXiv:1905.05965},
+      eprint = {2306.06067},
+      eprinttype = {arxiv},
+      archivePrefix = {arXiv}
     }
