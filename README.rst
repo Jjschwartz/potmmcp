@@ -9,7 +9,7 @@ Installation
 
 The library is implemented in ``python 3.8`` and has the following main dependencies:
 
-1. `Pytorch <https://pytorch.org>`_ >=1.11,<2.0
+1. `Pytorch <https://pytorch.org>`_ >=1.11
 2. `Rllib <https://github.com/ray-project/ray/tree/1.12.0>`_ == 1.12
 3. `posggym <https://github.com/RDLLab/posggym>`_ (comes with repo)
 4. `posggym-agents <https://github.com/Jjschwartz/posggym-agents>`_  (comes with repo)

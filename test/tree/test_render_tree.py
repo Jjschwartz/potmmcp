@@ -13,7 +13,7 @@ RENDER = False
 
 
 def _run_sims(env, policies):
-    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     trackers = run_lib.get_default_trackers(env.n_agents, 0.9)
 
     renderers = []
@@ -21,7 +21,7 @@ def _run_sims(env, policies):
         renderers = [
             run_lib.EpisodeRenderer(),
             run_lib.SearchTreeRenderer(SEARCH_TREE_DEPTH),
-            run_lib.PauseRenderer()
+            run_lib.PauseRenderer(),
         ]
 
     run_lib.run_episodes(
@@ -29,14 +29,15 @@ def _run_sims(env, policies):
         policies,
         num_episodes=10,
         trackers=trackers,
-        renderers=renderers
+        renderers=renderers,
+        episode_step_limit=10,
     )
 
 
-def test_with_multiple_random_opponent_and_rollout_policies():
+def test_render_tree():
     """Test POTMMCP tree with multiple random other agent policies."""
-    env_id = "TwoPaths3x3-v0"
-    env = posggym.make(env_id)
+    env_id = "PursuitEvasion16x16-v0"
+    env = posggym.make(env_id, max_episode_steps=10)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
 
@@ -53,8 +54,8 @@ def test_with_multiple_random_opponent_and_rollout_policies():
         other_policy_prior=other_policy_prior,
         meta_policy=meta_policy,
         truncated=False,
-        step_limit=None,
-        num_sims=128
+        step_limit=10,
+        num_sims=128,
     )
 
     policies = [agent_0_policy, agent_1_policy]

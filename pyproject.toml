@@ -22,8 +22,6 @@ classifiers = [
     'Topic :: Scientific/Engineering :: Artificial Intelligence',
 ]
 dependencies = [
-    "torch>=1.11, < 2",
-	"ray[rllib]==1.12",
     "numpy >=1.22.0",
 	"matplotlib>=3.5",
     "typing-extensions >=4.3.0",

@@ -1,7 +1,7 @@
 # Package ######################################################################
 
 [build-system]
-requires = ["setuptools >= 61.0.0"]
+requires = ["setuptools >= 61.0.0, < 66.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -24,7 +24,7 @@ classifiers = [
     'Topic :: Scientific/Engineering :: Artificial Intelligence',
 ]
 dependencies = [
-	"gym==0.21",
+	"gym==0.21.0",
     "numpy >=1.21.0",
 	"typing-extensions >=4.3.0",
 	"matplotlib >=3.5"

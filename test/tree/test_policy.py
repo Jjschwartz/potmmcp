@@ -17,16 +17,14 @@ def _run_sims(env, policies, num_episodes=10, step_limit=None):
         num_episodes=num_episodes,
         trackers=run_lib.get_default_trackers(env.n_agents, 0.9),
         render=RENDER,
-        **{
-            "episode_step_limit": step_limit
-        }
+        **{"episode_step_limit": step_limit}
     )
 
 
 def test_with_single_random_policy():
     """Test POTMMCP tree with only a single random other agent policy."""
-    env_id = "TwoPaths3x3-v0"
-    env = posggym.make(env_id)
+    env_id = "PursuitEvasion16x16-v0"
+    env = posggym.make(env_id, max_episode_steps=10)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_potmmcp(
@@ -35,37 +33,17 @@ def test_with_single_random_policy():
         other_policy_prior=None,
         meta_policy=None,
         truncated=False,
-        step_limit=None,
-        num_sims=128
+        step_limit=10,
+        num_sims=128,
     )
     policies = [agent_0_policy, agent_1_policy]
-    _run_sims(env, policies)
-
-
-def test_action_first_with_single_random_policy():
-    """Test POTMMCP in action first env with a random other agent policy."""
-    env_id = "RockPaperScissors-v0"
-    env = posggym.make(env_id)
-    rps_step_limit = 10
-
-    agent_0_policy = test_utils.get_random_policy(env, 0)
-    agent_1_policy = test_utils.get_random_potmmcp(
-        env, 1,
-        other_policy_prior=None,
-        meta_policy=None,
-        truncated=False,
-        step_limit=rps_step_limit,
-        num_sims=64
-    )
-
-    policies = [agent_0_policy, agent_1_policy]
-    _run_sims(env, policies, num_episodes=5, step_limit=rps_step_limit)
+    _run_sims(env, policies, step_limit=10)
 
 
 def test_with_single_random_policy_truncated():
     """Test POTMMCP tree with only a single random other agent policy."""
-    env_id = "TwoPaths3x3-v0"
-    env = posggym.make(env_id)
+    env_id = "PursuitEvasion16x16-v0"
+    env = posggym.make(env_id, max_episode_steps=10)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_potmmcp(
@@ -74,18 +52,18 @@ def test_with_single_random_policy_truncated():
         other_policy_prior=None,
         meta_policy=None,
         truncated=True,
-        step_limit=None,
-        num_sims=128
+        step_limit=10,
+        num_sims=128,
     )
 
     policies = [agent_0_policy, agent_1_policy]
-    _run_sims(env, policies)
+    _run_sims(env, policies, step_limit=10)
 
 
 def test_with_multiple_random_policies():
     """Test POTMMCP tree with multiple random other agent policies."""
-    env_id = "TwoPaths3x3-v0"
-    env = posggym.make(env_id)
+    env_id = "PursuitEvasion16x16-v0"
+    env = posggym.make(env_id, max_episode_steps=10)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
 
@@ -96,18 +74,18 @@ def test_with_multiple_random_policies():
         other_policy_prior=other_policy_prior,
         meta_policy=None,
         truncated=False,
-        step_limit=None,
-        num_sims=128
+        step_limit=10,
+        num_sims=128,
     )
 
     policies = [agent_0_policy, agent_1_policy]
-    _run_sims(env, policies)
+    _run_sims(env, policies, step_limit=10)
 
 
 def test_with_multiple_random_opponent_and_rollout_policies():
     """Test POTMMCP tree with multiple random other agent policies."""
-    env_id = "TwoPaths3x3-v0"
-    env = posggym.make(env_id)
+    env_id = "PursuitEvasion16x16-v0"
+    env = posggym.make(env_id, max_episode_steps=10)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
 
@@ -124,18 +102,18 @@ def test_with_multiple_random_opponent_and_rollout_policies():
         other_policy_prior=other_policy_prior,
         meta_policy=meta_policy,
         truncated=False,
-        step_limit=None,
-        num_sims=128
+        step_limit=10,
+        num_sims=128,
     )
 
     policies = [agent_0_policy, agent_1_policy]
-    _run_sims(env, policies)
+    _run_sims(env, policies, step_limit=10)
 
 
 def test_with_three_other_agents():
     """Test POTMMCP tree with multiple random other agent policies."""
-    env_id = "Driving4x4Intersection-n3-v0"
-    env = posggym.make(env_id)
+    env_id = "PredatorPrey10x10-P4-p3-s3-coop-v0"
+    env = posggym.make(env_id, max_episode_steps=10)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_policy(env, 1)
@@ -145,12 +123,13 @@ def test_with_three_other_agents():
         other_policy_prior=None,
         meta_policy=None,
         truncated=False,
-        step_limit=None,
-        num_sims=128
+        step_limit=10,
+        num_sims=128,
     )
+    agent_3_policy = test_utils.get_random_policy(env, 3)
 
-    policies = [agent_0_policy, agent_1_policy, agent_2_policy]
-    _run_sims(env, policies)
+    policies = [agent_0_policy, agent_1_policy, agent_2_policy, agent_3_policy]
+    _run_sims(env, policies, step_limit=10)
 
 
 if __name__ == "__main__":

@@ -24,14 +24,10 @@ def _run_sims(env, policies, num_episodes, step_limit):
     )
 
 
-def test_state_accuracy_single_state():
-    """Test state accuracy on RPS which has only a single state.
-
-    The accuracy should be 100%
-    """
-    env_id = "RockPaperScissors-v0"
-    env = posggym.make(env_id)
-    rps_step_limit = 10
+def test_state_accuracy():
+    """Test state accuracy,"""
+    env_id = "PursuitEvasion16x16-v0"
+    env = posggym.make(env_id, max_episode_steps=10)
 
     agent_0_policy = test_utils.get_random_policy(env, 0)
     agent_1_policy = test_utils.get_random_potmmcp(
@@ -40,36 +36,14 @@ def test_state_accuracy_single_state():
         other_policy_prior=None,
         meta_policy=None,
         truncated=False,
-        step_limit=rps_step_limit,
-        num_sims=64
+        step_limit=10,
+        num_sims=64,
     )
 
     policies = [agent_0_policy, agent_1_policy]
-    _run_sims(env, policies, num_episodes=5, step_limit=rps_step_limit)
-
-
-def test_state_accuracy_small():
-    """Test state accuracy on small environment."""
-    env_id = "TwoPaths4x4-v1"
-    env = posggym.make(env_id)
-    rps_step_limit = 10
-
-    agent_0_policy = test_utils.get_random_policy(env, 0)
-    agent_1_policy = test_utils.get_random_potmmcp(
-        env,
-        1,
-        other_policy_prior=None,
-        meta_policy=None,
-        truncated=False,
-        step_limit=rps_step_limit,
-        num_sims=64
-    )
-
-    policies = [agent_0_policy, agent_1_policy]
-    _run_sims(env, policies, num_episodes=5, step_limit=rps_step_limit)
+    _run_sims(env, policies, num_episodes=5, step_limit=10)
 
 
 if __name__ == "__main__":
     RENDER = True
-    test_state_accuracy_single_state()
-    test_state_accuracy_small()
+    test_state_accuracy()
