@@ -1,7 +1,7 @@
 POTMMCP
 #######
 
-This repository contains the implementation of the **Partially Observable Type-based Meta Monte-Carlo Planning (POTMMCP) algorithm.
+This repository contains the implementation of the **Partially Observable Type-based Meta Monte-Carlo Planning (POTMMCP)** algorithm.
 
 
 Installation
@@ -11,8 +11,8 @@ The library is implemented in ``python 3.8`` and has the following main dependen
 
 1. `Pytorch <https://pytorch.org>`_ >=1.11,<2.0
 2. `Rllib <https://github.com/ray-project/ray/tree/1.12.0>`_ == 1.12
-3. `posggym <https://github.com/RDLLab/posggym/tree/v0.1.0>`_ (comes with repo)
-4. `posggym-agents <https://github.com/Jjschwartz/posggym-agents/tree/v0.1.2>`_  (comes with repo)
+3. `posggym <https://github.com/RDLLab/posggym>`_ (comes with repo)
+4. `posggym-agents <https://github.com/Jjschwartz/posggym-agents>`_  (comes with repo)
 
 As with any python package we recommend using a virtual environment (e.g. `Conda <https://docs.conda.io/en/latest/>`_).
 
@@ -31,7 +31,7 @@ As with any python package we recommend using a virtual environment (e.g. `Conda
     pip install -e .
 
     # install potmmcp
-	cd ..
+    cd ..
     pip install -e .
 
 
