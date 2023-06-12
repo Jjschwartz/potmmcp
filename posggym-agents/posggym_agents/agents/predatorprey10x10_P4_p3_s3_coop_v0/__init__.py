@@ -1,0 +1,1 @@
+from posggym_agents.agents.predatorprey10x10_P4_p3_s3_coop_v0.load import POLICY_SPECS
